@@ -1,0 +1,102 @@
+import React, { useState } from 'react';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../components/auth-provider';
+import { toast } from 'sonner';
+import { LogIn, Car } from 'lucide-react';
+import { ThemeToggle } from '../components/theme-toggle';
+
+export function Login() {
+  const navigate = useNavigate();
+  const { user, profile, loading: authLoading } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // If already logged in, redirect to dashboard
+  if (!authLoading && user) {
+    if (profile?.role === 'admin') {
+      return <Navigate to="/admin" replace />;
+    }
+    return <Navigate to="/counter" replace />;
+  }
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      // Check role and redirect
+      if (data.user) {
+        // Log the login event (fire-and-forget, don't block login)
+        supabase.from('login_logs').insert([{ user_id: data.user.id }]).then(() => {});
+
+        const role = data.user.user_metadata?.role || 'counter';
+        navigate(role === 'admin' ? '/admin' : '/counter', { replace: true });
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Error logging in');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+      <div className="absolute top-4 right-4"><ThemeToggle /></div>
+      <div className="w-full max-w-md bg-card p-8 rounded-xl shadow-lg border border-border">
+        <div className="flex flex-col items-center mb-8 text-primary">
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <Car className="w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Accessories Portal</h1>
+          <p className="text-muted-foreground text-sm mt-2">Welcome back! Please login.</p>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Email</label>
+            <input
+              type="email"
+              required
+              className="w-full px-4 py-2 bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Password</label>
+            <input
+              type="password"
+              required
+              className="w-full px-4 py-2 bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-md hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+          >
+            {loading ? 'Logging in...' : <><LogIn className="w-4 h-4" /> Login</>}
+          </button>
+        </form>
+
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          Don't have an account?{' '}
+          <Link to="/signup" className="text-primary hover:underline font-medium">
+            Sign up
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
+}
