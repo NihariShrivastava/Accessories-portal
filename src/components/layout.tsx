@@ -3,7 +3,6 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { ThemeToggle } from './theme-toggle';
 import { LogOut, Wrench } from 'lucide-react';
-import { Toaster } from 'sonner';
 
 export function Layout({ children }: { children?: React.ReactNode }) {
   const navigate = useNavigate();
