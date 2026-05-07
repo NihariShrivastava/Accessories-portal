@@ -32,8 +32,12 @@ export function Signup() {
       if (error) throw error;
       toast.success('Signup successful! Please log in.');
       navigate('/login');
-    } catch (error: any) {
-      toast.error(error.message || 'Error signing up');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Error signing up');
+      }
     } finally {
       setLoading(false);
     }

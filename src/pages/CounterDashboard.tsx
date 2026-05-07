@@ -35,9 +35,9 @@ export function CounterDashboard() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const ViewContent = () => {
-    if (activeView === 'bills') {
-      return (
+  let content;
+  if (activeView === 'bills') {
+      content = (
         <div className="space-y-6">
           <ViewHeader title="All Bills" onBack={() => setActiveView('dashboard')} icon={History} />
           
@@ -72,9 +72,8 @@ export function CounterDashboard() {
           </div>
         </div>
       );
-    }
-
-    return (
+    } else {
+      content = (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
@@ -130,11 +129,11 @@ export function CounterDashboard() {
         )}
       </div>
     );
-  };
+  }
 
   return (
     <div className="space-y-6">
-      <ViewContent />
+      {content}
 
       <Modal isOpen={showDialog && !!selectedAccessory} onClose={() => { setShowDialog(false); setSelectedAccessory(null); }} title="Generate Bill">
         {selectedAccessory && (

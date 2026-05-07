@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
@@ -29,7 +29,7 @@ export function useAdminData() {
     fetchBills();
   }, []);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const { data: loginData } = await supabase.from('login_logs').select('user_id');
       const { data: accessoryData } = await supabase.from('accessories').select('vehicle_model');
@@ -39,24 +39,24 @@ export function useAdminData() {
         models: new Set(accessoryData?.map(a => a.vehicle_model) || []).size
       });
     } catch (error) { console.error(error); }
-  };
+  }, []);
 
-  const fetchCounters = async () => {
+  const fetchCounters = useCallback(async () => {
     const { data } = await supabase.from('profiles').select('id, name').eq('role', 'counter');
     setCounters(data || []);
-  };
+  }, []);
 
-  const fetchInventory = async () => {
+  const fetchInventory = useCallback(async () => {
     const { data } = await supabase.from('accessories').select(`id, vehicle_model, name, quantity, price, profiles!inner(name)`).order('vehicle_model', { ascending: true });
     setInventory(data?.map((item: any) => ({
       id: item.id, counter_name: item.profiles.name, vehicle_model: item.vehicle_model, name: item.name, quantity: item.quantity, price: item.price
     })) || []);
-  };
+  }, []);
 
-  const fetchBills = async () => {
+  const fetchBills = useCallback(async () => {
     const { data } = await supabase.from('bills').select(`*, profiles!inner(name), accessories (name, vehicle_model)`);
     setAllBills(data || []);
-  };
+  }, []);
 
   const filteredBills = useMemo(() => {
     return allBills.filter(bill => {
@@ -88,7 +88,7 @@ export function useAdminData() {
     return Array.from(map.values());
   }, [filteredBills]);
 
-  const fetchLoginDetails = async () => {
+  const fetchLoginDetails = useCallback(async () => {
     const { data } = await supabase.from('login_logs').select(`user_id, profiles!inner(name)`);
     const countMap = new Map<string, { name: string; count: number }>();
     (data || []).forEach((row: any) => {
@@ -97,27 +97,27 @@ export function useAdminData() {
       else countMap.set(row.user_id, { name: row.profiles?.name || 'Unknown', count: 1 });
     });
     setLoginDetails(Array.from(countMap.entries()).map(([user_id, v]) => ({ user_id, name: v.name, login_count: v.count })));
-  };
+  }, []);
 
-  const fetchVehicleModels = async () => {
+  const fetchVehicleModels = useCallback(async () => {
     const { data } = await supabase.from('accessories').select('vehicle_model');
     setVehicleModels([...new Set((data || []).map(d => d.vehicle_model))].sort());
-  };
+  }, []);
 
-  const fetchModelAccessories = async (model: string) => {
+  const fetchModelAccessories = useCallback(async (model: string) => {
     const { data } = await supabase.from('accessories').select(`name, quantity, price, profiles!inner(name)`).eq('vehicle_model', model);
     setModelAccessories((data || []).map((item: any) => ({ name: item.name, counter_name: item.profiles.name, quantity: item.quantity, price: item.price })));
-  };
+  }, []);
 
-  const fetchCounterBills = (counterId: string) => {
+  const fetchCounterBills = useCallback((counterId: string) => {
     return filteredBills.filter(b => b.counter_id === counterId).map((b: any) => ({
       id: b.id, created_at: b.created_at, accessory_name: b.accessories?.name || 'Unknown', vehicle_model: b.accessories?.vehicle_model || '-',
       quantity: b.quantity, total_amount: b.total_amount, payment_method: b.payment_method || 'Cash', amount_paid: b.amount_paid, amount_left: b.amount_left,
       chassis_number: b.chassis_number, engine_number: b.engine_number, checklist_number: b.checklist_number
     }));
-  };
+  }, [filteredBills]);
 
-  const handleFileUpload = async (file: File, counterId: string) => {
+  const handleFileUpload = useCallback(async (file: File, counterId: string) => {
     setUploading(true);
     try {
       const data = await file.arrayBuffer();
@@ -126,12 +126,26 @@ export function useAdminData() {
       const consolidatedData = new Map<string, any>();
       
       jsonData.forEach((row: any) => {
-        const getVal = (keys: string[]) => { for (const key of keys) { if (row[key] !== undefined) return row[key]; } return ''; };
-        const parseNum = (val: any) => { if (typeof val === 'number') return val; if (!val) return 0; const cleaned = val.toString().replace(/[^\d.-]/g, ''); const parsed = parseFloat(cleaned); return isNaN(parsed) ? 0 : parsed; };
+        const rowKeys = Object.keys(row);
+        const getVal = (searchKeys: string[]) => {
+          for (const sKey of searchKeys) {
+            if (row[sKey] !== undefined) return row[sKey];
+            const foundKey = rowKeys.find(k => k.toLowerCase().includes(sKey.toLowerCase()));
+            if (foundKey) return row[foundKey];
+          }
+          return '';
+        };
+        const parseNum = (val: any) => { 
+          if (typeof val === 'number') return val; 
+          if (!val) return 0; 
+          const cleaned = val.toString().replace(/[^\d.-]/g, ''); 
+          const parsed = parseFloat(cleaned); 
+          return isNaN(parsed) ? 0 : parsed; 
+        };
         const vehicle_model = getVal(['Vehicle Model', 'Model', 'vehicle_model', 'model']).toString().trim();
         const name = getVal(['Accessory Name', 'Accessory', 'name', 'accessory_name']).toString().trim();
         const quantity = Math.abs(parseInt(getVal(['Quantity', 'Qty', 'quantity', 'qty']) || '0'));
-        const price = parseNum(getVal(['Price', 'Cost', 'MRP', 'Rate', 'Amount', 'Unit Price', 'Sale Price', 'price', 'cost', 'mrp']));
+        const price = parseNum(getVal(['Price (₹)', 'Price', 'Cost', 'MRP', 'Rate', 'Amount', 'Unit Price', 'Sale Price', 'price', 'cost', 'mrp']));
         if (!name || !vehicle_model) return;
         const key = `${vehicle_model.toLowerCase()}|${name.toLowerCase()}`;
         const existing = consolidatedData.get(key);
@@ -147,7 +161,7 @@ export function useAdminData() {
       fetchInventory(); fetchStats();
     } catch (error: any) { toast.error(error.message || 'Error processing Excel file'); }
     finally { setUploading(false); }
-  };
+  }, [fetchInventory, fetchStats]);
 
   return {
     stats, counters, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, uploading,

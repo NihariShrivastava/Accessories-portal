@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import type { User } from '@supabase/supabase-js';
@@ -35,12 +35,40 @@ export function useCounterData(user: User | null) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
+  const fetchModels = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('accessories')
+        .select('vehicle_model')
+        .eq('counter_id', user?.id);
+      if (error) throw error;
+      setModels(Array.from(new Set(data.map(item => item.vehicle_model))));
+    } catch (error) {
+      console.error('Error fetching models:', error);
+    }
+  }, [user?.id]);
+
+  const fetchRecentBills = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('bills')
+        .select('*, accessories (name, vehicle_model)')
+        .eq('counter_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      setRecentBills(data as unknown as Bill[]);
+    } catch (error) {
+      console.error('Error fetching bills:', error);
+    }
+  }, [user?.id]);
+
   useEffect(() => {
     if (user) {
       fetchModels();
       fetchRecentBills();
     }
-  }, [user]);
+  }, [user, fetchModels, fetchRecentBills]);
 
   const filteredBills = useMemo(() => {
     return allBills.filter(bill => {
@@ -56,34 +84,6 @@ export function useCounterData(user: User | null) {
     });
   }, [allBills, startDate, endDate]);
 
-  const fetchModels = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('accessories')
-        .select('vehicle_model')
-        .eq('counter_id', user?.id);
-      if (error) throw error;
-      setModels(Array.from(new Set(data.map(item => item.vehicle_model))));
-    } catch (error) {
-      console.error('Error fetching models:', error);
-    }
-  };
-
-  const fetchRecentBills = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('bills')
-        .select('*, accessories (name, vehicle_model)')
-        .eq('counter_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
-      if (error) throw error;
-      setRecentBills(data as any);
-    } catch (error) {
-      console.error('Error fetching bills:', error);
-    }
-  };
-
   const fetchAllBills = async () => {
     try {
       const { data, error } = await supabase
@@ -92,11 +92,13 @@ export function useCounterData(user: User | null) {
         .eq('counter_id', user?.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      setAllBills(data as any);
+      setAllBills(data as unknown as Bill[]);
     } catch (error) {
       console.error('Error fetching all bills:', error);
     }
   };
+
+
 
   const fetchAccessories = async (model: string) => {
     setLoading(true);

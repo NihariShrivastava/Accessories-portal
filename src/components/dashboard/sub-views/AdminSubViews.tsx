@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { DataTable } from '../DataTable';
 import { ViewHeader } from '../ViewHeader';
 import { Badge } from '../Badge';
@@ -32,18 +33,18 @@ export const ModelDetailView = ({ model, data, onBack }: { model: string, data: 
   </div>
 );
 
-export const ReportsView = ({ 
-  data, onBack, onCounterClick, inventory, onInventoryCounterClick 
-}: { 
-  data: SalesReport[], onBack: () => void, onCounterClick: (r: SalesReport) => void, 
-  inventory: InventoryItem[], onInventoryCounterClick: (counterName: string) => void 
+export const ReportsView = ({
+  data, onBack, onCounterClick, inventory, onInventoryCounterClick
+}: {
+  data: SalesReport[], onBack: () => void, onCounterClick: (r: SalesReport) => void,
+  inventory: InventoryItem[], onInventoryCounterClick: (counterName: string) => void
 }) => {
   const inventoryCounters = [...new Set(inventory.map(i => i.counter_name))].sort();
 
   return (
     <div className="space-y-6">
       <ViewHeader title="System Reports" onBack={onBack} icon={BarChart3} />
-      
+
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
         <div className="p-6 border-b border-border bg-muted/30">
           <h2 className="text-xl font-bold flex items-center gap-2"><History className="w-5 h-5 text-primary" /> Sales Report by Counter</h2>
@@ -60,7 +61,7 @@ export const ReportsView = ({
 
       <div className="bg-card rounded-xl border border-border shadow-sm p-6">
         <div className="flex items-center gap-2 mb-4">
-          <Package className="w-5 h-5 text-primary" /> 
+          <Package className="w-5 h-5 text-primary" />
           <h2 className="text-xl font-bold">Inventory Quantity Report</h2>
         </div>
         <p className="text-sm text-muted-foreground mb-4">Select a counter to view its model-wise inventory.</p>
@@ -84,15 +85,15 @@ export const ReportsView = ({
   );
 };
 
-export const BillsView = ({ 
-  counterName, data, onBack, onRowClick, startDate, endDate, setStartDate, setEndDate 
-}: { 
+export const BillsView = ({
+  counterName, data, onBack, onRowClick, startDate, endDate, setStartDate, setEndDate
+}: {
   counterName: string, data: CounterBill[], onBack: () => void, onRowClick: (b: CounterBill) => void,
   startDate: string, endDate: string, setStartDate: (d: string) => void, setEndDate: (d: string) => void
 }) => (
   <div className="space-y-6">
     <ViewHeader title={`Bills for: ${counterName}`} onBack={onBack} backLabel="Back to Reports" icon={History} />
-    
+
     <DateRangeFilter
       initialStartDate={startDate}
       initialEndDate={endDate}
@@ -104,24 +105,30 @@ export const BillsView = ({
     />
 
     <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-      <DataTable<CounterBill> idAccessor="id" data={data} onRowClick={onRowClick} pageSize={50} columns={[
-        { header: 'Date', accessor: (b) => new Date(b.created_at).toLocaleDateString(), className: 'text-muted-foreground' },
-        { header: 'Accessory', accessor: 'accessory_name', className: 'font-medium' },
-        { header: 'Model', accessor: 'vehicle_model', className: 'text-muted-foreground' },
-        { header: 'Qty', accessor: 'quantity', className: 'text-center' },
-        { header: 'Payment', accessor: (b) => <Badge variant="secondary">{b.payment_method}</Badge> },
-        { header: 'Total', accessor: (b) => `₹${b.total_amount?.toFixed(2)}`, className: 'text-right font-medium' },
-        { header: 'Paid', accessor: (b) => `₹${(b.amount_paid ?? b.total_amount)?.toFixed(2)}`, className: 'text-right text-green-600 dark:text-green-400' },
-        { header: 'Balance', accessor: (b) => `₹${(b.amount_left ?? 0)?.toFixed(2)}`, className: 'text-right text-destructive font-medium' }
-      ]} />
+      <DataTable<CounterBill>
+        idAccessor="id"
+        data={data}
+        onRowClick={onRowClick}
+        pageSize={50}
+        columns={useMemo(() => [
+          { header: 'Date', accessor: (b) => new Date(b.created_at).toLocaleDateString(), className: 'text-muted-foreground' },
+          { header: 'Accessory', accessor: 'accessory_name', className: 'font-medium' },
+          { header: 'Model', accessor: 'vehicle_model', className: 'text-muted-foreground' },
+          { header: 'Qty', accessor: 'quantity', className: 'text-center' },
+          { header: 'Payment', accessor: (b) => <Badge variant="secondary">{b.payment_method}</Badge> },
+          { header: 'Total', accessor: (b) => `₹${b.total_amount?.toFixed(2)}`, className: 'text-right font-medium' },
+          { header: 'Paid', accessor: (b) => `₹${(b.amount_paid ?? b.total_amount)?.toFixed(2)}`, className: 'text-right text-green-600 dark:text-green-400' },
+          { header: 'Balance', accessor: (b) => `₹${(b.amount_left ?? 0)?.toFixed(2)}`, className: 'text-right text-destructive font-medium' }
+        ], [])}
+      />
     </div>
   </div>
 );
 
-export const CounterInventoryModelsView = ({ 
-  counterName, models, onBack, onModelClick 
-}: { 
-  counterName: string, models: string[], onBack: () => void, onModelClick: (model: string) => void 
+export const CounterInventoryModelsView = ({
+  counterName, models, onBack, onModelClick
+}: {
+  counterName: string, models: string[], onBack: () => void, onModelClick: (model: string) => void
 }) => (
   <div className="space-y-6">
     <ViewHeader title={`Inventory for: ${counterName}`} onBack={onBack} backLabel="Back to Reports" icon={Store} description="Select a vehicle model to view available accessories." />
@@ -143,17 +150,17 @@ export const CounterInventoryModelsView = ({
   </div>
 );
 
-export const CounterInventoryDetailsView = ({ 
-  counterName, model, data, onBack 
-}: { 
-  counterName: string, model: string, data: InventoryItem[], onBack: () => void 
+export const CounterInventoryDetailsView = ({
+  counterName, model, data, onBack
+}: {
+  counterName: string, model: string, data: InventoryItem[], onBack: () => void
 }) => (
   <div className="space-y-6">
-    <ViewHeader 
-      title={`${model} Accessories`} 
-      onBack={onBack} 
-      backLabel="Back to Models" 
-      icon={Package} 
+    <ViewHeader
+      title={`${model} Accessories`}
+      onBack={onBack}
+      backLabel="Back to Models"
+      icon={Package}
       description={`Viewing stock for ${model} at ${counterName}.`}
     />
     <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">

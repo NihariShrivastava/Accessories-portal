@@ -41,8 +41,12 @@ export function Login() {
         const role = data.user.user_metadata?.role || 'counter';
         navigate(role === 'admin' ? '/admin' : '/counter', { replace: true });
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Error logging in');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Error logging in');
+      }
     } finally {
       setLoading(false);
     }
