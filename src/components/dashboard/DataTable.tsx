@@ -54,14 +54,20 @@ function DataTableInner<T>({
         <table className="w-full text-left text-sm">
           <thead className={`bg-muted text-muted-foreground ${maxHeight ? 'sticky top-0 z-10' : ''}`}>
             <tr>
-              {columns.map((col, idx) => (
-                <th
-                  key={idx}
-                  className={`px-4 py-3 font-medium ${idx === 0 ? 'rounded-tl-lg' : ''} ${idx === columns.length - 1 ? 'rounded-tr-lg' : ''} ${col.headerClassName || ''}`}
-                >
-                  {col.header}
-                </th>
-              ))}
+              {columns.map((col, idx) => {
+                // Extract alignment and width classes to ensure headers align with data
+                const alignmentClass = col.className?.match(/\b(text-(left|center|right|justify))\b/)?.[1] || '';
+                const widthClass = col.className?.match(/\b(w-\w+)\b/)?.[1] || '';
+                
+                return (
+                  <th
+                    key={idx}
+                    className={`px-4 py-3 font-medium ${idx === 0 ? 'rounded-tl-lg' : ''} ${idx === columns.length - 1 ? 'rounded-tr-lg' : ''} ${alignmentClass} ${widthClass} ${col.headerClassName || ''}`}
+                  >
+                    {col.header}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">

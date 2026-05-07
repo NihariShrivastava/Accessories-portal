@@ -3,7 +3,6 @@ import { ThemeProvider } from './components/theme-provider';
 import { AuthProvider, useAuth } from './components/auth-provider';
 import { Layout } from './components/layout';
 import { Login } from './pages/Login';
-import { Signup } from './pages/Signup';
 import { CounterDashboard } from './pages/CounterDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { Toaster } from 'sonner';
@@ -49,7 +48,6 @@ function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
             
             <Route path="/" element={<Layout />}>
               <Route index element={

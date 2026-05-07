@@ -10,6 +10,13 @@ export function BillDetails({ bill, onClose }: BillDetailsProps) {
 
   return (
     <div className="space-y-4">
+      {bill.bill_number && (
+        <div className="bg-primary/10 border border-primary/20 p-3 rounded-md text-center">
+          <p className="text-xs text-primary font-bold uppercase mb-1">Bill Number</p>
+          <p className="font-mono text-lg font-bold text-primary">{bill.bill_number}</p>
+        </div>
+      )}
+      
       <div className="grid grid-cols-2 gap-4 text-sm">
         <div className="bg-muted p-3 rounded-md">
           <p className="text-xs text-muted-foreground uppercase font-bold mb-1">Date</p>

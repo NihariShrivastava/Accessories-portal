@@ -4,11 +4,11 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 export type Counter = { id: string; name: string };
-export type InventoryItem = { id: string; counter_name: string; vehicle_model: string; name: string; quantity: number; price: number };
+export type InventoryItem = { id: string; counter_name: string; vehicle_model: string; name: string; accessory_code?: string; quantity: number; price: number };
 export type LoginDetail = { user_id: string; name: string; login_count: number };
 export type SalesReport = { counter_id: string; counter_name: string; total_bills: number; total_sales: number; total_collected: number; outstanding: number };
-export type ModelAccessory = { name: string; counter_name: string; quantity: number; price: number };
-export type CounterBill = { id: string; created_at: string; accessory_name: string; vehicle_model: string; quantity: number; total_amount: number; payment_method: string; amount_paid: number; amount_left: number; chassis_number?: string; engine_number?: string; checklist_number?: string };
+export type ModelAccessory = { name: string; accessory_code?: string; counter_name: string; quantity: number; price: number };
+export type CounterBill = { id: string; bill_number?: string; created_at: string; accessory_name: string; accessory_code?: string; vehicle_model: string; quantity: number; total_amount: number; payment_method: string; amount_paid: number; amount_left: number; chassis_number?: string; engine_number?: string; checklist_number?: string };
 
 export function useAdminData() {
   const [stats, setStats] = useState({ uniqueLogins: 0, items: 0, models: 0 });
@@ -47,14 +47,14 @@ export function useAdminData() {
   }, []);
 
   const fetchInventory = useCallback(async () => {
-    const { data } = await supabase.from('accessories').select(`id, vehicle_model, name, quantity, price, profiles!inner(name)`).order('vehicle_model', { ascending: true });
+    const { data } = await supabase.from('accessories').select(`id, vehicle_model, name, accessory_code, quantity, price, profiles!inner(name)`).order('vehicle_model', { ascending: true });
     setInventory(data?.map((item: any) => ({
-      id: item.id, counter_name: item.profiles.name, vehicle_model: item.vehicle_model, name: item.name, quantity: item.quantity, price: item.price
+      id: item.id, counter_name: item.profiles.name, vehicle_model: item.vehicle_model, name: item.name, accessory_code: item.accessory_code, quantity: item.quantity, price: item.price
     })) || []);
   }, []);
 
   const fetchBills = useCallback(async () => {
-    const { data } = await supabase.from('bills').select(`*, profiles!inner(name), accessories (name, vehicle_model)`);
+    const { data } = await supabase.from('bills').select(`*, profiles!inner(name), accessories (name, accessory_code, vehicle_model)`);
     setAllBills(data || []);
   }, []);
 
@@ -89,13 +89,27 @@ export function useAdminData() {
   }, [filteredBills]);
 
   const fetchLoginDetails = useCallback(async () => {
-    const { data } = await supabase.from('login_logs').select(`user_id, profiles!inner(name)`);
+    // 1. Fetch all counters
+    const { data: countersData } = await supabase.from('profiles').select('id, name').eq('role', 'counter');
+    
+    // 2. Fetch all login logs
+    const { data: logsData } = await supabase.from('login_logs').select('user_id');
+    
     const countMap = new Map<string, { name: string; count: number }>();
-    (data || []).forEach((row: any) => {
-      const existing = countMap.get(row.user_id);
-      if (existing) existing.count++;
-      else countMap.set(row.user_id, { name: row.profiles?.name || 'Unknown', count: 1 });
+    
+    // Initialize map with 0 counts for all counters
+    (countersData || []).forEach((c: any) => {
+      countMap.set(c.id, { name: c.name, count: 0 });
     });
+
+    // Increment count for existing logs
+    (logsData || []).forEach((row: any) => {
+      const existing = countMap.get(row.user_id);
+      if (existing) {
+        existing.count++;
+      }
+    });
+
     setLoginDetails(Array.from(countMap.entries()).map(([user_id, v]) => ({ user_id, name: v.name, login_count: v.count })));
   }, []);
 
@@ -105,13 +119,13 @@ export function useAdminData() {
   }, []);
 
   const fetchModelAccessories = useCallback(async (model: string) => {
-    const { data } = await supabase.from('accessories').select(`name, quantity, price, profiles!inner(name)`).eq('vehicle_model', model);
-    setModelAccessories((data || []).map((item: any) => ({ name: item.name, counter_name: item.profiles.name, quantity: item.quantity, price: item.price })));
+    const { data } = await supabase.from('accessories').select(`name, accessory_code, quantity, price, profiles!inner(name)`).eq('vehicle_model', model);
+    setModelAccessories((data || []).map((item: any) => ({ name: item.name, accessory_code: item.accessory_code, counter_name: item.profiles.name, quantity: item.quantity, price: item.price })));
   }, []);
 
   const fetchCounterBills = useCallback((counterId: string) => {
     return filteredBills.filter(b => b.counter_id === counterId).map((b: any) => ({
-      id: b.id, created_at: b.created_at, accessory_name: b.accessories?.name || 'Unknown', vehicle_model: b.accessories?.vehicle_model || '-',
+      id: b.id, bill_number: b.bill_number, created_at: b.created_at, accessory_name: b.accessories?.name || 'Unknown', accessory_code: b.accessories?.accessory_code, vehicle_model: b.accessories?.vehicle_model || '-',
       quantity: b.quantity, total_amount: b.total_amount, payment_method: b.payment_method || 'Cash', amount_paid: b.amount_paid, amount_left: b.amount_left,
       chassis_number: b.chassis_number, engine_number: b.engine_number, checklist_number: b.checklist_number
     }));
@@ -144,13 +158,20 @@ export function useAdminData() {
         };
         const vehicle_model = getVal(['Vehicle Model', 'Model', 'vehicle_model', 'model']).toString().trim();
         const name = getVal(['Accessory Name', 'Accessory', 'name', 'accessory_name']).toString().trim();
+        const accessory_code = getVal(['Accessory Code', 'Code', 'Item Code', 'Part Number', 'accessory_code']).toString().trim();
         const quantity = Math.abs(parseInt(getVal(['Quantity', 'Qty', 'quantity', 'qty']) || '0'));
         const price = parseNum(getVal(['Price (₹)', 'Price', 'Cost', 'MRP', 'Rate', 'Amount', 'Unit Price', 'Sale Price', 'price', 'cost', 'mrp']));
         if (!name || !vehicle_model) return;
+        
+        // We include accessory_code in the data but use vehicle_model and name for tracking existing rows in this batch
         const key = `${vehicle_model.toLowerCase()}|${name.toLowerCase()}`;
         const existing = consolidatedData.get(key);
-        if (existing) { existing.quantity += quantity; existing.price = price > 0 ? price : existing.price; }
-        else { consolidatedData.set(key, { counter_id: counterId, vehicle_model, name, quantity, price }); }
+        if (existing) { 
+          existing.quantity += quantity; 
+          existing.price = price > 0 ? price : existing.price; 
+          if (!existing.accessory_code) existing.accessory_code = accessory_code;
+        }
+        else { consolidatedData.set(key, { counter_id: counterId, vehicle_model, name, accessory_code, quantity, price }); }
       });
 
       const rowsToInsert = Array.from(consolidatedData.values());

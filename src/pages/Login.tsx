@@ -9,7 +9,7 @@ import { ThemeToggle } from '../components/theme-toggle';
 export function Login() {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuth();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -27,7 +27,7 @@ export function Login() {
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: `${username}@portal.local`,
         password,
       });
 
@@ -66,13 +66,13 @@ export function Login() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+            <label className="block text-sm font-medium mb-1">Username</label>
             <input
-              type="email"
+              type="text"
               required
               className="w-full px-4 py-2 bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
             />
           </div>
           <div>
@@ -93,13 +93,6 @@ export function Login() {
             {loading ? 'Logging in...' : <><LogIn className="w-4 h-4" /> Login</>}
           </button>
         </form>
-
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          Don't have an account?{' '}
-          <Link to="/signup" className="text-primary hover:underline font-medium">
-            Sign up
-          </Link>
-        </p>
       </div>
     </div>
   );

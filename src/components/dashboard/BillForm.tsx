@@ -34,7 +34,24 @@ export function BillForm({ accessory, userId, onSuccess, loading, setLoading }: 
 
     setLoading(true);
     try {
+      // Generate a unique sequential bill number
+      const { data: lastBill } = await supabase
+        .from('bills')
+        .select('bill_number')
+        .not('bill_number', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      let nextNum = 1;
+      if (lastBill?.bill_number) {
+        const match = lastBill.bill_number.match(/INV-(\d+)/);
+        if (match) nextNum = parseInt(match[1], 10) + 1;
+      }
+      const billNumber = `INV-${String(nextNum).padStart(4, '0')}`;
+
       const { error: billError } = await supabase.from('bills').insert([{
+        bill_number: billNumber,
         counter_id: userId,
         accessory_id: accessory.id,
         chassis_number: chassisNo,
@@ -56,7 +73,7 @@ export function BillForm({ accessory, userId, onSuccess, loading, setLoading }: 
 
       if (updateError) throw updateError;
 
-      toast.success(`Bill generated successfully! Total: ₹${totalAmount.toFixed(2)}`);
+      toast.success(`Bill ${billNumber} generated! Total: ₹${totalAmount.toFixed(2)}`);
       onSuccess();
     } catch (error: any) {
       toast.error(error.message || 'Failed to generate bill');

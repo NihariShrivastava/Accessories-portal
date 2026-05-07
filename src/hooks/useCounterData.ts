@@ -6,6 +6,7 @@ import type { User } from '@supabase/supabase-js';
 export type Accessory = {
   id: string;
   name: string;
+  accessory_code?: string;
   quantity: number;
   price: number;
   vehicle_model: string;
@@ -13,6 +14,7 @@ export type Accessory = {
 
 export type Bill = {
   id: string;
+  bill_number?: string;
   chassis_number: string;
   engine_number: string;
   checklist_number: string;
@@ -22,7 +24,7 @@ export type Bill = {
   amount_paid: number;
   amount_left: number;
   created_at: string;
-  accessories: { name: string; vehicle_model: string };
+  accessories: { name: string; accessory_code?: string; vehicle_model: string };
 };
 
 export function useCounterData(user: User | null) {
@@ -34,6 +36,23 @@ export function useCounterData(user: User | null) {
   const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  
+  const [shortageCount, setShortageCount] = useState(0);
+  const [surplusCount, setSurplusCount] = useState(0);
+  const [searchResults, setSearchResults] = useState<Accessory[]>([]);
+
+  const fetchDashboardStats = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { count: sCount } = await supabase.from('accessories').select('*', { count: 'exact', head: true }).lte('quantity', 5).eq('counter_id', user.id);
+      setShortageCount(sCount || 0);
+
+      const { count: surCount } = await supabase.from('accessories').select('*', { count: 'exact', head: true }).gt('quantity', 5).eq('counter_id', user.id);
+      setSurplusCount(surCount || 0);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [user]);
 
   const fetchModels = useCallback(async () => {
     try {
@@ -52,7 +71,7 @@ export function useCounterData(user: User | null) {
     try {
       const { data, error } = await supabase
         .from('bills')
-        .select('*, accessories (name, vehicle_model)')
+        .select('*, accessories (name, accessory_code, vehicle_model)')
         .eq('counter_id', user?.id)
         .order('created_at', { ascending: false })
         .limit(10);
@@ -67,8 +86,9 @@ export function useCounterData(user: User | null) {
     if (user) {
       fetchModels();
       fetchRecentBills();
+      fetchDashboardStats();
     }
-  }, [user, fetchModels, fetchRecentBills]);
+  }, [user, fetchModels, fetchRecentBills, fetchDashboardStats]);
 
   const filteredBills = useMemo(() => {
     return allBills.filter(bill => {
@@ -88,7 +108,7 @@ export function useCounterData(user: User | null) {
     try {
       const { data, error } = await supabase
         .from('bills')
-        .select('*, accessories (name, vehicle_model)')
+        .select('*, accessories (name, accessory_code, vehicle_model)')
         .eq('counter_id', user?.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -124,9 +144,46 @@ export function useCounterData(user: User | null) {
     else setAccessories([]);
   };
 
+  const searchAccessories = async (query: string) => {
+    if (!query) { setSearchResults([]); return; }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.from('accessories').select('*').eq('counter_id', user?.id)
+        .or(`name.ilike.%${query}%,accessory_code.ilike.%${query}%,vehicle_model.ilike.%${query}%`).limit(20);
+      if (error) throw error;
+      setSearchResults(data || []);
+    } catch (error) { console.error(error); } 
+    finally { setLoading(false); }
+  };
+
+  const fetchShortageModels = async () => {
+    const { data } = await supabase.from('accessories').select('vehicle_model').lte('quantity', 5).eq('counter_id', user?.id);
+    return Array.from(new Set((data || []).map(d => d.vehicle_model)));
+  };
+
+  const fetchSurplusModels = async () => {
+    const { data } = await supabase.from('accessories').select('vehicle_model').gt('quantity', 5).eq('counter_id', user?.id);
+    return Array.from(new Set((data || []).map(d => d.vehicle_model)));
+  };
+
+  const fetchShortageAccessories = async (model: string) => {
+    setLoading(true);
+    const { data } = await supabase.from('accessories').select('*').lte('quantity', 5).eq('counter_id', user?.id).eq('vehicle_model', model);
+    setAccessories(data || []);
+    setLoading(false);
+  };
+
+  const fetchSurplusAccessories = async (model: string) => {
+    setLoading(true);
+    const { data } = await supabase.from('accessories').select('*').gt('quantity', 5).eq('counter_id', user?.id).eq('vehicle_model', model);
+    setAccessories(data || []);
+    setLoading(false);
+  };
+
   return {
     models,
     selectedModel,
+    setSelectedModel,
     accessories,
     recentBills,
     allBills: filteredBills,
@@ -136,9 +193,19 @@ export function useCounterData(user: User | null) {
     endDate,
     setStartDate,
     setEndDate,
+    shortageCount,
+    surplusCount,
+    searchResults,
+    setSearchResults,
     handleModelChange,
     fetchAllBills,
     fetchAccessories,
-    fetchRecentBills
+    fetchRecentBills,
+    fetchDashboardStats,
+    searchAccessories,
+    fetchShortageModels,
+    fetchSurplusModels,
+    fetchShortageAccessories,
+    fetchSurplusAccessories
   };
 }

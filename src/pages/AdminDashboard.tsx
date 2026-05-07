@@ -7,7 +7,7 @@ import { useAdminData } from '../hooks/useAdminData';
 import type { InventoryItem, CounterBill, SalesReport } from '../hooks/useAdminData';
 import { Modal } from '../components/dashboard/Modal';
 import { BillDetails } from '../components/dashboard/BillDetails';
-import { LoginsView, ModelDetailView, ReportsView, BillsView, CounterInventoryModelsView, CounterInventoryDetailsView } from '../components/dashboard/sub-views/AdminSubViews';
+import { LoginsView, ModelDetailView, ReportsView, BillsView, CounterInventoryModelsView, CounterInventoryDetailsView, AddCounterView } from '../components/dashboard/sub-views/AdminSubViews';
 
 export function AdminDashboard() {
   const {
@@ -66,13 +66,16 @@ export function AdminDashboard() {
     { header: 'Counter', accessor: 'counter_name' as const, className: 'font-medium' },
     { header: 'Model', accessor: 'vehicle_model' as const, className: 'text-muted-foreground' },
     { header: 'Accessory', accessor: 'name' as const },
+    { header: 'Code', accessor: (i: InventoryItem) => i.accessory_code || '-', className: 'text-muted-foreground text-sm' },
     { header: 'Qty', accessor: 'quantity' as const, className: 'text-right' },
     { header: 'Price', accessor: (i: InventoryItem) => `₹${i.price.toFixed(2)}`, className: 'text-right' }
   ], []);
 
   let content;
   if (activeView === 'logins') {
-    content = <LoginsView data={loginDetails} onBack={() => setActiveView('dashboard')} />;
+    content = <LoginsView data={loginDetails} onBack={() => setActiveView('dashboard')} onAddCounter={() => setActiveView('add-counter')} />;
+  } else if (activeView === 'add-counter') {
+    content = <AddCounterView onBack={() => setActiveView('logins')} />;
   } else if (activeView === 'models') {
     content = (
       <div className="space-y-6">
