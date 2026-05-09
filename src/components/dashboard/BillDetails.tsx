@@ -28,18 +28,29 @@ export function BillDetails({ bill, onClose }: BillDetailsProps) {
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-lg p-4 space-y-3">
-        <div className="flex justify-between items-center border-b border-border pb-2">
-          <span className="text-muted-foreground">Accessory</span>
-          <span className="font-bold">{bill.accessories?.name || bill.accessory_name}</span>
+      <div className="bg-card border border-border rounded-lg overflow-hidden">
+        <div className="bg-muted/30 px-4 py-2 border-b border-border">
+          <h4 className="text-xs font-bold uppercase text-muted-foreground">Purchased Items</h4>
         </div>
-        <div className="flex justify-between items-center border-b border-border pb-2">
-          <span className="text-muted-foreground">Vehicle Model</span>
-          <span className="font-medium">{bill.accessories?.vehicle_model || bill.vehicle_model}</span>
-        </div>
-        <div className="flex justify-between items-center border-b border-border pb-2">
-          <span className="text-muted-foreground">Quantity</span>
-          <span className="font-bold">{bill.quantity}</span>
+        <div className="divide-y divide-border">
+          {(bill.items || [bill]).map((item: any, idx: number) => (
+            <div key={idx} className="p-4 space-y-2">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="font-bold text-primary">{item.accessories?.name || item.accessory_name || 'Unknown Item'}</p>
+                  <p className="text-xs text-muted-foreground">{item.accessories?.vehicle_model || item.vehicle_model || '-'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold">x{item.quantity}</p>
+                  <p className="text-xs font-medium">₹{((item.total_amount || 0) / (item.quantity || 1)).toFixed(2)} / unit</p>
+                </div>
+              </div>
+              <div className="flex justify-between items-center text-sm pt-1">
+                <span className="text-muted-foreground">Item Total</span>
+                <span className="font-semibold">₹{item.total_amount?.toFixed(2)}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

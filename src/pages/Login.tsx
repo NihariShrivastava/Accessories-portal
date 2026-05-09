@@ -33,12 +33,23 @@ export function Login() {
 
       if (error) throw error;
 
-      // Check role and redirect
+      // Check if profile exists before redirecting
       if (data.user) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError || !profile) {
+          await supabase.auth.signOut();
+          throw new Error('This account is no longer active or unauthorized.');
+        }
+
         // Log the login event (fire-and-forget, don't block login)
         supabase.from('login_logs').insert([{ user_id: data.user.id }]).then(() => {});
 
-        const role = data.user.user_metadata?.role || 'counter';
+        const role = profile.role || 'counter';
         navigate(role === 'admin' ? '/admin' : '/counter', { replace: true });
       }
     } catch (error: unknown) {

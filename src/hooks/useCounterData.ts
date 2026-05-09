@@ -25,6 +25,22 @@ export type Bill = {
   amount_left: number;
   created_at: string;
   accessories: { name: string; accessory_code?: string; vehicle_model: string };
+  items?: Bill[];
+};
+
+type RawBill = {
+  id: string;
+  bill_number?: string;
+  chassis_number: string;
+  engine_number: string;
+  checklist_number: string;
+  quantity: number;
+  total_amount: number;
+  payment_method: string;
+  amount_paid: number;
+  amount_left: number;
+  created_at: string;
+  accessories: { name: string; accessory_code?: string; vehicle_model: string };
 };
 
 export function useCounterData(user: User | null) {
@@ -61,11 +77,40 @@ export function useCounterData(user: User | null) {
         .select('vehicle_model')
         .eq('counter_id', user?.id);
       if (error) throw error;
-      setModels(Array.from(new Set(data.map(item => item.vehicle_model))));
+      setModels(Array.from(new Set((data || []).map(item => item.vehicle_model))));
     } catch (error) {
       console.error('Error fetching models:', error);
     }
-  }, [user?.id]);
+  }, [user]);
+
+  const groupBills = useCallback((data: RawBill[]): Bill[] => {
+    const map = new Map<string, Bill>();
+    data.forEach(item => {
+      // Group by base bill number (strip suffix like -1, -2 if present)
+      const bNo = item.bill_number ? item.bill_number.replace(/-\d+$/, '') : `TEMP-${item.id}`;
+      
+      const existing = map.get(bNo);
+      if (!existing) {
+        map.set(bNo, { 
+          ...item, 
+          bill_number: bNo, // Show the base number in the list
+          items: [item as any as Bill],
+          quantity: item.quantity || 0,
+          total_amount: item.total_amount || 0,
+          amount_paid: item.amount_paid || 0,
+          amount_left: item.amount_left || 0
+        });
+      } else {
+        if (!existing.items) existing.items = [];
+        existing.items.push(item as any as Bill);
+        existing.quantity += item.quantity || 0;
+        existing.total_amount += item.total_amount || 0;
+        existing.amount_paid += item.amount_paid || 0;
+        existing.amount_left += item.amount_left || 0;
+      }
+    });
+    return Array.from(map.values());
+  }, []);
 
   const fetchRecentBills = useCallback(async () => {
     try {
@@ -73,15 +118,18 @@ export function useCounterData(user: User | null) {
         .from('bills')
         .select('*, accessories (name, accessory_code, vehicle_model)')
         .eq('counter_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .order('created_at', { ascending: false });
+      
       if (error) throw error;
-      setRecentBills(data as unknown as Bill[]);
+
+      // Group by bill_number
+      const grouped = groupBills((data as any as RawBill[]) || []);
+      setRecentBills(grouped.slice(0, 10));
     } catch (error) {
       console.error('Error fetching bills:', error);
     }
-  }, [user?.id]);
-
+  }, [user, groupBills]);
+  
   useEffect(() => {
     if (user) {
       fetchModels();
@@ -89,12 +137,11 @@ export function useCounterData(user: User | null) {
       fetchDashboardStats();
     }
   }, [user, fetchModels, fetchRecentBills, fetchDashboardStats]);
-
+  
   const filteredBills = useMemo(() => {
     return allBills.filter(bill => {
       if (!startDate && !endDate) return true;
       
-      // Convert bill date to local date string for comparison
       const billDate = new Date(bill.created_at);
       const billDateStr = billDate.toISOString().split('T')[0];
       
@@ -104,7 +151,7 @@ export function useCounterData(user: User | null) {
     });
   }, [allBills, startDate, endDate]);
 
-  const fetchAllBills = async () => {
+  const fetchAllBills = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('bills')
@@ -112,11 +159,11 @@ export function useCounterData(user: User | null) {
         .eq('counter_id', user?.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      setAllBills(data as unknown as Bill[]);
+      setAllBills(groupBills((data as any as RawBill[]) || []));
     } catch (error) {
       console.error('Error fetching all bills:', error);
     }
-  };
+  }, [user, groupBills]);
 
 
 
@@ -171,6 +218,7 @@ export function useCounterData(user: User | null) {
     const { data } = await supabase.from('accessories').select('*').lte('quantity', 5).eq('counter_id', user?.id).eq('vehicle_model', model);
     setAccessories(data || []);
     setLoading(false);
+    return data || [];
   };
 
   const fetchSurplusAccessories = async (model: string) => {
@@ -178,6 +226,7 @@ export function useCounterData(user: User | null) {
     const { data } = await supabase.from('accessories').select('*').gt('quantity', 5).eq('counter_id', user?.id).eq('vehicle_model', model);
     setAccessories(data || []);
     setLoading(false);
+    return data || [];
   };
 
   return {

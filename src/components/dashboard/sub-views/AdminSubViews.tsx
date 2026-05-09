@@ -5,28 +5,145 @@ import { ViewHeader } from '../ViewHeader';
 import { Badge } from '../Badge';
 import { Users, Package, BarChart3, History, Store, ChevronRight, ChevronLeft, Car, UserPlus, IndianRupee } from 'lucide-react';
 import { DateRangeFilter } from '../DateRangeFilter';
-import type { LoginDetail, ModelAccessory, SalesReport, CounterBill, InventoryItem } from '../../../hooks/useAdminData';
+import { supabase } from '../../../lib/supabase';
+import type { ModelAccessory, SalesReport, CounterBill, InventoryItem, Counter, InventorySummary } from '../../../hooks/useAdminData';
 
-export const LoginsView = ({ data, onBack, onAddCounter }: { data: LoginDetail[], onBack: () => void, onAddCounter: () => void }) => (
-  <div className="space-y-6">
-    <div className="flex items-center justify-between">
-      <ViewHeader title="Counter Login Details" onBack={onBack} icon={Users} description={`${data.length} unique counter(s) have logged in.`} />
-      <button
-        onClick={onAddCounter}
-        className="bg-primary text-primary-foreground py-2 px-4 rounded-md hover:bg-primary/90 transition-colors flex items-center gap-2"
-      >
-        <UserPlus className="w-4 h-4" /> Add Counter
-      </button>
+import { Save, X } from 'lucide-react';
+
+export const ManageCountersView = ({ 
+  data, 
+  onBack, 
+  onAddCounter,
+  onUpdate,
+  onDelete
+}: { 
+  data: (Counter & { login_count?: number })[], 
+  onBack: () => void, 
+  onAddCounter: () => void,
+  onUpdate: (id: string, updates: any) => void,
+  onDelete: (id: string) => void
+}) => {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', username: '', password: '' });
+
+  const startEdit = (counter: any) => {
+    setEditingId(counter.id);
+    setEditForm({ 
+      name: counter.name || '', 
+      username: counter.username || '', 
+      password: counter.password || '' 
+    });
+  };
+
+  const handleSave = (id: string) => {
+    onUpdate(id, editForm);
+    setEditingId(null);
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <ViewHeader 
+          title="Manage Counters" 
+          onBack={onBack} 
+          icon={Users} 
+          description={`${data.length} total counter accounts in the system.`} 
+        />
+        <button
+          onClick={onAddCounter}
+          className="bg-primary text-primary-foreground py-2 px-6 rounded-lg hover:bg-primary/90 transition-all flex items-center justify-center gap-2 font-bold shadow-lg shadow-primary/20 hover:scale-105 active:scale-95"
+        >
+          <UserPlus className="w-5 h-5" /> Add New Counter
+        </button>
+      </div>
+
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <DataTable<(Counter & { login_count?: number })> 
+          idAccessor="id" 
+          data={data} 
+          columns={[
+            { 
+              header: 'Counter Name', 
+              accessor: (c) => editingId === c.id ? (
+                <input 
+                  className="w-full px-2 py-1 bg-background border rounded text-sm" 
+                  value={editForm.name} 
+                  onChange={e => setEditForm({...editForm, name: e.target.value})}
+                />
+              ) : <span className="font-semibold text-primary">{c.name}</span>,
+              className: 'min-w-[150px]'
+            },
+            { 
+              header: 'Username', 
+              accessor: (c) => editingId === c.id ? (
+                <input 
+                  className="w-full px-2 py-1 bg-background border rounded text-sm" 
+                  value={editForm.username} 
+                  onChange={e => setEditForm({...editForm, username: e.target.value})}
+                />
+              ) : <span className="text-muted-foreground font-mono text-xs">{c.username || c.name || '-'}</span>
+            },
+            { 
+              header: 'Password', 
+              accessor: (c) => editingId === c.id ? (
+                <input 
+                  className="w-full px-2 py-1 bg-background border rounded text-sm" 
+                  value={editForm.password} 
+                  onChange={e => setEditForm({...editForm, password: e.target.value})}
+                />
+              ) : <span className="text-muted-foreground font-mono text-xs">{c.password || '••••••••'}</span>
+            },
+            {
+              header: 'Logins',
+              accessor: (c) => <Badge variant="secondary">{c.login_count || 0}</Badge>,
+              className: 'text-center'
+            },
+            { 
+              header: 'Actions', 
+              headerClassName: 'text-center',
+              accessor: (c) => (
+                <div className="flex items-center justify-center gap-2">
+                  {editingId === c.id ? (
+                    <>
+                      <button 
+                        onClick={() => handleSave(c.id)} 
+                        className="px-3 py-1 bg-green-600 text-white text-xs font-bold rounded-md hover:bg-green-700 transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button 
+                        onClick={() => setEditingId(null)} 
+                        className="px-3 py-1 bg-muted text-muted-foreground text-xs font-bold rounded-md hover:bg-muted/80 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button 
+                        onClick={() => startEdit(c)} 
+                        className="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-md hover:bg-blue-700 transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        onClick={() => onDelete(c.id)} 
+                        className="px-3 py-1 bg-destructive text-white text-xs font-bold rounded-md hover:bg-destructive/90 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              ),
+              className: 'w-40'
+            }
+          ]} 
+        />
+      </div>
     </div>
-    <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-      <DataTable<LoginDetail> idAccessor="user_id" data={data} columns={[
-        { header: '#', accessor: (_, i) => (i || 0) + 1, className: 'text-muted-foreground w-12' },
-        { header: 'Counter Username', accessor: 'name', className: 'font-medium' },
-        { header: 'Total Logins', accessor: 'login_count', className: 'text-right' }
-      ]} />
-    </div>
-  </div>
-);
+  );
+};
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -47,7 +164,7 @@ export const AddCounterView = ({ onBack }: { onBack: () => void }) => {
         { auth: { persistSession: false, autoRefreshToken: false } }
       );
 
-      const { error } = await tempSupabase.auth.signUp({
+      const { data, error } = await tempSupabase.auth.signUp({
         email: `${username}@portal.local`,
         password,
         options: {
@@ -59,6 +176,20 @@ export const AddCounterView = ({ onBack }: { onBack: () => void }) => {
       });
 
       if (error) throw error;
+      
+      // Explicitly update the profiles table if it was created by a trigger, 
+      // or wait for it and then update.
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ username, password })
+          .eq('id', data.user.id);
+        
+        if (profileError) {
+          console.warn('Could not update profile with credentials:', profileError);
+        }
+      }
+
       toast.success('Counter created successfully!');
       setUsername('');
       setPassword('');
@@ -128,21 +259,18 @@ export const ModelDetailView = ({ model, data, onBack }: { model: string, data: 
 );
 
 export const ReportsView = ({
-  data, onBack, onCounterClick, inventory, onInventoryCounterClick
+  data, onBack, onCounterClick, inventory, inventoryReport
 }: {
   data: SalesReport[], onBack: () => void, onCounterClick: (r: SalesReport) => void,
-  inventory: InventoryItem[], onInventoryCounterClick: (counterName: string) => void
+  inventory: InventoryItem[], inventoryReport: InventorySummary[]
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [expandedCounter, setExpandedCounter] = useState<string | null>(null);
   const totalSlides = 3;
   const slideNames = ['Ledger', 'Revenue Report', 'Inventory Report'];
-  const inventoryCounters = [...new Set(inventory.map(i => i.counter_name))].sort();
 
-  // Compute revenue data from sales report
-  const maxRevenue = Math.max(...data.map(r => r.total_sales), 1);
-
-  const goNext = () => setCurrentSlide((prev) => (prev + 1) % totalSlides);
-  const goPrev = () => setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides);
+  const goNext = () => { setExpandedCounter(null); setCurrentSlide((prev) => (prev + 1) % totalSlides); };
+  const goPrev = () => { setExpandedCounter(null); setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides); };
 
   return (
     <div className="space-y-6">
@@ -206,74 +334,129 @@ export const ReportsView = ({
 
             {/* Slide 2: Revenue Report */}
             <div className="w-full flex-shrink-0">
-              <div className="p-4 sm:p-6">
-                <p className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
-                  <IndianRupee className="w-4 h-4 text-primary" />
-                  Total revenue generated by each counter.
+              <div className="px-4 sm:px-6 pt-4 pb-2">
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <IndianRupee className="w-4 h-4 text-green-600" />
+                  Detailed revenue and item sales performance.
                 </p>
-                <div className="space-y-3">
-                  {data.length === 0 && (
-                    <div className="py-12 text-center text-muted-foreground">No revenue data available.</div>
-                  )}
-                  {data
-                    .sort((a, b) => b.total_sales - a.total_sales)
-                    .map((r, i) => (
-                    <div key={r.counter_id} className="bg-muted/40 border border-border rounded-xl p-4 hover:border-primary/30 transition-all">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-3">
-                          <span className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">{i + 1}</span>
-                          <span className="font-semibold">{r.counter_name}</span>
-                        </div>
-                        <span className="text-lg font-bold text-primary">₹{r.total_sales.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                      </div>
-                      {/* Revenue bar */}
-                      <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-primary/70 to-primary transition-all duration-700 ease-out"
-                          style={{ width: `${(r.total_sales / maxRevenue) * 100}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                        <span>{r.total_bills} bill{r.total_bills !== 1 ? 's' : ''}</span>
-                        <span className="text-green-600 dark:text-green-400">Paid (Credit): ₹{r.total_collected.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                        <span className="text-destructive">Outstanding: ₹{r.outstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    </div>
-                  ))}
-                  {data.length > 0 && (
-                    <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-xl flex items-center justify-between">
-                      <span className="font-bold text-lg">Overall Total Revenue</span>
-                      <span className="text-2xl font-bold text-primary">
-                        ₹{data.reduce((sum, r) => sum + r.total_sales, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  )}
-                </div>
               </div>
+              <DataTable<SalesReport> 
+                idAccessor="counter_id" 
+                data={data} 
+                columns={[
+                  { header: 'Counter Name', accessor: 'counter_name', className: 'font-semibold' },
+                  { header: 'Total Bills', accessor: 'total_bills', className: 'text-center' },
+                  { header: 'Total Items Sold', accessor: 'total_items', className: 'text-center font-medium text-primary' },
+                  { header: 'Revenue Generated', accessor: (r) => `₹${r.total_sales.toLocaleString()}`, className: 'text-right font-bold text-green-600' }
+                ]} 
+              />
             </div>
 
-            {/* Slide 3: Inventory Quantity Report */}
+            {/* Slide 3: Inventory Report */}
             <div className="w-full flex-shrink-0">
-              <div className="p-4 sm:p-6">
-                <p className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
-                  <Package className="w-4 h-4 text-primary" />
-                  Select a counter to view its model-wise inventory.
+              <div className="px-4 sm:px-6 pt-4 pb-2">
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Package className="w-4 h-4 text-orange-500" />
+                  Click a counter to expand its stock status.
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {inventoryCounters.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => onInventoryCounterClick(c)}
-                      className="flex items-center justify-between p-4 bg-muted/50 border border-border rounded-xl hover:bg-primary/10 hover:border-primary/50 transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Store className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
-                        <span className="font-semibold">{c}</span>
+              </div>
+              
+              <div className="mt-2 divide-y divide-border border-t border-border">
+                {inventoryReport.map((r) => {
+                  const isExpanded = expandedCounter === r.counter_id;
+                  const counterInv = inventory.filter(i => i.counter_name === r.counter_name);
+                  const surplus = counterInv.filter(i => i.quantity > 5);
+                  const shortage = counterInv.filter(i => i.quantity <= 5);
+
+                  return (
+                    <div key={r.counter_id} className="group">
+                      {/* Counter Row */}
+                      <div 
+                        onClick={() => setExpandedCounter(isExpanded ? null : r.counter_id)}
+                        className={`flex items-center justify-between px-6 py-4 cursor-pointer transition-colors ${isExpanded ? 'bg-primary/5' : 'hover:bg-muted/50'}`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isExpanded ? 'bg-primary text-white rotate-90' : 'bg-muted text-muted-foreground'}`}>
+                            <ChevronRight className="w-5 h-5" />
+                          </div>
+                          <span className="font-bold text-lg">{r.counter_name}</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-6">
+                          <div className="text-center">
+                            <div className="text-[10px] uppercase font-bold text-muted-foreground mb-0.5">Surplus</div>
+                            <Badge variant="success">{r.surplus_count}</Badge>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-[10px] uppercase font-bold text-muted-foreground mb-0.5">Shortage</div>
+                            <Badge variant="danger">{r.shortage_count}</Badge>
+                          </div>
+                        </div>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-transform" />
-                    </button>
-                  ))}
-                </div>
+
+                      {/* Expanded Content */}
+                      <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[800px] border-b border-border bg-muted/20' : 'max-h-0'}`}>
+                        <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-500">
+                          {/* Shortage Section */}
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-destructive flex items-center gap-2">
+                              <X className="w-3 h-3" /> Shortage ({" <= 5"})
+                            </h4>
+                            <div className="bg-card rounded-lg border border-destructive/10 overflow-hidden shadow-sm">
+                              <table className="w-full text-xs">
+                                <thead className="bg-destructive/5 text-destructive font-bold border-b border-destructive/10">
+                                  <tr>
+                                    <th className="px-3 py-2 text-left">Model</th>
+                                    <th className="px-3 py-2 text-left">Accessory</th>
+                                    <th className="px-3 py-2 text-right">Qty</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                  {shortage.map(i => (
+                                    <tr key={i.id} className="hover:bg-destructive/5 transition-colors">
+                                      <td className="px-3 py-2 font-medium">{i.vehicle_model}</td>
+                                      <td className="px-3 py-2">{i.name}</td>
+                                      <td className="px-3 py-2 text-right font-bold text-destructive">{i.quantity}</td>
+                                    </tr>
+                                  ))}
+                                  {shortage.length === 0 && <tr><td colSpan={3} className="px-3 py-4 text-center text-muted-foreground">No shortages</td></tr>}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                          {/* Surplus Section */}
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-green-600 flex items-center gap-2">
+                              <Save className="w-3 h-3" /> Surplus ({" > 5"})
+                            </h4>
+                            <div className="bg-card rounded-lg border border-green-600/10 overflow-hidden shadow-sm">
+                              <table className="w-full text-xs">
+                                <thead className="bg-green-600/5 text-green-600 font-bold border-b border-green-600/10">
+                                  <tr>
+                                    <th className="px-3 py-2 text-left">Model</th>
+                                    <th className="px-3 py-2 text-left">Accessory</th>
+                                    <th className="px-3 py-2 text-right">Qty</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                  {surplus.map(i => (
+                                    <tr key={i.id} className="hover:bg-green-600/5 transition-colors">
+                                      <td className="px-3 py-2 font-medium">{i.vehicle_model}</td>
+                                      <td className="px-3 py-2">{i.name}</td>
+                                      <td className="px-3 py-2 text-right font-bold text-green-600">{i.quantity}</td>
+                                    </tr>
+                                  ))}
+                                  {surplus.length === 0 && <tr><td colSpan={3} className="px-3 py-4 text-center text-muted-foreground">No surplus items</td></tr>}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -311,9 +494,17 @@ export const BillsView = ({
         columns={useMemo(() => [
           { header: 'Bill No.', accessor: (b) => <span className="font-mono text-xs">{b.bill_number || '-'}</span>, className: 'font-medium' },
           { header: 'Date', accessor: (b) => new Date(b.created_at).toLocaleDateString(), className: 'text-muted-foreground' },
-          { header: 'Accessory', accessor: 'accessory_name', className: 'font-medium' },
+          { 
+            header: 'Accessories', 
+            accessor: (b: any) => b.items && b.items.length > 1 ? (
+              <span className="font-semibold text-primary">{b.items.length} Accessories</span>
+            ) : (
+              <span className="font-medium">{b.accessory_name}</span>
+            ),
+            className: 'font-medium' 
+          },
           { header: 'Model', accessor: 'vehicle_model', className: 'text-muted-foreground' },
-          { header: 'Qty', accessor: 'quantity', className: 'text-center' },
+          { header: 'Total Qty', accessor: (b) => b.quantity, className: 'text-center' },
           { header: 'Payment', accessor: (b) => <Badge variant="secondary">{b.payment_method}</Badge> },
           { header: 'Total', accessor: (b) => `₹${b.total_amount?.toFixed(2)}`, className: 'text-right font-medium' },
           { header: 'Paid', accessor: (b) => `₹${(b.amount_paid ?? b.total_amount)?.toFixed(2)}`, className: 'text-right text-green-600 dark:text-green-400' },
@@ -372,3 +563,57 @@ export const CounterInventoryDetailsView = ({
     </div>
   </div>
 );
+
+export const CounterInventoryStatusView = ({ 
+  counterName, 
+  inventory, 
+  onBack 
+}: { 
+  counterName: string, 
+  inventory: InventoryItem[], 
+  onBack: () => void 
+}) => {
+  const counterInventory = inventory.filter(i => i.counter_name === counterName);
+  const surplus = counterInventory.filter(i => i.quantity > 5);
+  const shortage = counterInventory.filter(i => i.quantity <= 5);
+
+  const columns = [
+    { header: 'Model', accessor: 'vehicle_model' as const, className: 'font-medium' },
+    { header: 'Accessory', accessor: 'name' as const },
+    { header: 'Code', accessor: (i: InventoryItem) => i.accessory_code || '-', className: 'text-xs text-muted-foreground' },
+    { header: 'Qty', accessor: (i: InventoryItem) => <Badge variant={i.quantity > 5 ? 'success' : 'danger'}>{i.quantity}</Badge>, className: 'text-right' },
+    { header: 'Price', accessor: (i: InventoryItem) => `₹${i.price.toLocaleString()}`, className: 'text-right' }
+  ];
+
+  return (
+    <div className="space-y-6">
+      <ViewHeader title={`${counterName} - Inventory Status`} onBack={onBack} icon={Store} description="Accessories categorized by stock status." />
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Shortage Section */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 px-1">
+            <div className="w-2 h-6 bg-destructive rounded-full" />
+            <h3 className="text-lg font-bold uppercase tracking-tight text-destructive">Shortage Items ({" <= 5"})</h3>
+            <Badge variant="danger" className="ml-auto">{shortage.length}</Badge>
+          </div>
+          <div className="bg-card rounded-xl border border-destructive/20 shadow-sm overflow-hidden border-t-4 border-t-destructive">
+            <DataTable<InventoryItem> idAccessor="id" data={shortage} columns={columns} maxHeight="400px" />
+          </div>
+        </div>
+
+        {/* Surplus Section */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 px-1">
+            <div className="w-2 h-6 bg-green-600 rounded-full" />
+            <h3 className="text-lg font-bold uppercase tracking-tight text-green-600">Surplus Items ({" > 5"})</h3>
+            <Badge variant="success" className="ml-auto">{surplus.length}</Badge>
+          </div>
+          <div className="bg-card rounded-xl border border-green-600/20 shadow-sm overflow-hidden border-t-4 border-t-green-600">
+            <DataTable<InventoryItem> idAccessor="id" data={surplus} columns={columns} maxHeight="400px" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
