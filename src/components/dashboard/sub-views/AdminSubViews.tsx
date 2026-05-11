@@ -614,10 +614,10 @@ export const BillsView = ({
       const bItems = b.items || [];
       const accMatch = !accFilter || 
         bItems.some((i: any) => (i.name || i.accessories?.name || '').toLowerCase().includes(accFilter.toLowerCase())) || 
-        (b.accessory_name || b.accessories?.name || '').toLowerCase().includes(accFilter.toLowerCase());
+        (b.accessory_name || '').toLowerCase().includes(accFilter.toLowerCase());
       
       const modelMatch = !modelFilter || 
-        (b.vehicle_model || b.accessories?.vehicle_model || '').toLowerCase().includes(modelFilter.toLowerCase());
+        (b.vehicle_model || '').toLowerCase().includes(modelFilter.toLowerCase());
       
       const paymentMatch = !paymentFilter || 
         (b.payment_method || 'Cash') === paymentFilter;
