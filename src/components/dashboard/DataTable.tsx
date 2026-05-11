@@ -3,11 +3,12 @@ import React from 'react';
 export interface Column<T> {
   header: string;
   accessor: keyof T | ((item: T, index: number) => React.ReactNode);
+  sortAccessor?: keyof T;
   className?: string;
   headerClassName?: string;
 }
 
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface DataTableProps<T> {
   columns: Column<T>[];
@@ -29,17 +30,54 @@ function DataTableInner<T>({
   pageSize = 0
 }: DataTableProps<T>) {
   const [currentPage, setCurrentPage] = React.useState(1);
+  const [sortConfig, setSortConfig] = React.useState<{ key: string | number | symbol; direction: 'asc' | 'desc' } | null>(null);
 
   const getRowId = (item: T) => {
     if (typeof idAccessor === 'function') return idAccessor(item);
     return String(item[idAccessor]);
   };
 
+  const handleSort = (col: Column<T>) => {
+    const sortKey = col.sortAccessor || (typeof col.accessor !== 'function' ? col.accessor : null);
+    if (!sortKey) return;
+    
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === sortKey && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key: sortKey as string, direction });
+  };
+
+  const sortedData = React.useMemo(() => {
+    if (!sortConfig) return data;
+
+    return [...data].sort((a, b) => {
+      const aValue = a[sortConfig.key as keyof T];
+      const bValue = b[sortConfig.key as keyof T];
+
+      if (aValue === bValue) return 0;
+      if (aValue === null || aValue === undefined) return 1;
+      if (bValue === null || bValue === undefined) return -1;
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortConfig.direction === 'asc' 
+          ? aValue.localeCompare(bValue) 
+          : bValue.localeCompare(aValue);
+      }
+
+      if (sortConfig.direction === 'asc') {
+        return (aValue as any) > (bValue as any) ? 1 : -1;
+      } else {
+        return (aValue as any) < (bValue as any) ? 1 : -1;
+      }
+    });
+  }, [data, sortConfig]);
+
   const paginatedData = React.useMemo(() => {
-    if (!pageSize || pageSize <= 0) return data;
+    if (!pageSize || pageSize <= 0) return sortedData;
     const start = (currentPage - 1) * pageSize;
-    return data.slice(start, start + pageSize);
-  }, [data, currentPage, pageSize]);
+    return sortedData.slice(start, start + pageSize);
+  }, [sortedData, currentPage, pageSize]);
 
   const totalPages = pageSize > 0 ? Math.ceil(data.length / pageSize) : 1;
 
@@ -58,13 +96,29 @@ function DataTableInner<T>({
                 // Extract alignment and width classes to ensure headers align with data
                 const alignmentClass = col.className?.match(/\b(text-(left|center|right|justify))\b/)?.[1] || '';
                 const widthClass = col.className?.match(/\b(w-\w+)\b/)?.[1] || '';
+                const sortKey = col.sortAccessor || (typeof col.accessor !== 'function' ? col.accessor : null);
+                const isSortable = !!sortKey;
+                
+                const justifyClass = alignmentClass === 'text-right' ? 'justify-end' : alignmentClass === 'text-center' ? 'justify-center' : 'justify-start';
                 
                 return (
                   <th
                     key={idx}
-                    className={`px-4 py-3 font-medium ${idx === 0 ? 'rounded-tl-lg' : ''} ${idx === columns.length - 1 ? 'rounded-tr-lg' : ''} ${alignmentClass} ${widthClass} ${col.headerClassName || ''}`}
+                    onClick={() => isSortable && handleSort(col)}
+                    className={`px-4 py-3 font-medium ${idx === 0 ? 'rounded-tl-lg' : ''} ${idx === columns.length - 1 ? 'rounded-tr-lg' : ''} ${alignmentClass} ${widthClass} ${col.headerClassName || ''} ${isSortable ? 'cursor-pointer hover:bg-muted-foreground/10 select-none group' : ''}`}
                   >
-                    {col.header}
+                    <div className={`flex items-center gap-1.5 ${justifyClass}`}>
+                      <span>{col.header}</span>
+                      {isSortable && (
+                        <span className="shrink-0">
+                          {sortConfig?.key === sortKey ? (
+                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-primary" /> : <ArrowDown className="w-3.5 h-3.5 text-primary" />
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
+                          )}
+                        </span>
+                      )}
+                    </div>
                   </th>
                 );
               })}

@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 export type Counter = { id: string; name: string; username?: string; password?: string };
-export type InventoryItem = { id: string; counter_id: string; counter_name: string; vehicle_model: string; name: string; accessory_code?: string; quantity: number; price: number };
+export type InventoryItem = { id: string; counter_id: string; counter_name: string; vehicle_model: string; name: string; accessory_code?: string; quantity: number; price: number; created_at: string };
 export type LoginDetail = { user_id: string; name: string; login_count: number };
 export type SalesReport = { counter_id: string; counter_name: string; total_bills: number; total_items: number; total_sales: number; total_collected: number; outstanding: number };
 export type InventorySummary = { counter_id: string; counter_name: string; surplus_count: number; shortage_count: number };
@@ -41,13 +41,6 @@ export function useAdminData() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  useEffect(() => {
-    fetchStats();
-    fetchCounters();
-    fetchInventory();
-    fetchBills();
-  }, []);
-
   const fetchStats = useCallback(async () => {
     try {
       const { data: loginData } = await supabase.from('login_logs').select('user_id');
@@ -61,42 +54,44 @@ export function useAdminData() {
   }, []);
 
   const fetchCounters = useCallback(async () => {
-    // 1. Try to fetch all fields (including username/password)
-    let profilesData: any[] | null = null;
-    const { data, error } = await supabase.from('profiles').select('id, name, username, password').eq('role', 'counter');
-    profilesData = data;
+    console.log('Fetching counters...');
+    const { data, error } = await supabase.from('profiles').select('*').eq('role', 'counter');
     
     if (error) {
-      console.warn('Could not fetch counter credentials, falling back to basic info:', error);
-      // Fallback: Fetch only id and name
-      const { data: fallbackData, error: fallbackError } = await supabase.from('profiles').select('id, name').eq('role', 'counter');
-      if (fallbackError) {
-        console.error('Error fetching counters:', fallbackError);
+      console.error('Fetch Counters Error:', error);
+      const { data: fallback, error: fallbackErr } = await supabase.from('profiles').select('id, name').eq('role', 'counter');
+      if (fallbackErr) {
+        console.error('Critical Fallback Error:', fallbackErr);
         return;
       }
-      profilesData = fallbackData;
-      // Optional: Inform the user that columns are missing
-      // toast.error('Username/Password columns missing in database profiles table.');
+      console.warn('Using fallback data (missing columns?)');
+      setCounters(fallback.map(p => ({ ...p, login_count: 0 })));
+      return;
+    }
+
+    console.log('Raw Profiles Data (first 1):', data?.[0]);
+    if (data && data.length > 0) {
+      console.log('Available Columns:', Object.keys(data[0]));
     }
     
-    // 2. Fetch login counts
     const { data: logsData } = await supabase.from('login_logs').select('user_id');
-    
     const loginMap = new Map<string, number>();
     (logsData || []).forEach(log => {
       loginMap.set(log.user_id, (loginMap.get(log.user_id) || 0) + 1);
     });
 
-    const merged = (profilesData || []).map(p => ({
+    const merged = (data || []).map(p => ({
       ...p,
       login_count: loginMap.get(p.id) || 0
     }));
 
+    console.log('Merged Counters Data (first 1):', merged[0]);
     setCounters(merged);
     setStats(prev => ({ ...prev, uniqueLogins: merged.length }));
   }, []);
 
   const updateCounter = async (id: string, updates: Partial<Counter>) => {
+    console.log('Updating Counter:', id, updates);
     try {
       const { error } = await supabase.from('profiles').update(updates).eq('id', id);
       if (error) throw error;
@@ -111,68 +106,128 @@ export function useAdminData() {
     if (!confirm('Are you sure you want to delete this counter? This will permanently remove all associated bills, logs, and inventory.')) return;
     
     try {
-      // 1. Delete Bills first (they reference accessories and profiles)
       const { error: billError } = await supabase.from('bills').delete().eq('counter_id', id);
-      if (billError) {
-        console.error('Bill deletion error:', billError);
-        throw new Error(`Failed to delete bills: ${billError.message}`);
-      }
+      if (billError) throw billError;
 
-      // 2. Delete Login Logs
       const { error: logError } = await supabase.from('login_logs').delete().eq('user_id', id);
-      if (logError) {
-        console.error('Log deletion error:', logError);
-        throw new Error(`Failed to delete login logs: ${logError.message}`);
-      }
+      if (logError) throw logError;
 
-      // 3. Delete Accessories (Inventory)
       const { error: invError } = await supabase.from('accessories').delete().eq('counter_id', id);
-      if (invError) {
-        console.error('Inventory deletion error:', invError);
-        throw new Error(`Failed to delete inventory: ${invError.message}`);
-      }
+      if (invError) throw invError;
 
-      // 4. Finally delete the Profile
       const { error: profileError } = await supabase.from('profiles').delete().eq('id', id);
-      if (profileError) {
-        console.error('Profile deletion error:', profileError);
-        throw new Error(`Failed to delete profile: ${profileError.message}`);
-      }
+      if (profileError) throw profileError;
 
-      // 5. Update local state immediately for instant UI response
       setCounters(prev => prev.filter(c => c.id !== id));
-      
-      // Update stats locally as well
       setStats(prev => ({ ...prev, uniqueLogins: Math.max(0, prev.uniqueLogins - 1) }));
-
       toast.success('Counter and all data deleted successfully');
-      
-      // We explicitly DO NOT fetchCounters here to avoid race conditions 
-      // where the DB might still return the deleted record for a few milliseconds.
-      // The local state update above is sufficient for the UI.
     } catch (error: any) {
       toast.error(error.message || 'Error during deletion');
     }
   };
 
   const fetchInventory = useCallback(async () => {
-    const { data } = await supabase.from('accessories').select(`id, counter_id, vehicle_model, name, accessory_code, quantity, price, profiles!inner(name)`).order('vehicle_model', { ascending: true });
+    let query = supabase.from('accessories').select(`id, created_at, counter_id, vehicle_model, name, accessory_code, quantity, price, profiles!inner(name)`);
+    
+    if (startDate) {
+      query = query.gte('created_at', `${startDate}T00:00:00`);
+    }
+    if (endDate) {
+      query = query.lte('created_at', `${endDate}T23:59:59`);
+    }
+
+    const { data } = await query.order('created_at', { ascending: false });
+    
     setInventory((data as any[] || []).map((item) => ({
-      id: item.id, counter_id: item.counter_id, counter_name: item.profiles.name, vehicle_model: item.vehicle_model, name: item.name, accessory_code: item.accessory_code, quantity: item.quantity, price: item.price
+      id: item.id, 
+      counter_id: item.counter_id, 
+      counter_name: item.profiles.name, 
+      vehicle_model: item.vehicle_model, 
+      name: item.name, 
+      accessory_code: item.accessory_code, 
+      quantity: item.quantity, 
+      price: item.price,
+      created_at: item.created_at
     })));
-  }, []);
+  }, [startDate, endDate]);
+
+  const deleteAccessory = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this accessory from this counter?')) return;
+    try {
+      const { error } = await supabase.from('accessories').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Accessory deleted successfully');
+      fetchInventory();
+    } catch (error: any) {
+      toast.error(error.message || 'Error deleting accessory');
+    }
+  };
+
+  const updateAccessory = async (id: string, updates: Partial<InventoryItem>) => {
+    try {
+      const { error } = await supabase.from('accessories').update(updates).eq('id', id);
+      if (error) throw error;
+      toast.success('Accessory updated successfully');
+      fetchInventory();
+    } catch (error: any) {
+      toast.error(error.message || 'Error updating accessory');
+    }
+  };
+
+  const transferAccessory = async (item: InventoryItem, targetCounterId: string, quantity: number) => {
+    if (quantity > item.quantity) {
+      toast.error('Transfer quantity exceeds available stock');
+      return;
+    }
+
+    try {
+      const { error: sourceError } = await supabase.from('accessories')
+        .update({ quantity: item.quantity - quantity })
+        .eq('id', item.id);
+      
+      if (sourceError) throw sourceError;
+
+      const { data: existingTarget } = await supabase.from('accessories')
+        .select('id, quantity')
+        .eq('counter_id', targetCounterId)
+        .eq('vehicle_model', item.vehicle_model)
+        .eq('name', item.name)
+        .maybeSingle();
+
+      if (existingTarget) {
+        const { error: targetError } = await supabase.from('accessories')
+          .update({ quantity: existingTarget.quantity + quantity })
+          .eq('id', existingTarget.id);
+        if (targetError) throw targetError;
+      } else {
+        const { error: targetError } = await supabase.from('accessories')
+          .insert({
+            counter_id: targetCounterId,
+            vehicle_model: item.vehicle_model,
+            name: item.name,
+            accessory_code: item.accessory_code,
+            price: item.price,
+            quantity: quantity
+          });
+        if (targetError) throw targetError;
+      }
+
+      toast.success('Accessory transferred successfully');
+      fetchInventory();
+    } catch (error: any) {
+      toast.error(error.message || 'Error transferring accessory');
+    }
+  };
 
   const groupBills = useCallback((data: any[]): CounterBill[] => {
     const map = new Map<string, CounterBill>();
     data.forEach(item => {
-      // Group by base bill number (strip suffix like -1, -2 if present)
       const bNo = item.bill_number ? item.bill_number.replace(/-\d+$/, '') : `TEMP-${item.id}`;
-      
       const existing = map.get(bNo);
       if (!existing) {
         map.set(bNo, { 
           ...item, 
-          bill_number: bNo, // Show the base number in the list
+          bill_number: bNo,
           items: [item],
           accessory_name: item.accessories?.name || 'Unknown',
           vehicle_model: item.accessories?.vehicle_model || '-',
@@ -253,27 +308,16 @@ export function useAdminData() {
   }, [inventory]);
 
   const fetchLoginDetails = useCallback(async () => {
-    // 1. Fetch all counters
     const { data: countersData } = await supabase.from('profiles').select('id, name').eq('role', 'counter');
-    
-    // 2. Fetch all login logs
     const { data: logsData } = await supabase.from('login_logs').select('user_id');
-    
     const countMap = new Map<string, { name: string; count: number }>();
-    
-    // Initialize map with 0 counts for all counters
     (countersData || []).forEach((c: any) => {
       countMap.set(c.id, { name: c.name, count: 0 });
     });
-
-    // Increment count for existing logs
     (logsData || []).forEach((row: any) => {
       const existing = countMap.get(row.user_id);
-      if (existing) {
-        existing.count++;
-      }
+      if (existing) existing.count++;
     });
-
     setLoginDetails(Array.from(countMap.entries()).map(([user_id, v]) => ({ user_id, name: v.name, login_count: v.count })));
   }, []);
 
@@ -323,7 +367,6 @@ export function useAdminData() {
         const price = parseNum(getVal(['Price (₹)', 'Price', 'Cost', 'MRP', 'Rate', 'Amount', 'Unit Price', 'Sale Price', 'price', 'cost', 'mrp']));
         if (!name || !vehicle_model) return;
         
-        // We include accessory_code in the data but use vehicle_model and name for tracking existing rows in this batch
         const key = `${vehicle_model.toLowerCase()}|${name.toLowerCase()}`;
         const existing = consolidatedData.get(key);
         if (existing) { 
@@ -344,10 +387,21 @@ export function useAdminData() {
     finally { setUploading(false); }
   }, [fetchInventory, fetchStats]);
 
+  useEffect(() => {
+    fetchStats();
+    fetchCounters();
+    fetchBills();
+  }, [fetchStats, fetchCounters, fetchBills]);
+
+  useEffect(() => {
+    fetchInventory();
+  }, [fetchInventory]);
+
   return {
     stats, counters, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, uploading,
     startDate, endDate, setStartDate, setEndDate,
     fetchLoginDetails, fetchCounters, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
-    updateCounter, deleteCounter
+    updateCounter, deleteCounter,
+    deleteAccessory, updateAccessory, transferAccessory, fetchInventory
   };
 }

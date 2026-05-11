@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { DataTable } from '../DataTable';
+import { DataTable, type Column } from '../DataTable';
 import { ViewHeader } from '../ViewHeader';
 import { Badge } from '../Badge';
 import { Users, Package, BarChart3, History, Store, ChevronRight, ChevronLeft, Car, UserPlus, IndianRupee } from 'lucide-react';
@@ -91,7 +91,7 @@ export const ManageCountersView = ({
                   value={editForm.password} 
                   onChange={e => setEditForm({...editForm, password: e.target.value})}
                 />
-              ) : <span className="text-muted-foreground font-mono text-xs">{c.password || '••••••••'}</span>
+              ) : <span className="text-muted-foreground font-mono text-xs">{c.password || <span className="text-destructive font-bold underline">EMPTY</span>}</span>
             },
             {
               header: 'Logins',
@@ -180,10 +180,16 @@ export const AddCounterView = ({ onBack }: { onBack: () => void }) => {
       // Explicitly update the profiles table if it was created by a trigger, 
       // or wait for it and then update.
       if (data.user) {
+        // Use upsert to ensure the profile is created/updated with the correct credentials
         const { error: profileError } = await supabase
           .from('profiles')
-          .update({ username, password })
-          .eq('id', data.user.id);
+          .upsert({ 
+            id: data.user.id, 
+            name: username,
+            username, 
+            password,
+            role: 'counter'
+          });
         
         if (profileError) {
           console.warn('Could not update profile with credentials:', profileError);
@@ -243,20 +249,147 @@ export const AddCounterView = ({ onBack }: { onBack: () => void }) => {
   );
 };
 
-export const ModelDetailView = ({ model, data, onBack }: { model: string, data: ModelAccessory[], onBack: () => void }) => (
-  <div className="space-y-6">
-    <ViewHeader title={`Accessories for: ${model}`} onBack={onBack} backLabel="Back to Models" icon={Package} />
-    <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-      <DataTable<ModelAccessory> idAccessor={(a) => `${a.name}-${a.counter_name}`} data={data} columns={[
-        { header: 'Accessory Name', accessor: 'name', className: 'font-medium' },
-        { header: 'Code', accessor: (a) => a.accessory_code || '-', className: 'text-muted-foreground text-sm' },
-        { header: 'Counter', accessor: 'counter_name', className: 'text-muted-foreground' },
-        { header: 'Quantity', accessor: (a) => <Badge variant={a.quantity > 5 ? 'success' : 'danger'}>{a.quantity}</Badge>, className: 'text-right' },
-        { header: 'Price (₹)', accessor: (a) => `₹${a.price.toFixed(2)}`, className: 'text-right' }
-      ]} />
+export const ModelDetailView = ({ 
+  model, 
+  data, 
+  onBack,
+  onEdit,
+  onTransfer,
+  onDelete
+}: { 
+  model: string, 
+  data: ModelAccessory[], 
+  onBack: () => void,
+  onEdit: (item: any) => void,
+  onTransfer: (item: any) => void,
+  onDelete: (id: string) => void
+}) => {
+  const columns: Column<ModelAccessory>[] = useMemo(() => [
+    { header: 'Accessory Name', accessor: 'name', sortAccessor: 'name', className: 'font-medium' },
+    { header: 'Code', accessor: (a) => a.accessory_code || '-', sortAccessor: 'accessory_code', className: 'text-muted-foreground text-sm' },
+    { header: 'Counter', accessor: 'counter_name', sortAccessor: 'counter_name', className: 'text-muted-foreground' },
+    { header: 'Quantity', accessor: (a) => <Badge variant={a.quantity > 5 ? 'success' : 'danger'}>{a.quantity}</Badge>, sortAccessor: 'quantity', className: 'text-right' },
+    { header: 'Price (₹)', accessor: (a) => `₹${a.price.toFixed(2)}`, sortAccessor: 'price', className: 'text-right' },
+    {
+      header: 'Actions',
+      accessor: (a: any) => (
+        <div className="flex items-center justify-center gap-2">
+          <button 
+            onClick={(e) => { e.stopPropagation(); onEdit(a); }} 
+            className="px-3 py-1 bg-blue-600 text-white hover:bg-blue-700 rounded text-xs font-semibold transition-all shadow-sm active:scale-95"
+          >
+            Edit
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); onTransfer(a); }} 
+            className="px-3 py-1 bg-green-600 text-white hover:bg-green-700 rounded text-xs font-semibold transition-all shadow-sm active:scale-95"
+          >
+            Transfer
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); onDelete(a.id); }} 
+            className="px-3 py-1 bg-red-600 text-white hover:bg-red-700 rounded text-xs font-semibold transition-all shadow-sm active:scale-95"
+          >
+            Delete
+          </button>
+        </div>
+      ),
+      className: 'text-center'
+    }
+  ], [onEdit, onTransfer, onDelete]);
+
+  return (
+    <div className="space-y-6">
+      <ViewHeader title={`Accessories for: ${model}`} onBack={onBack} backLabel="Back to Models" icon={Package} />
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <DataTable<ModelAccessory> idAccessor={(a) => `${a.name}-${a.counter_name}`} data={data} columns={columns} />
+      </div>
     </div>
-  </div>
-);
+  );
+};
+
+export const InventorySliderView = ({
+  vehicleModels,
+  counters,
+  onBack,
+  onModelClick,
+  onCounterClick
+}: {
+  vehicleModels: string[],
+  counters: Counter[],
+  onBack: () => void,
+  onModelClick: (model: string) => void,
+  onCounterClick: (counter: Counter) => void
+}) => {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const slideNames = ['By Vehicle Model', 'By Counter'];
+
+  const goNext = () => setCurrentSlide((prev) => (prev + 1) % 2);
+  const goPrev = () => setCurrentSlide((prev) => (prev - 1 + 2) % 2);
+
+  return (
+    <div className="space-y-6">
+      <ViewHeader title="Total Inventory" onBack={onBack} icon={Package} />
+
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <div className="p-4 sm:p-6 border-b border-border bg-muted/30 flex items-center justify-between">
+          <button onClick={goPrev} className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-all hover:scale-110 active:scale-95">
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <div className="text-center flex-1">
+            <h2 className="text-xl font-bold uppercase tracking-wider text-primary">{slideNames[currentSlide]}</h2>
+            <div className="flex items-center justify-center gap-2 mt-2">
+              {slideNames.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentSlide(i)}
+                  className={`h-2 rounded-full transition-all duration-300 ${i === currentSlide ? 'w-8 bg-primary' : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'}`}
+                />
+              ))}
+            </div>
+          </div>
+          <button onClick={goNext} className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-all hover:scale-110 active:scale-95">
+            <ChevronRight className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="overflow-hidden">
+          <div className="flex transition-transform duration-500 ease-in-out" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
+            {/* Slide 1: Models */}
+            <div className="w-full flex-shrink-0 p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {vehicleModels.map(m => (
+                  <button key={m} onClick={() => onModelClick(m)} className="flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted group">
+                    <div className="flex items-center gap-3">
+                      <Car className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
+                      <span className="font-medium">{m}</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-transform" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Slide 2: Counters */}
+            <div className="w-full flex-shrink-0 p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {counters.map(c => (
+                  <button key={c.id} onClick={() => onCounterClick(c)} className="flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted group">
+                    <div className="flex items-center gap-3">
+                      <Store className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
+                      <span className="font-medium">{c.name}</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-transform" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const ReportsView = ({
   data, onBack, onCounterClick, inventory, inventoryReport
@@ -324,11 +457,11 @@ export const ReportsView = ({
                 </p>
               </div>
               <DataTable<SalesReport> idAccessor="counter_id" data={data} onRowClick={onCounterClick} columns={[
-                { header: 'Counter Name', accessor: 'counter_name', className: 'font-semibold text-primary group-hover:underline' },
-                { header: 'Total Bills', accessor: 'total_bills', className: 'text-center' },
-                { header: 'Receivable Amt (Debit) ₹', accessor: (r) => `₹${r.total_sales.toFixed(2)}`, className: 'text-right font-medium' },
-                { header: 'Paid (Credit) ₹', accessor: (r) => <span className="text-green-600 dark:text-green-400 font-medium">₹{r.total_collected.toFixed(2)}</span>, className: 'text-right' },
-                { header: 'Outstanding (₹)', accessor: (r) => <span className="text-destructive font-medium">₹{r.outstanding.toFixed(2)}</span>, className: 'text-right' }
+                { header: 'Counter Name', accessor: 'counter_name', sortAccessor: 'counter_name', className: 'text-left font-semibold text-primary group-hover:underline' },
+                { header: 'Total Bills', accessor: 'total_bills', sortAccessor: 'total_bills', className: 'text-center' },
+                { header: 'Receivable Amt (Debit) ₹', accessor: (r) => `₹${r.total_sales.toFixed(2)}`, sortAccessor: 'total_sales', className: 'text-right font-medium' },
+                { header: 'Paid (Credit) ₹', accessor: (r) => <span className="text-green-600 dark:text-green-400 font-medium">₹{r.total_collected.toFixed(2)}</span>, sortAccessor: 'total_collected', className: 'text-right' },
+                { header: 'Outstanding (₹)', accessor: (r) => <span className="text-destructive font-medium">₹{r.outstanding.toFixed(2)}</span>, sortAccessor: 'outstanding', className: 'text-right' }
               ]} />
             </div>
 
@@ -344,10 +477,10 @@ export const ReportsView = ({
                 idAccessor="counter_id" 
                 data={data} 
                 columns={[
-                  { header: 'Counter Name', accessor: 'counter_name', className: 'font-semibold' },
-                  { header: 'Total Bills', accessor: 'total_bills', className: 'text-center' },
-                  { header: 'Total Items Sold', accessor: 'total_items', className: 'text-center font-medium text-primary' },
-                  { header: 'Revenue Generated', accessor: (r) => `₹${r.total_sales.toLocaleString()}`, className: 'text-right font-bold text-green-600' }
+                  { header: 'Counter Name', accessor: 'counter_name', sortAccessor: 'counter_name', className: 'text-left font-semibold' },
+                  { header: 'Total Bills', accessor: 'total_bills', sortAccessor: 'total_bills', className: 'text-center' },
+                  { header: 'Total Items Sold', accessor: 'total_items', sortAccessor: 'total_items', className: 'text-center font-medium text-primary' },
+                  { header: 'Revenue Generated', accessor: (r) => `₹${r.total_sales.toLocaleString()}`, sortAccessor: 'total_sales', className: 'text-right font-bold text-green-600' }
                 ]} 
               />
             </div>
@@ -471,49 +604,146 @@ export const BillsView = ({
 }: {
   counterName: string, data: CounterBill[], onBack: () => void, onRowClick: (b: CounterBill) => void,
   startDate: string, endDate: string, setStartDate: (d: string) => void, setEndDate: (d: string) => void
-}) => (
-  <div className="space-y-6">
-    <ViewHeader title={`Bills for: ${counterName}`} onBack={onBack} backLabel="Back to Reports" icon={History} />
+}) => {
+  const [accFilter, setAccFilter] = useState('');
+  const [modelFilter, setModelFilter] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState('');
 
-    <DateRangeFilter
-      initialStartDate={startDate}
-      initialEndDate={endDate}
-      onApply={(start, end) => {
-        setStartDate(start);
-        setEndDate(end);
-      }}
-      onClear={() => { setStartDate(''); setEndDate(''); }}
-    />
+  const filteredData = useMemo(() => {
+    return data.filter(b => {
+      const bItems = b.items || [];
+      const accMatch = !accFilter || 
+        bItems.some((i: any) => (i.name || i.accessories?.name || '').toLowerCase().includes(accFilter.toLowerCase())) || 
+        (b.accessory_name || b.accessories?.name || '').toLowerCase().includes(accFilter.toLowerCase());
+      
+      const modelMatch = !modelFilter || 
+        (b.vehicle_model || b.accessories?.vehicle_model || '').toLowerCase().includes(modelFilter.toLowerCase());
+      
+      const paymentMatch = !paymentFilter || 
+        (b.payment_method || 'Cash') === paymentFilter;
+        
+      return accMatch && modelMatch && paymentMatch;
+    });
+  }, [data, accFilter, modelFilter, paymentFilter]);
 
-    <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-      <DataTable<CounterBill>
-        idAccessor="id"
-        data={data}
-        onRowClick={onRowClick}
-        pageSize={50}
-        columns={useMemo(() => [
-          { header: 'Bill No.', accessor: (b) => <span className="font-mono text-xs">{b.bill_number || '-'}</span>, className: 'font-medium' },
-          { header: 'Date', accessor: (b) => new Date(b.created_at).toLocaleDateString(), className: 'text-muted-foreground' },
-          { 
-            header: 'Accessories', 
-            accessor: (b: any) => b.items && b.items.length > 1 ? (
-              <span className="font-semibold text-primary">{b.items.length} Accessories</span>
-            ) : (
-              <span className="font-medium">{b.accessory_name}</span>
-            ),
-            className: 'font-medium' 
-          },
-          { header: 'Model', accessor: 'vehicle_model', className: 'text-muted-foreground' },
-          { header: 'Total Qty', accessor: (b) => b.quantity, className: 'text-center' },
-          { header: 'Payment', accessor: (b) => <Badge variant="secondary">{b.payment_method}</Badge> },
-          { header: 'Total', accessor: (b) => `₹${b.total_amount?.toFixed(2)}`, className: 'text-right font-medium' },
-          { header: 'Paid', accessor: (b) => `₹${(b.amount_paid ?? b.total_amount)?.toFixed(2)}`, className: 'text-right text-green-600 dark:text-green-400' },
-          { header: 'Balance', accessor: (b) => `₹${(b.amount_left ?? 0)?.toFixed(2)}`, className: 'text-right text-destructive font-medium' }
-        ], [])}
-      />
+  return (
+    <div className="space-y-6">
+      <ViewHeader title={`Bills for: ${counterName}`} onBack={onBack} backLabel="Back to Reports" icon={History} />
+
+      <div className="bg-card rounded-xl border border-border shadow-sm p-4 space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <History className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold">Filter Ledger</h3>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Analyze transactions for this counter</p>
+            </div>
+          </div>
+          
+          <DateRangeFilter
+            initialStartDate={startDate}
+            initialEndDate={endDate}
+            onApply={(start, end) => {
+              setStartDate(start);
+              setEndDate(end);
+            }}
+            onClear={() => { setStartDate(''); setEndDate(''); }}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-border">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Accessory</label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search Accessory..."
+                className="w-full pl-9 pr-4 py-2 bg-muted/30 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                value={accFilter}
+                onChange={(e) => setAccFilter(e.target.value)}
+              />
+              <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Model</label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search Model..."
+                className="w-full pl-9 pr-4 py-2 bg-muted/30 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                value={modelFilter}
+                onChange={(e) => setModelFilter(e.target.value)}
+              />
+              <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Payment</label>
+            <div className="relative">
+              <select
+                className="w-full pl-9 pr-4 py-2 bg-muted/30 border border-border rounded-lg text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
+                value={paymentFilter}
+                onChange={(e) => setPaymentFilter(e.target.value)}
+              >
+                <option value="">All Methods</option>
+                <option value="Cash">Cash</option>
+                <option value="UPI">UPI</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Card">Card</option>
+              </select>
+              <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            </div>
+          </div>
+
+          <div className="flex items-end">
+            {(accFilter || modelFilter || paymentFilter) && (
+              <button 
+                onClick={() => { setAccFilter(''); setModelFilter(''); setPaymentFilter(''); }}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+                Clear Filters
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <DataTable<CounterBill>
+          idAccessor="id"
+          data={filteredData}
+          onRowClick={onRowClick}
+          pageSize={50}
+          columns={useMemo(() => [
+            { header: 'Bill No.', accessor: (b) => <span className="font-mono text-xs">{b.bill_number || '-'}</span>, sortAccessor: 'bill_number', className: 'text-left font-medium' },
+            { header: 'Date', accessor: (b) => new Date(b.created_at).toLocaleDateString(), sortAccessor: 'created_at', className: 'text-left text-muted-foreground' },
+            { 
+              header: 'Accessories', 
+              accessor: (b: any) => b.items && b.items.length > 1 ? (
+                <span className="font-semibold text-primary">{b.items.length} Accessories</span>
+              ) : (
+                <span className="font-medium">{b.accessory_name}</span>
+              ),
+              className: 'text-left font-medium' 
+            },
+            { header: 'Model', accessor: 'vehicle_model', sortAccessor: 'vehicle_model', className: 'text-left text-muted-foreground' },
+            { header: 'Total Qty', accessor: (b) => b.quantity, sortAccessor: 'quantity', className: 'text-right' },
+            { header: 'Payment', accessor: (b) => <Badge variant="secondary">{b.payment_method}</Badge> },
+            { header: 'Total', accessor: (b) => `₹${b.total_amount?.toFixed(2)}`, sortAccessor: 'total_amount', className: 'text-right font-medium' },
+            { header: 'Paid', accessor: (b) => `₹${(b.amount_paid ?? b.total_amount)?.toFixed(2)}`, sortAccessor: 'amount_paid', className: 'text-right text-green-600 dark:text-green-400' },
+            { header: 'Balance', accessor: (b) => `₹${(b.amount_left ?? 0)?.toFixed(2)}`, sortAccessor: 'amount_left', className: 'text-right text-destructive font-medium' }
+          ], [])}
+        />
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const CounterInventoryModelsView = ({
   counterName, models, onBack, onModelClick
@@ -541,28 +771,71 @@ export const CounterInventoryModelsView = ({
 );
 
 export const CounterInventoryDetailsView = ({
-  counterName, model, data, onBack
+  counterName, 
+  model, 
+  data, 
+  onBack,
+  onEdit,
+  onTransfer,
+  onDelete
 }: {
-  counterName: string, model: string, data: InventoryItem[], onBack: () => void
-}) => (
-  <div className="space-y-6">
-    <ViewHeader
-      title={`${model} Accessories`}
-      onBack={onBack}
-      backLabel="Back to Models"
-      icon={Package}
-      description={`Viewing stock for ${model} at ${counterName}.`}
-    />
-    <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-      <DataTable<InventoryItem> idAccessor="id" data={data} columns={[
-        { header: 'Accessory Name', accessor: 'name', className: 'font-medium' },
-        { header: 'Code', accessor: (i) => i.accessory_code || '-', className: 'text-muted-foreground text-sm' },
-        { header: 'Stock Quantity', accessor: (i) => <Badge variant={i.quantity > 5 ? 'success' : 'danger'}>{i.quantity} units</Badge>, className: 'text-right' },
-        { header: 'Price per Unit (₹)', accessor: (i) => `₹${i.price.toFixed(2)}`, className: 'text-right' }
-      ]} />
+  counterName: string, 
+  model?: string, 
+  data: InventoryItem[], 
+  onBack: () => void,
+  onEdit: (item: any) => void,
+  onTransfer: (item: any) => void,
+  onDelete: (id: string) => void
+}) => {
+  const columns: Column<InventoryItem>[] = useMemo(() => [
+    { header: 'Accessory Name', accessor: 'name', sortAccessor: 'name', className: 'font-medium' },
+    { header: 'Model', accessor: 'vehicle_model', sortAccessor: 'vehicle_model', className: 'text-muted-foreground' },
+    { header: 'Code', accessor: (i) => i.accessory_code || '-', sortAccessor: 'accessory_code', className: 'text-muted-foreground text-sm' },
+    { header: 'Stock Quantity', accessor: (i) => <Badge variant={i.quantity > 5 ? 'success' : 'danger'}>{i.quantity} units</Badge>, sortAccessor: 'quantity', className: 'text-right' },
+    { header: 'Price (₹)', accessor: (i) => `₹${i.price.toFixed(2)}`, sortAccessor: 'price', className: 'text-right' },
+    {
+      header: 'Actions',
+      accessor: (i: any) => (
+        <div className="flex items-center justify-center gap-2">
+          <button 
+            onClick={(e) => { e.stopPropagation(); onEdit(i); }} 
+            className="px-3 py-1 bg-blue-600 text-white hover:bg-blue-700 rounded text-xs font-semibold transition-all shadow-sm active:scale-95"
+          >
+            Edit
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); onTransfer(i); }} 
+            className="px-3 py-1 bg-green-600 text-white hover:bg-green-700 rounded text-xs font-semibold transition-all shadow-sm active:scale-95"
+          >
+            Transfer
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); onDelete(i.id); }} 
+            className="px-3 py-1 bg-red-600 text-white hover:bg-red-700 rounded text-xs font-semibold transition-all shadow-sm active:scale-95"
+          >
+            Delete
+          </button>
+        </div>
+      ),
+      className: 'text-center'
+    }
+  ], [onEdit, onTransfer, onDelete]);
+
+  return (
+    <div className="space-y-6">
+      <ViewHeader
+        title={model ? `${model} Accessories` : `Inventory for ${counterName}`}
+        onBack={onBack}
+        backLabel="Back"
+        icon={Package}
+        description={`Viewing stock for ${model || 'all items'} at ${counterName}.`}
+      />
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <DataTable<InventoryItem> idAccessor="id" data={data} columns={columns} />
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const CounterInventoryStatusView = ({ 
   counterName, 

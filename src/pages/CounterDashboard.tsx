@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '../components/auth-provider';
-import { Search, ShoppingCart, History, ReceiptText, AlertTriangle, PackageCheck, LayoutGrid, Store } from 'lucide-react';
+import { Search, ShoppingCart, History, ReceiptText, AlertTriangle, PackageCheck, LayoutGrid, Store, Package, Car, IndianRupee, X } from 'lucide-react';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
 import { DataTable } from '../components/dashboard/DataTable';
 import { ViewHeader } from '../components/dashboard/ViewHeader';
@@ -39,6 +39,9 @@ export function CounterDashboard() {
   const [formLoading, setFormLoading] = useState(false);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const [showBillDetails, setShowBillDetails] = useState(false);
+  const [billAccessoryFilter, setBillAccessoryFilter] = useState('');
+  const [billModelFilter, setBillModelFilter] = useState('');
+  const [billPaymentFilter, setBillPaymentFilter] = useState('');
 
   const [cart, setCart] = useState<{ accessory: Accessory; quantity: number }[]>([]);
   const [accSearch, setAccSearch] = useState('');
@@ -52,6 +55,23 @@ export function CounterDashboard() {
     ), 
     [accessories, accSearch]
   );
+  
+  const filteredBills = useMemo(() => {
+    return allBills.filter(b => {
+      const bItems = b.items || [];
+      const accMatch = !billAccessoryFilter || 
+        bItems.some(i => (i.accessories?.name || '').toLowerCase().includes(billAccessoryFilter.toLowerCase())) || 
+        (b.accessories?.name || '').toLowerCase().includes(billAccessoryFilter.toLowerCase());
+      
+      const modelMatch = !billModelFilter || 
+        (b.accessories?.vehicle_model || '').toLowerCase().includes(billModelFilter.toLowerCase());
+      
+      const paymentMatch = !billPaymentFilter || 
+        (b.payment_method || 'Cash') === billPaymentFilter;
+        
+      return accMatch && modelMatch && paymentMatch;
+    });
+  }, [allBills, billAccessoryFilter, billModelFilter, billPaymentFilter]);
 
   const handleExpandModel = async (model: string) => {
     setExpandedLoading(prev => ({ ...prev, [model]: true }));
@@ -110,15 +130,89 @@ export function CounterDashboard() {
       <div className="space-y-6">
         <ViewHeader title="Previous Bills" onBack={() => setActiveView('dashboard')} icon={History} />
 
-        <DateRangeFilter
-          initialStartDate={startDate}
-          initialEndDate={endDate}
-          onApply={(start, end) => {
-            setStartDate(start);
-            setEndDate(end);
-          }}
-          onClear={() => { setStartDate(''); setEndDate(''); }}
-        />
+        <div className="bg-card rounded-xl border border-border shadow-sm p-4 space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <History className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold">Filter Transactions</h3>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Refine your bill search</p>
+              </div>
+            </div>
+            
+            <DateRangeFilter
+              initialStartDate={startDate}
+              initialEndDate={endDate}
+              onApply={(start, end) => {
+                setStartDate(start);
+                setEndDate(end);
+              }}
+              onClear={() => { setStartDate(''); setEndDate(''); }}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-border">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Accessory</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="e.g. Chrome Garnish"
+                  className="w-full pl-9 pr-4 py-2 bg-muted/30 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  value={billAccessoryFilter}
+                  onChange={(e) => setBillAccessoryFilter(e.target.value)}
+                />
+                <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Model</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="e.g. Elevate"
+                  className="w-full pl-9 pr-4 py-2 bg-muted/30 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  value={billModelFilter}
+                  onChange={(e) => setBillModelFilter(e.target.value)}
+                />
+                <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">Payment</label>
+              <div className="relative">
+                <select
+                  className="w-full pl-9 pr-4 py-2 bg-muted/30 border border-border rounded-lg text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
+                  value={billPaymentFilter}
+                  onChange={(e) => setBillPaymentFilter(e.target.value)}
+                >
+                  <option value="">All Methods</option>
+                  <option value="Cash">Cash</option>
+                  <option value="UPI">UPI</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Card">Card</option>
+                </select>
+                <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              </div>
+            </div>
+
+            <div className="flex items-end">
+              {(billAccessoryFilter || billModelFilter || billPaymentFilter) && (
+                <button 
+                  onClick={() => { setBillAccessoryFilter(''); setBillModelFilter(''); setBillPaymentFilter(''); }}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                  Clear Filters
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
 
         <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
           <DataTable<Bill>
@@ -126,8 +220,8 @@ export function CounterDashboard() {
             pageSize={50}
             onRowClick={(b) => { setSelectedBill(b); setShowBillDetails(true); }}
             columns={[
-              { header: 'Bill No.', accessor: (b) => <span className="font-mono text-xs">{b.bill_number || '-'}</span>, className: 'font-medium' },
-              { header: 'Date', accessor: (b) => new Date(b.created_at).toLocaleDateString(), className: 'text-muted-foreground' },
+              { header: 'Bill No.', accessor: (b) => <span className="font-mono text-xs">{b.bill_number || '-'}</span>, sortAccessor: 'bill_number', className: 'text-left font-medium' },
+              { header: 'Date', accessor: (b) => new Date(b.created_at).toLocaleDateString(), sortAccessor: 'created_at', className: 'text-left text-muted-foreground' },
               { 
                 header: 'Accessories', 
                 accessor: (b) => b.items && b.items.length > 1 ? (
@@ -135,16 +229,16 @@ export function CounterDashboard() {
                 ) : (
                   <span className="font-medium">{b.accessories?.name || 'Unknown'}</span>
                 ),
-                className: 'font-medium' 
+                className: 'text-left font-medium' 
               },
-              { header: 'Model', accessor: (b) => b.accessories?.vehicle_model || '-', className: 'text-muted-foreground' },
-              { header: 'Total Qty', accessor: (b) => b.quantity, className: 'text-center' },
+              { header: 'Model', accessor: (b) => b.accessories?.vehicle_model || '-', className: 'text-left text-muted-foreground' },
+              { header: 'Total Qty', accessor: (b) => b.quantity, sortAccessor: 'quantity', className: 'text-right' },
               { header: 'Payment', accessor: (b) => <Badge variant="secondary">{b.payment_method || 'Cash'}</Badge> },
-              { header: 'Total', accessor: (b) => `₹${b.total_amount?.toFixed(2)}`, className: 'text-right font-medium' },
-              { header: 'Paid', accessor: (b) => `₹${(b.amount_paid ?? b.total_amount)?.toFixed(2)}`, className: 'text-right text-green-600 dark:text-green-400' },
-              { header: 'Balance', accessor: (b) => `₹${(b.amount_left ?? 0)?.toFixed(2)}`, className: 'text-right text-destructive font-medium' }
+              { header: 'Total', accessor: (b) => `₹${b.total_amount?.toFixed(2)}`, sortAccessor: 'total_amount', className: 'text-right font-medium' },
+              { header: 'Paid', accessor: (b) => `₹${(b.amount_paid ?? b.total_amount)?.toFixed(2)}`, sortAccessor: 'amount_paid', className: 'text-right text-green-600 dark:text-green-400' },
+              { header: 'Balance', accessor: (b) => `₹${(b.amount_left ?? 0)?.toFixed(2)}`, sortAccessor: 'amount_left', className: 'text-right text-destructive font-medium' }
             ]}
-            data={allBills}
+            data={filteredBills}
             emptyMessage="No bills found for the selected period."
           />
         </div>
@@ -228,11 +322,11 @@ export function CounterDashboard() {
               <DataTable<Accessory>
                 idAccessor="id"
                 columns={[
-                  { header: 'Accessory Name', accessor: 'name', className: 'font-medium pl-4' },
-                  { header: 'Code', accessor: (i) => i.accessory_code || '-', className: 'text-muted-foreground text-sm' },
-                  { header: 'Model', accessor: 'vehicle_model', className: 'text-muted-foreground' },
-                  { header: 'Available Qty', accessor: (i) => <Badge variant={i.quantity > 5 ? 'success' : 'danger'}>{i.quantity} units</Badge> },
-                  { header: 'Price (1 Unit)', accessor: (i) => `₹${i.price.toFixed(2)}`, className: 'text-right pr-4' },
+                  { header: 'Accessory Name', accessor: 'name', sortAccessor: 'name', className: 'text-left font-medium pl-4' },
+                  { header: 'Code', accessor: (i) => i.accessory_code || '-', sortAccessor: 'accessory_code', className: 'text-left text-muted-foreground text-sm' },
+                  { header: 'Model', accessor: 'vehicle_model', sortAccessor: 'vehicle_model', className: 'text-left text-muted-foreground' },
+                  { header: 'Available Qty', accessor: (i) => <Badge variant={i.quantity > 5 ? 'success' : 'danger'}>{i.quantity} units</Badge>, sortAccessor: 'quantity', className: 'text-right' },
+                  { header: 'Price (1 Unit)', accessor: (i) => `₹${i.price.toFixed(2)}`, sortAccessor: 'price', className: 'text-right pr-4' },
                   {
                     header: 'Action', headerClassName: 'text-center pr-4',
                     accessor: (i) => (
@@ -320,10 +414,10 @@ export function CounterDashboard() {
                   <DataTable<Accessory>
                     idAccessor="id"
                     columns={[
-                      { header: 'Accessory Name', accessor: 'name', className: 'font-medium pl-4' },
-                      { header: 'Code', accessor: (i) => i.accessory_code || '-', className: 'text-muted-foreground text-sm' },
-                      { header: 'Available Qty', accessor: (i) => <Badge variant={i.quantity > 5 ? 'success' : 'danger'}>{i.quantity} units</Badge> },
-                      { header: 'Price (1 Unit)', accessor: (i) => `₹${i.price.toFixed(2)}`, className: 'text-right pr-4' },
+                      { header: 'Accessory Name', accessor: 'name', sortAccessor: 'name', className: 'text-left font-medium pl-4' },
+                      { header: 'Code', accessor: (i) => i.accessory_code || '-', sortAccessor: 'accessory_code', className: 'text-left text-muted-foreground text-sm' },
+                      { header: 'Available Qty', accessor: (i) => <Badge variant={i.quantity > 5 ? 'success' : 'danger'}>{i.quantity} units</Badge>, sortAccessor: 'quantity', className: 'text-right' },
+                      { header: 'Price (1 Unit)', accessor: (i) => `₹${i.price.toFixed(2)}`, sortAccessor: 'price', className: 'text-right pr-4' },
                       {
                         header: 'Action', headerClassName: 'text-center pr-4',
                         accessor: (i) => (
