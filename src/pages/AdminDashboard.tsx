@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useCallback } from 'react';
-import { Upload, Users, Package, FileSpreadsheet, BarChart3, ChevronRight, Car, Edit, Trash2 } from 'lucide-react';
+import { Upload, Users, Package, FileSpreadsheet, BarChart3 } from 'lucide-react';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
 import { DataTable } from '../components/dashboard/DataTable';
 import type { Column } from '../components/dashboard/DataTable';
