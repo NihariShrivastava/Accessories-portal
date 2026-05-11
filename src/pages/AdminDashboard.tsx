@@ -1,9 +1,9 @@
 import { useState, useRef, useMemo, useCallback } from 'react';
-import { Upload, Users, Package, FileSpreadsheet, BarChart3, ChevronRight, Car, Edit, Trash2, ArrowLeftRight } from 'lucide-react';
+import { Upload, Users, Package, FileSpreadsheet, BarChart3, ChevronRight, Car, Edit, Trash2 } from 'lucide-react';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
 import { DataTable } from '../components/dashboard/DataTable';
 import type { Column } from '../components/dashboard/DataTable';
-import { ViewHeader } from '../components/dashboard/ViewHeader';
+
 import { useAdminData } from '../hooks/useAdminData';
 import type { InventoryItem, CounterBill, SalesReport } from '../hooks/useAdminData';
 import { Modal } from '../components/dashboard/Modal';
@@ -16,7 +16,7 @@ export function AdminDashboard() {
     stats, counters, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, uploading,
     startDate, endDate, setStartDate, setEndDate,
     fetchCounters, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
-    updateCounter, deleteCounter, deleteAccessory, updateAccessory, transferAccessory, fetchInventory
+    updateCounter, deleteCounter, deleteAccessory, updateAccessory, transferAccessory
   } = useAdminData();
 
   const [activeView, setActiveView] = useState('dashboard');
@@ -48,11 +48,6 @@ export function AdminDashboard() {
     setActiveView('counter-bills');
   }, []);
 
-  const handleModelClick = useCallback((model: string) => {
-    setSelectedModel(model);
-    fetchModelAccessories(model);
-    setActiveView('model-detail');
-  }, [fetchModelAccessories]);
 
   const handleEditClick = (item: InventoryItem) => {
     setEditingItem(item);
