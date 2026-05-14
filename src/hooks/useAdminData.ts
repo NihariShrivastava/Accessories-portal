@@ -8,7 +8,7 @@ export type InventoryItem = { id: string; counter_id: string; counter_name: stri
 export type LoginDetail = { user_id: string; name: string; login_count: number };
 export type SalesReport = { counter_id: string; counter_name: string; total_bills: number; total_items: number; total_sales: number; total_collected: number; outstanding: number };
 export type InventorySummary = { counter_id: string; counter_name: string; surplus_count: number; shortage_count: number };
-export type ModelAccessory = { name: string; accessory_code?: string; counter_name: string; quantity: number; price: number };
+export type ModelAccessory = { id: string; counter_id: string; vehicle_model: string; created_at: string; name: string; accessory_code?: string; counter_name: string; quantity: number; price: number };
 export type CounterBill = { 
   id: string; 
   bill_number?: string; 
@@ -452,8 +452,18 @@ export function useAdminData() {
   }, []);
 
   const fetchModelAccessories = useCallback(async (model: string) => {
-    const { data } = await supabase.from('accessories').select(`name, accessory_code, quantity, price, profiles!inner(name)`).eq('vehicle_model', model);
-    setModelAccessories((data || []).map((item: any) => ({ name: item.name, accessory_code: item.accessory_code, counter_name: item.profiles.name, quantity: item.quantity, price: item.price })));
+    const { data } = await supabase.from('accessories').select(`id, counter_id, vehicle_model, created_at, name, accessory_code, quantity, price, profiles!inner(name)`).eq('vehicle_model', model);
+    setModelAccessories((data || []).map((item: any) => ({ 
+      id: item.id,
+      counter_id: item.counter_id,
+      vehicle_model: item.vehicle_model,
+      created_at: item.created_at,
+      name: item.name, 
+      accessory_code: item.accessory_code, 
+      counter_name: item.profiles.name, 
+      quantity: item.quantity, 
+      price: item.price 
+    })));
   }, []);
 
   const fetchCounterBills = useCallback((counterId: string) => {

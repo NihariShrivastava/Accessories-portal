@@ -15,7 +15,9 @@ export const GlobalInventorySliderView = ({
   onDelete,
   onTransferAll,
   initialDate,
-  onDateChange
+  onDateChange,
+  transferCartCount = 0,
+  onCartClick
 }: {
   inventory: InventoryItem[],
   counters: Counter[],
@@ -24,8 +26,11 @@ export const GlobalInventorySliderView = ({
   onDelete: (id: string) => void,
   onTransferAll: (items: InventoryItem[], targetCounterId: string) => void,
   initialDate?: string,
-  onDateChange?: (date: string) => void
+  onDateChange?: (date: string) => void,
+  transferCartCount?: number,
+  onCartClick?: () => void
 }) => {
+
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const [selectedDate, setSelectedDate] = useState(initialDate || new Date().toLocaleDateString('en-CA'));
@@ -121,7 +126,23 @@ export const GlobalInventorySliderView = ({
           <button onClick={goNext} className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-all hover:scale-110 active:scale-95">
             <ChevronRight className="w-6 h-6" />
           </button>
+          {onCartClick && (
+            <button
+              onClick={onCartClick}
+              className="relative flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-600/10 hover:bg-purple-600/20 text-purple-600 transition-all hover:scale-105 active:scale-95 group shadow-sm border border-purple-600/10"
+              title="View Transfer Cart"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Transfer Cart</span>
+              {transferCartCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                  {transferCartCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
+
       </div>
 
       <div className="p-6">
