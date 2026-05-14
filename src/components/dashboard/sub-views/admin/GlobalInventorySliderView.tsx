@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { DataTable } from '../../DataTable';
 import { Badge } from '../../Badge';
 import { Modal } from '../../Modal';
-import { ChevronLeft, ChevronRight, History, Store, ArrowLeftRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, History, Store, ArrowLeftRight, ShoppingCart } from 'lucide-react';
 import type { InventoryItem, Counter } from '../../../../hooks/useAdminData';
 import type { Column } from '../../DataTable';
 

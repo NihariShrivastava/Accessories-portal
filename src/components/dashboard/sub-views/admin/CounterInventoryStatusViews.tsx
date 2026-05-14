@@ -1,5 +1,5 @@
 import { ViewHeader } from '../../ViewHeader';
-import { Store, Car, ChevronRight, Package } from 'lucide-react';
+import { Store, Car, ChevronRight } from 'lucide-react';
 import { Badge } from '../../Badge';
 import { DataTable } from '../../DataTable';
 import type { InventoryItem } from '../../../../hooks/useAdminData';
