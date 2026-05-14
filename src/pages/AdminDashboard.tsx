@@ -1,22 +1,22 @@
 import { useState, useRef, useMemo, useCallback } from 'react';
-import { Upload, Users, Package, FileSpreadsheet, BarChart3 } from 'lucide-react';
+import { Upload, Users, Package, FileSpreadsheet, BarChart3, ShoppingCart, ArrowLeftRight, Plus, Trash2, ChevronRight, History } from 'lucide-react';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
-import { DataTable } from '../components/dashboard/DataTable';
-import type { Column } from '../components/dashboard/DataTable';
+
 
 import { useAdminData } from '../hooks/useAdminData';
 import type { InventoryItem, CounterBill, SalesReport } from '../hooks/useAdminData';
 import { Modal } from '../components/dashboard/Modal';
 import { BillDetails } from '../components/dashboard/BillDetails';
-import { DateRangeFilter } from '../components/dashboard/DateRangeFilter';
-import { ManageCountersView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView } from '../components/dashboard/sub-views/AdminSubViews';
+import { ManageCountersView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView, GlobalInventorySliderView, UploadHistoryView } from '../components/dashboard/sub-views/AdminSubViews';
 
 export function AdminDashboard() {
   const {
     stats, counters, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, uploading,
     startDate, endDate, setStartDate, setEndDate,
     fetchCounters, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
-    updateCounter, deleteCounter, deleteAccessory, updateAccessory, transferAccessory
+    updateCounter, deleteCounter, deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories,
+    transferCart, addToTransferCart, removeFromTransferCart, clearTransferCart, executeCartTransfer,
+    deleteDataByDate
   } = useAdminData();
 
   const [activeView, setActiveView] = useState('dashboard');
@@ -30,6 +30,12 @@ export function AdminDashboard() {
   const [transferringItem, setTransferringItem] = useState<InventoryItem | null>(null);
   const [editForm, setEditForm] = useState({ quantity: 0, price: 0 });
   const [transferForm, setTransferForm] = useState({ targetCounterId: '', quantity: 0 });
+  const [transferMode, setTransferMode] = useState<'type' | 'single' | 'cart'>('type');
+  const [showCartModal, setShowCartModal] = useState(false);
+  const [cartTargetCounterId, setCartTargetCounterId] = useState('');
+  const [uploadDate, setUploadDate] = useState(new Date().toLocaleDateString('en-CA'));
+  const [historyFilterDate, setHistoryFilterDate] = useState('');
+  const [expandedUpload, setExpandedUpload] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const counterBills = useMemo(() => {
@@ -41,6 +47,22 @@ export function AdminDashboard() {
     setSelectedBill(b);
     setShowBillDetails(true);
   }, []);
+
+  const uploadHistory = useMemo(() => {
+    const timestamps = new Set<string>();
+    inventory.forEach(i => {
+      if (i.created_at) timestamps.add(i.created_at);
+    });
+    let result = Array.from(timestamps).sort((a, b) => b.localeCompare(a));
+    if (historyFilterDate) {
+      result = result.filter(t => {
+        try {
+          return new Date(t).toLocaleDateString('en-CA') === historyFilterDate;
+        } catch { return false; }
+      });
+    }
+    return result;
+  }, [inventory, historyFilterDate]);
 
   const handleCounterClick = useCallback(async (r: SalesReport) => {
     setSelectedCounterId(r.counter_id);
@@ -56,44 +78,10 @@ export function AdminDashboard() {
 
   const handleTransferClick = (item: InventoryItem) => {
     setTransferringItem(item);
+    setTransferMode('type');
     setTransferForm({ targetCounterId: '', quantity: 0 });
   };
 
-  const inventoryColumns: Column<InventoryItem>[] = useMemo(() => [
-    { header: 'Date', accessor: (i: InventoryItem) => new Date(i.created_at).toLocaleDateString(), sortAccessor: 'created_at', className: 'text-left text-muted-foreground whitespace-nowrap' },
-    { header: 'Counter', accessor: 'counter_name' as const, className: 'text-left font-medium' },
-    { header: 'Model', accessor: 'vehicle_model' as const, className: 'text-left text-muted-foreground' },
-    { header: 'Accessory', accessor: 'name' as const, sortAccessor: 'name', className: 'text-left' },
-    { header: 'Code', accessor: (i: InventoryItem) => i.accessory_code || '-', sortAccessor: 'accessory_code', className: 'text-left text-muted-foreground text-sm' },
-    { header: 'Qty', accessor: 'quantity' as const, className: 'text-right font-bold' },
-    { header: 'Price', accessor: (i: InventoryItem) => `₹${i.price.toFixed(2)}`, sortAccessor: 'price', className: 'text-right font-medium' },
-    { 
-      header: 'Actions', 
-      accessor: (i: InventoryItem) => (
-        <div className="flex items-center justify-center gap-2">
-          <button 
-            onClick={(e) => { e.stopPropagation(); handleEditClick(i); }} 
-            className="px-3 py-1 bg-blue-600 text-white hover:bg-blue-700 rounded text-xs font-semibold transition-all shadow-sm active:scale-95"
-          >
-            Edit
-          </button>
-          <button 
-            onClick={(e) => { e.stopPropagation(); handleTransferClick(i); }} 
-            className="px-3 py-1 bg-green-600 text-white hover:bg-green-700 rounded text-xs font-semibold transition-all shadow-sm active:scale-95"
-          >
-            Transfer
-          </button>
-          <button 
-            onClick={(e) => { e.stopPropagation(); deleteAccessory(i.id); }} 
-            className="px-3 py-1 bg-red-600 text-white hover:bg-red-700 rounded text-xs font-semibold transition-all shadow-sm active:scale-95"
-          >
-            Delete
-          </button>
-        </div>
-      ),
-      className: 'text-center'
-    }
-  ], [deleteAccessory]);
 
   let content;
   if (activeView === 'logins') {
@@ -133,6 +121,8 @@ export function AdminDashboard() {
           setSelectedCounterName(counter.name);
           setActiveView('counter-inventory-detail');
         }}
+        transferCartCount={transferCart.length}
+        onCartClick={() => setShowCartModal(true)}
       />
     );
   } else if (activeView === 'model-detail') {
@@ -170,63 +160,108 @@ export function AdminDashboard() {
     );
   } else if (activeView === 'counter-bills') {
     content = <BillsView counterName={selectedCounterName} data={counterBills} onBack={() => { setActiveView('reports'); setSelectedCounterId(''); }} onRowClick={handleBillClick} startDate={startDate} endDate={endDate} setStartDate={setStartDate} setEndDate={setEndDate} />;
+  } else if (activeView === 'upload-history') {
+    content = (
+      <UploadHistoryView 
+        inventory={inventory}
+        uploadHistory={uploadHistory}
+        expandedUpload={expandedUpload}
+        setExpandedUpload={setExpandedUpload}
+        historyFilterDate={historyFilterDate}
+        setHistoryFilterDate={setHistoryFilterDate}
+        onDeleteByDate={deleteDataByDate}
+        onBack={() => setActiveView('dashboard')}
+      />
+    );
   } else {
     content = (
-      <div className="space-y-6">
+      <div className="space-y-6 animate-in fade-in duration-500">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <DashboardCard icon={Users} label="Manage Counters" value={counters.length} onClick={() => { fetchCounters(); setActiveView('logins'); }} colorClass="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
           <DashboardCard icon={Package} label="Total Inventory" value={stats.items} onClick={() => { fetchVehicleModels(); fetchCounters(); setActiveView('inventory-slider'); }} colorClass="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
           <DashboardCard icon={BarChart3} label="Reports" value={salesReport.length} onClick={() => { fetchBills(); setActiveView('reports'); }} colorClass="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
         </div>
 
-        {/* Full-width Upload Bar */}
-        <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-primary"><Upload className="w-5 h-5" /> Upload Excel Data</h2>
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            <div className="flex-1 w-full">
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wider">Target Counter</label>
-              <select className="w-full px-4 py-2.5 bg-input border border-border rounded-lg focus:ring-2 focus:ring-primary/20 transition-all outline-none" value={selectedCounterId} onChange={(e) => setSelectedCounterId(e.target.value)}>
-                <option value="">-- Choose Counter --</option>
-                {counters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          {/* Left Column: Upload Box */}
+          <div className="bg-card p-5 rounded-xl border border-border shadow-lg space-y-4 flex flex-col h-full">
+            <div>
+              <h2 className="text-lg font-bold flex items-center gap-2 text-primary">
+                <Upload className="w-5 h-5" /> Upload Excel
+              </h2>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">Import inventory from Excel</p>
             </div>
-            <div className="flex-[2] w-full">
-              <input type="file" className="hidden" ref={fileInputRef} onChange={(e) => { if (e.target.files?.[0]) handleFileUpload(e.target.files[0], selectedCounterId); }} />
+
+            <div className="space-y-3 flex-1">
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Target Counter</label>
+                <select 
+                  className="w-full px-3 py-2 bg-muted/20 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 transition-all outline-none text-sm" 
+                  value={selectedCounterId} 
+                  onChange={(e) => setSelectedCounterId(e.target.value)}
+                >
+                  <option value="">-- Choose Counter --</option>
+                  {counters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Upload Date</label>
+                <input 
+                  type="date" 
+                  className="w-full px-3 py-2 bg-muted/20 border border-border rounded-lg outline-none focus:ring-2 focus:ring-primary/20 dark:[&::-webkit-calendar-picker-indicator]:invert text-sm" 
+                  value={uploadDate}
+                  onChange={(e) => setUploadDate(e.target.value)}
+                />
+              </div>
+
+              <div className="pt-1">
+                <input type="file" className="hidden" ref={fileInputRef} onChange={(e) => { if (e.target.files?.[0]) handleFileUpload(e.target.files[0], selectedCounterId, uploadDate); }} />
+                <button 
+                  onClick={() => fileInputRef.current?.click()} 
+                  disabled={uploading || !selectedCounterId} 
+                  className="w-full h-[46px] bg-primary text-primary-foreground font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] text-sm"
+                >
+                  {uploading ? (
+                    <span className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> Processing...</span>
+                  ) : (
+                    <><FileSpreadsheet className="w-4 h-4" /> Upload Excel</>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-border">
               <button 
-                onClick={() => fileInputRef.current?.click()} 
-                disabled={uploading || !selectedCounterId} 
-                className="w-full h-[46px] bg-secondary hover:bg-secondary/80 text-secondary-foreground font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 transition-all border border-border/50 shadow-sm active:scale-[0.98]"
+                onClick={() => setActiveView('upload-history')}
+                className="w-full py-2.5 bg-secondary/50 hover:bg-secondary text-secondary-foreground font-bold rounded-lg flex items-center justify-center gap-2 transition-all border border-border/50 text-xs"
               >
-                {uploading ? (
-                  <span className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> Processing...</span>
-                ) : (
-                  <><FileSpreadsheet className="w-5 h-5" /> Select and Upload Excel File</>
-                )}
+                <History className="w-4 h-4" /> See Upload History
               </button>
             </div>
           </div>
-        </div>
 
-        {/* Global Inventory with Date Filter */}
-        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
-          <div className="p-6 pb-2">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-              <h2 className="text-lg font-semibold">Global Inventory</h2>
-              <DateRangeFilter 
-                onApply={(start, end) => { setStartDate(start); setEndDate(end); }} 
-                onClear={() => { setStartDate(''); setEndDate(''); }}
-                initialStartDate={startDate}
-                initialEndDate={endDate}
-              />
-            </div>
+          {/* Right Column: Global Inventory Slider */}
+          <div className="lg:col-span-2 h-full">
+            <GlobalInventorySliderView 
+              inventory={inventory}
+              counters={counters}
+              onEdit={handleEditClick}
+              onTransfer={handleTransferClick}
+              onDelete={deleteAccessory}
+              onTransferAll={transferAllAccessories}
+              initialDate={startDate}
+              onDateChange={(date) => {
+                const d = new Date(date);
+                const prev = new Date(d.getTime() - 24 * 60 * 60 * 1000).toLocaleDateString('en-CA');
+                const next = new Date(d.getTime() + 24 * 60 * 60 * 1000).toLocaleDateString('en-CA');
+                setStartDate(prev);
+                setEndDate(next);
+              }}
+              transferCartCount={transferCart.length}
+              onCartClick={() => setShowCartModal(true)}
+            />
           </div>
-          <DataTable<InventoryItem>
-            idAccessor="id"
-            maxHeight="600px"
-            pageSize={50}
-            data={inventory}
-            columns={inventoryColumns}
-          />
         </div>
       </div>
     );
@@ -277,43 +312,150 @@ export function AdminDashboard() {
       </Modal>
 
       {/* Transfer Modal */}
-      <Modal isOpen={!!transferringItem} onClose={() => setTransferringItem(null)} title="Transfer Accessory">
+      <Modal isOpen={!!transferringItem} onClose={() => setTransferringItem(null)} title={transferMode === 'type' ? "Transfer Options" : "Transfer Accessory"}>
         <div className="space-y-4 p-4">
           <p className="text-sm text-muted-foreground">Transferring <span className="font-bold text-foreground">{transferringItem?.name}</span> from <span className="font-bold text-foreground">{transferringItem?.counter_name}</span></p>
-          <div>
-            <label className="block text-sm font-medium mb-1">Target Counter</label>
-            <select 
-              className="w-full px-3 py-2 bg-input border rounded-md" 
-              value={transferForm.targetCounterId} 
-              onChange={(e) => setTransferForm(prev => ({ ...prev, targetCounterId: e.target.value }))}
-            >
-              <option value="">-- Select Target Counter --</option>
-              {counters.filter(c => c.id !== transferringItem?.counter_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Quantity (Available: {transferringItem?.quantity})</label>
-            <input 
-              type="number" 
-              className="w-full px-3 py-2 bg-input border rounded-md" 
-              value={transferForm.quantity} 
-              onChange={(e) => setTransferForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
-              max={transferringItem?.quantity}
-            />
-          </div>
-          <button 
-            onClick={() => {
-              if (transferringItem && transferForm.targetCounterId && transferForm.quantity > 0) {
-                transferAccessory(transferringItem, transferForm.targetCounterId, transferForm.quantity);
-                setTransferringItem(null);
-              } else {
-                alert('Please select a target counter and valid quantity');
-              }
-            }}
-            className="w-full bg-purple-600 text-white py-2 rounded-md font-semibold hover:bg-purple-700"
-          >
-            Confirm Transfer
-          </button>
+          
+          {transferMode === 'type' ? (
+            <div className="grid grid-cols-1 gap-3">
+              <button 
+                onClick={() => setTransferMode('single')}
+                className="w-full flex items-center justify-between p-4 bg-muted/30 border border-border rounded-xl hover:bg-muted transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 rounded-lg">
+                    <ArrowLeftRight className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-bold">Transfer Single Accessory</div>
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Move items directly to another counter</div>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              <button 
+                onClick={() => setTransferMode('cart')}
+                className="w-full flex items-center justify-between p-4 bg-muted/30 border border-border rounded-xl hover:bg-muted transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 rounded-lg">
+                    <Plus className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-bold">Add to Transfer Cart</div>
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Accumulate items for a bulk transfer</div>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {transferMode === 'single' && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Target Counter</label>
+                  <select 
+                    className="w-full px-3 py-2 bg-input border rounded-md" 
+                    value={transferForm.targetCounterId} 
+                    onChange={(e) => setTransferForm(prev => ({ ...prev, targetCounterId: e.target.value }))}
+                  >
+                    <option value="">-- Select Target Counter --</option>
+                    {counters.filter(c => c.id !== transferringItem?.counter_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium mb-1">Quantity (Available: {transferringItem?.quantity})</label>
+                <input 
+                  type="number" 
+                  className="w-full px-3 py-2 bg-input border rounded-md" 
+                  value={transferForm.quantity} 
+                  onChange={(e) => setTransferForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
+                  max={transferringItem?.quantity}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setTransferMode('type')} className="flex-1 py-2 rounded-md font-semibold bg-muted text-muted-foreground">Back</button>
+                <button 
+                  onClick={() => {
+                    if (transferringItem && transferForm.quantity > 0) {
+                      if (transferMode === 'single') {
+                        if (!transferForm.targetCounterId) return alert('Please select a target counter');
+                        transferAccessory(transferringItem, transferForm.targetCounterId, transferForm.quantity);
+                      } else {
+                        addToTransferCart(transferringItem, transferForm.quantity);
+                      }
+                      setTransferringItem(null);
+                    }
+                  }}
+                  className={`flex-[2] py-2 rounded-md font-semibold text-white ${transferMode === 'single' ? 'bg-green-600 hover:bg-green-700' : 'bg-purple-600 hover:bg-purple-700'}`}
+                >
+                  {transferMode === 'single' ? 'Confirm Transfer' : 'Add to Cart'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Transfer Cart Modal */}
+      <Modal isOpen={showCartModal} onClose={() => setShowCartModal(false)} title="Transfer Cart">
+        <div className="space-y-6 p-4">
+          {transferCart.length === 0 ? (
+            <div className="text-center py-10">
+              <ShoppingCart className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+              <p className="text-muted-foreground">Your transfer cart is empty.</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3 max-h-[300px] overflow-auto pr-2">
+                {transferCart.map(item => (
+                  <div key={item.id} className="flex items-center justify-between p-3 bg-muted/20 border border-border rounded-lg group">
+                    <div>
+                      <div className="font-bold text-sm">{item.name}</div>
+                      <div className="text-[10px] text-muted-foreground uppercase">{item.vehicle_model} • {item.counter_name}</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-xs font-black px-2 py-1 bg-primary/10 text-primary rounded">{item.transferQuantity} Units</div>
+                      <button onClick={() => removeFromTransferCart(item.id)} className="p-1 text-destructive hover:bg-destructive/10 rounded transition-colors opacity-0 group-hover:opacity-100">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-4 border-t border-border space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-muted-foreground mb-1.5 ml-1">Destination Counter</label>
+                  <select 
+                    className="w-full px-4 py-2 bg-input border border-border rounded-lg outline-none focus:ring-2 focus:ring-primary/20"
+                    value={cartTargetCounterId}
+                    onChange={(e) => setCartTargetCounterId(e.target.value)}
+                  >
+                    <option value="">-- Choose Target Counter --</option>
+                    {counters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+
+                <div className="flex gap-3">
+                  <button onClick={() => { clearTransferCart(); setShowCartModal(false); }} className="px-4 py-2 text-destructive font-bold hover:bg-destructive/10 rounded-lg">Clear All</button>
+                  <button 
+                    disabled={!cartTargetCounterId || uploading}
+                    onClick={async () => {
+                      await executeCartTransfer(cartTargetCounterId);
+                      setShowCartModal(false);
+                      setCartTargetCounterId('');
+                    }}
+                    className="flex-1 bg-purple-600 text-white py-2.5 rounded-lg font-bold hover:bg-purple-700 disabled:opacity-50 transition-all shadow-sm active:scale-95"
+                  >
+                    {uploading ? 'Transferring...' : 'Transfer All Items'}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </Modal>
     </>

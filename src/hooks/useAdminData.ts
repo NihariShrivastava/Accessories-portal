@@ -37,6 +37,7 @@ export function useAdminData() {
   const [vehicleModels, setVehicleModels] = useState<string[]>([]);
   const [modelAccessories, setModelAccessories] = useState<ModelAccessory[]>([]);
   const [allBills, setAllBills] = useState<CounterBill[]>([]);
+  const [transferCart, setTransferCart] = useState<(InventoryItem & { transferQuantity: number })[]>([]);
   const [uploading, setUploading] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -207,7 +208,8 @@ export function useAdminData() {
             name: item.name,
             accessory_code: item.accessory_code,
             price: item.price,
-            quantity: quantity
+            quantity: quantity,
+            created_at: new Date().toISOString()
           });
         if (targetError) throw targetError;
       }
@@ -216,6 +218,129 @@ export function useAdminData() {
       fetchInventory();
     } catch (error: any) {
       toast.error(error.message || 'Error transferring accessory');
+    }
+  };
+
+  const transferAllAccessories = async (items: InventoryItem[], targetCounterId: string) => {
+    if (items.length === 0) {
+      toast.error('No items to transfer');
+      return;
+    }
+    
+    setUploading(true);
+    try {
+      // 1. Set quantity to 0 for all source items in bulk
+      const itemIds = items.map(i => i.id);
+      const { error: sourceError } = await supabase.from('accessories')
+        .update({ quantity: 0 })
+        .in('id', itemIds);
+        
+      if (sourceError) throw sourceError;
+
+      // 2. Transfer logic: loop to handle potential existing target items
+      // Since upsert doesn't increment, we check each item.
+      for (const item of items) {
+        const { data: existingTarget } = await supabase.from('accessories')
+          .select('id, quantity')
+          .eq('counter_id', targetCounterId)
+          .eq('vehicle_model', item.vehicle_model)
+          .eq('name', item.name)
+          .maybeSingle();
+
+        if (existingTarget) {
+          const { error: targetError } = await supabase.from('accessories')
+            .update({ quantity: existingTarget.quantity + item.quantity })
+            .eq('id', existingTarget.id);
+          if (targetError) throw targetError;
+        } else {
+          const { error: targetError } = await supabase.from('accessories')
+            .insert({
+              counter_id: targetCounterId,
+              vehicle_model: item.vehicle_model,
+              name: item.name,
+              accessory_code: item.accessory_code,
+              price: item.price,
+              quantity: item.quantity
+            });
+          if (targetError) throw targetError;
+        }
+      }
+
+      toast.success(`Successfully transferred ${items.length} items to target counter!`);
+      fetchInventory();
+    } catch (error: any) {
+      toast.error(error.message || 'Error during bulk transfer');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const addToTransferCart = (item: InventoryItem, quantity: number) => {
+    if (quantity > item.quantity) {
+      toast.error(`Only ${item.quantity} units available`);
+      return;
+    }
+    setTransferCart(prev => {
+      const existing = prev.find(i => i.id === item.id);
+      if (existing) {
+        const newQty = existing.transferQuantity + quantity;
+        if (newQty > item.quantity) {
+          toast.error(`Total cart quantity exceeds available stock`);
+          return prev;
+        }
+        return prev.map(i => i.id === item.id ? { ...i, transferQuantity: newQty } : i);
+      }
+      return [...prev, { ...item, transferQuantity: quantity }];
+    });
+    toast.success('Added to transfer cart');
+  };
+
+  const removeFromTransferCart = (id: string) => {
+    setTransferCart(prev => prev.filter(i => i.id !== id));
+  };
+
+  const clearTransferCart = () => setTransferCart([]);
+
+  const executeCartTransfer = async (targetCounterId: string) => {
+    if (transferCart.length === 0) return;
+    setUploading(true);
+    try {
+      for (const item of transferCart) {
+        // Source update
+        await supabase.from('accessories')
+          .update({ quantity: item.quantity - item.transferQuantity })
+          .eq('id', item.id);
+
+        // Target upsert
+        const { data: existingTarget } = await supabase.from('accessories')
+          .select('id, quantity')
+          .eq('counter_id', targetCounterId)
+          .eq('vehicle_model', item.vehicle_model)
+          .eq('name', item.name)
+          .maybeSingle();
+
+        if (existingTarget) {
+          await supabase.from('accessories')
+            .update({ quantity: existingTarget.quantity + item.transferQuantity })
+            .eq('id', existingTarget.id);
+        } else {
+          await supabase.from('accessories').insert({
+            counter_id: targetCounterId,
+            vehicle_model: item.vehicle_model,
+            name: item.name,
+            accessory_code: item.accessory_code,
+            price: item.price,
+            quantity: item.transferQuantity
+          });
+        }
+      }
+      toast.success(`Successfully transferred ${transferCart.length} items!`);
+      clearTransferCart();
+      fetchInventory();
+    } catch (error: any) {
+      toast.error(error.message || 'Error during cart transfer');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -335,7 +460,28 @@ export function useAdminData() {
     return filteredBills.filter(b => b.counter_id === counterId);
   }, [filteredBills]);
 
-  const handleFileUpload = useCallback(async (file: File, counterId: string) => {
+  const deleteDataByDate = async (date: string) => {
+    if (!confirm(`Are you sure you want to delete ALL inventory data uploaded on ${date}? This cannot be undone.`)) return;
+    setUploading(true);
+    try {
+      // We match by local date string from created_at
+      const { error } = await supabase.from('accessories')
+        .delete()
+        .gte('created_at', `${date}T00:00:00`)
+        .lte('created_at', `${date}T23:59:59`);
+      
+      if (error) throw error;
+      toast.success(`Successfully deleted all data from ${date}`);
+      fetchInventory();
+      fetchStats();
+    } catch (error: any) {
+      toast.error(error.message || 'Error deleting data');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileUpload = useCallback(async (file: File, counterId: string, customDate?: string) => {
     setUploading(true);
     try {
       const data = await file.arrayBuffer();
@@ -374,7 +520,10 @@ export function useAdminData() {
           existing.price = price > 0 ? price : existing.price; 
           if (!existing.accessory_code) existing.accessory_code = accessory_code;
         }
-        else { consolidatedData.set(key, { counter_id: counterId, vehicle_model, name, accessory_code, quantity, price }); }
+        else { 
+          const uploadTimestamp = customDate ? `${customDate}T12:00:00Z` : new Date().toISOString();
+          consolidatedData.set(key, { counter_id: counterId, vehicle_model, name, accessory_code, quantity, price, created_at: uploadTimestamp }); 
+        }
       });
 
       const rowsToInsert = Array.from(consolidatedData.values());
@@ -402,6 +551,8 @@ export function useAdminData() {
     startDate, endDate, setStartDate, setEndDate,
     fetchLoginDetails, fetchCounters, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter,
-    deleteAccessory, updateAccessory, transferAccessory, fetchInventory
+    deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories, fetchInventory,
+    transferCart, addToTransferCart, removeFromTransferCart, clearTransferCart, executeCartTransfer,
+    deleteDataByDate
   };
 }
