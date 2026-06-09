@@ -27,7 +27,7 @@ export function Login() {
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: `${username}@portal.local`,
+        email: `${username.trim().toLowerCase()}@portal.local`,
         password,
       });
 
@@ -35,21 +35,26 @@ export function Login() {
 
       // Check if profile exists before redirecting
       if (data.user) {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
-          .single();
+        const isHardcodedAdmin = data.user.email?.startsWith('admin@');
+        let role = isHardcodedAdmin ? 'admin' : 'counter';
 
-        if (profileError || !profile) {
-          await supabase.auth.signOut();
-          throw new Error('This account is no longer active or unauthorized.');
+        if (!isHardcodedAdmin) {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', data.user.id)
+            .single();
+
+          if (profileError || !profile) {
+            await supabase.auth.signOut();
+            throw new Error('This account is no longer active or unauthorized.');
+          }
+          role = profile.role || 'counter';
         }
 
         // Log the login event (fire-and-forget, don't block login)
         supabase.from('login_logs').insert([{ user_id: data.user.id }]).then(() => {});
 
-        const role = profile.role || 'counter';
         navigate(role === 'admin' ? '/admin' : '/counter', { replace: true });
       }
     } catch (error: unknown) {

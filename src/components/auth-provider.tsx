@@ -27,13 +27,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) {
         console.error('Error fetching profile:', error);
-        setProfile(null);
+        // If the user is admin, preserve the preliminary profile (which allows login without a profiles row)
+        setProfile((prev: any) => prev?.role === 'admin' ? prev : null);
       } else {
         setProfile(data);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
-      setProfile(null);
+      setProfile((prev: any) => prev?.role === 'admin' ? prev : null);
     } finally {
       setLoading(false);
     }
@@ -50,10 +51,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (currentUser) {
         // Set a preliminary profile from metadata so redirects can happen immediately
         const metadata = currentUser.user_metadata;
+        const isHardcodedAdmin = currentUser.email?.startsWith('admin@');
         setProfile((prev: any) => ({
           id: currentUser.id,
-          role: metadata?.role || 'counter',
-          name: metadata?.name || '',
+          role: isHardcodedAdmin ? 'admin' : (metadata?.role || 'counter'),
+          name: isHardcodedAdmin ? 'Admin' : (metadata?.name || ''),
           ...(prev || {}) // Preserve existing data if any
         }));
         
