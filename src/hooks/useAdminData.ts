@@ -155,18 +155,6 @@ export function useAdminData() {
   const deleteAccessory = async (id: string) => {
     if (!confirm('Are you sure you want to delete this accessory from this counter?')) return;
     try {
-      // Fetch bills to delete
-      const { data: billsToDelete } = await supabase.from('bills').select('id').eq('accessory_id', id);
-      if (billsToDelete && billsToDelete.length > 0) {
-        for (const bill of billsToDelete) {
-          const { data: deletedBill, error: billError } = await supabase.from('bills').delete().eq('id', bill.id).select();
-          if (billError) throw new Error('Failed to delete bill: ' + billError.message);
-          if (!deletedBill || deletedBill.length === 0) {
-            throw new Error('Database security policies (RLS) prevented the deletion of associated bills. Please update your Supabase policies or add ON DELETE CASCADE to the foreign key.');
-          }
-        }
-      }
-
       const { error } = await supabase.from('accessories').delete().eq('id', id);
       if (error) throw new Error('Failed to delete accessory: ' + error.message);
       
@@ -512,35 +500,7 @@ export function useAdminData() {
       }
 
       if (allAccessoryIds.length > 0) {
-        // Find all bills that reference these accessories
-        let allBillIds: string[] = [];
-        const chunkSize = 50;
-        
-        for (let i = 0; i < allAccessoryIds.length; i += chunkSize) {
-          const chunk = allAccessoryIds.slice(i, i + chunkSize);
-          const { data: bills, error: billFetchError } = await supabase.from('bills')
-            .select('id')
-            .in('accessory_id', chunk);
-          
-          if (billFetchError) throw new Error('Failed fetching bills: ' + billFetchError.message);
-          if (bills) allBillIds.push(...bills.map(b => b.id));
-        }
-
-        // Delete associated bills by their primary key 'id'
-        for (let i = 0; i < allBillIds.length; i += chunkSize) {
-          const chunk = allBillIds.slice(i, i + chunkSize);
-          const { data: deletedBills, error: billError } = await supabase.from('bills')
-            .delete()
-            .in('id', chunk)
-            .select();
-            
-          if (billError) throw new Error('Failed deleting bills: ' + billError.message);
-          
-          if (!deletedBills || deletedBills.length < chunk.length) {
-             throw new Error('Database security policies (RLS) prevented the deletion of some bills. Please update your Supabase policies or add ON DELETE CASCADE to the foreign key.');
-          }
-        }
-
+        const chunkSize = 100;
         // Delete the accessories in chunks
         for (let i = 0; i < allAccessoryIds.length; i += chunkSize) {
           const chunk = allAccessoryIds.slice(i, i + chunkSize);
