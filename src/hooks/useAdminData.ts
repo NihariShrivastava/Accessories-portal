@@ -477,34 +477,49 @@ export function useAdminData() {
     if (!confirm(`Are you sure you want to delete ALL inventory data uploaded on ${date}? This cannot be undone.`)) return;
     setUploading(true);
     try {
-      // Find all accessories that match this date
-      const { data: accessoriesToDelete, error: fetchError } = await supabase.from('accessories')
-        .select('id')
-        .gte('created_at', `${date}T00:00:00`)
-        .lte('created_at', `${date}T23:59:59`);
-      
-      if (fetchError) throw fetchError;
+      let allAccessoryIds: string[] = [];
+      let start = 0;
+      const limit = 1000;
+      let hasMore = true;
 
-      if (accessoriesToDelete && accessoriesToDelete.length > 0) {
-        const accessoryIds = accessoriesToDelete.map(a => a.id);
+      // Fetch all accessory IDs for the given date using pagination
+      while (hasMore) {
+        const { data, error: fetchError } = await supabase.from('accessories')
+          .select('id')
+          .gte('created_at', `${date}T00:00:00`)
+          .lte('created_at', `${date}T23:59:59`)
+          .range(start, start + limit - 1);
         
+        if (fetchError) throw fetchError;
+        
+        if (data && data.length > 0) {
+          allAccessoryIds.push(...data.map(a => a.id));
+          start += limit;
+          if (data.length < limit) hasMore = false;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      if (allAccessoryIds.length > 0) {
         // Delete associated bills in chunks
         const chunkSize = 100;
-        for (let i = 0; i < accessoryIds.length; i += chunkSize) {
-          const chunk = accessoryIds.slice(i, i + chunkSize);
+        for (let i = 0; i < allAccessoryIds.length; i += chunkSize) {
+          const chunk = allAccessoryIds.slice(i, i + chunkSize);
           const { error: billError } = await supabase.from('bills')
             .delete()
             .in('accessory_id', chunk);
           if (billError) throw billError;
         }
 
-        // We match by local date string from created_at
-        const { error } = await supabase.from('accessories')
-          .delete()
-          .gte('created_at', `${date}T00:00:00`)
-          .lte('created_at', `${date}T23:59:59`);
-        
-        if (error) throw error;
+        // Delete the accessories in chunks to ensure we delete exactly what we found
+        for (let i = 0; i < allAccessoryIds.length; i += chunkSize) {
+          const chunk = allAccessoryIds.slice(i, i + chunkSize);
+          const { error: accError } = await supabase.from('accessories')
+            .delete()
+            .in('id', chunk);
+          if (accError) throw accError;
+        }
       }
 
       toast.success(`Successfully deleted all data from ${date}`);
