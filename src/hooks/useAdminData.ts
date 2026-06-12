@@ -159,8 +159,11 @@ export function useAdminData() {
       const { data: billsToDelete } = await supabase.from('bills').select('id').eq('accessory_id', id);
       if (billsToDelete && billsToDelete.length > 0) {
         for (const bill of billsToDelete) {
-          const { error: billError } = await supabase.from('bills').delete().eq('id', bill.id);
+          const { data: deletedBill, error: billError } = await supabase.from('bills').delete().eq('id', bill.id).select();
           if (billError) throw new Error('Failed to delete bill: ' + billError.message);
+          if (!deletedBill || deletedBill.length === 0) {
+            throw new Error('Database security policies (RLS) prevented the deletion of associated bills. Please update your Supabase policies or add ON DELETE CASCADE to the foreign key.');
+          }
         }
       }
 
@@ -526,10 +529,16 @@ export function useAdminData() {
         // Delete associated bills by their primary key 'id'
         for (let i = 0; i < allBillIds.length; i += chunkSize) {
           const chunk = allBillIds.slice(i, i + chunkSize);
-          const { error: billError } = await supabase.from('bills')
+          const { data: deletedBills, error: billError } = await supabase.from('bills')
             .delete()
-            .in('id', chunk);
+            .in('id', chunk)
+            .select();
+            
           if (billError) throw new Error('Failed deleting bills: ' + billError.message);
+          
+          if (!deletedBills || deletedBills.length < chunk.length) {
+             throw new Error('Database security policies (RLS) prevented the deletion of some bills. Please update your Supabase policies or add ON DELETE CASCADE to the foreign key.');
+          }
         }
 
         // Delete the accessories in chunks
