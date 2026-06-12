@@ -155,6 +155,9 @@ export function useAdminData() {
   const deleteAccessory = async (id: string) => {
     if (!confirm('Are you sure you want to delete this accessory from this counter?')) return;
     try {
+      const { error: billError } = await supabase.from('bills').delete().eq('accessory_id', id);
+      if (billError) throw billError;
+
       const { error } = await supabase.from('accessories').delete().eq('id', id);
       if (error) throw error;
       toast.success('Accessory deleted successfully');
@@ -474,13 +477,36 @@ export function useAdminData() {
     if (!confirm(`Are you sure you want to delete ALL inventory data uploaded on ${date}? This cannot be undone.`)) return;
     setUploading(true);
     try {
-      // We match by local date string from created_at
-      const { error } = await supabase.from('accessories')
-        .delete()
+      // Find all accessories that match this date
+      const { data: accessoriesToDelete, error: fetchError } = await supabase.from('accessories')
+        .select('id')
         .gte('created_at', `${date}T00:00:00`)
         .lte('created_at', `${date}T23:59:59`);
       
-      if (error) throw error;
+      if (fetchError) throw fetchError;
+
+      if (accessoriesToDelete && accessoriesToDelete.length > 0) {
+        const accessoryIds = accessoriesToDelete.map(a => a.id);
+        
+        // Delete associated bills in chunks
+        const chunkSize = 100;
+        for (let i = 0; i < accessoryIds.length; i += chunkSize) {
+          const chunk = accessoryIds.slice(i, i + chunkSize);
+          const { error: billError } = await supabase.from('bills')
+            .delete()
+            .in('accessory_id', chunk);
+          if (billError) throw billError;
+        }
+
+        // We match by local date string from created_at
+        const { error } = await supabase.from('accessories')
+          .delete()
+          .gte('created_at', `${date}T00:00:00`)
+          .lte('created_at', `${date}T23:59:59`);
+        
+        if (error) throw error;
+      }
+
       toast.success(`Successfully deleted all data from ${date}`);
       fetchInventory();
       fetchStats();
