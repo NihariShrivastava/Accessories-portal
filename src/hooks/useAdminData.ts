@@ -155,11 +155,18 @@ export function useAdminData() {
   const deleteAccessory = async (id: string) => {
     if (!confirm('Are you sure you want to delete this accessory from this counter?')) return;
     try {
-      const { error: billError } = await supabase.from('bills').delete().eq('accessory_id', id);
-      if (billError) throw billError;
+      // Fetch bills to delete
+      const { data: billsToDelete } = await supabase.from('bills').select('id').eq('accessory_id', id);
+      if (billsToDelete && billsToDelete.length > 0) {
+        for (const bill of billsToDelete) {
+          const { error: billError } = await supabase.from('bills').delete().eq('id', bill.id);
+          if (billError) throw new Error('Failed to delete bill: ' + billError.message);
+        }
+      }
 
       const { error } = await supabase.from('accessories').delete().eq('id', id);
-      if (error) throw error;
+      if (error) throw new Error('Failed to delete accessory: ' + error.message);
+      
       toast.success('Accessory deleted successfully');
       fetchInventory();
     } catch (error: any) {
@@ -490,7 +497,7 @@ export function useAdminData() {
           .lte('created_at', `${date}T23:59:59`)
           .range(start, start + limit - 1);
         
-        if (fetchError) throw fetchError;
+        if (fetchError) throw new Error('Failed fetching accessories: ' + fetchError.message);
         
         if (data && data.length > 0) {
           allAccessoryIds.push(...data.map(a => a.id));
@@ -502,23 +509,36 @@ export function useAdminData() {
       }
 
       if (allAccessoryIds.length > 0) {
-        // Delete associated bills in chunks
-        const chunkSize = 100;
+        // Find all bills that reference these accessories
+        let allBillIds: string[] = [];
+        const chunkSize = 50;
+        
         for (let i = 0; i < allAccessoryIds.length; i += chunkSize) {
           const chunk = allAccessoryIds.slice(i, i + chunkSize);
-          const { error: billError } = await supabase.from('bills')
-            .delete()
+          const { data: bills, error: billFetchError } = await supabase.from('bills')
+            .select('id')
             .in('accessory_id', chunk);
-          if (billError) throw billError;
+          
+          if (billFetchError) throw new Error('Failed fetching bills: ' + billFetchError.message);
+          if (bills) allBillIds.push(...bills.map(b => b.id));
         }
 
-        // Delete the accessories in chunks to ensure we delete exactly what we found
+        // Delete associated bills by their primary key 'id'
+        for (let i = 0; i < allBillIds.length; i += chunkSize) {
+          const chunk = allBillIds.slice(i, i + chunkSize);
+          const { error: billError } = await supabase.from('bills')
+            .delete()
+            .in('id', chunk);
+          if (billError) throw new Error('Failed deleting bills: ' + billError.message);
+        }
+
+        // Delete the accessories in chunks
         for (let i = 0; i < allAccessoryIds.length; i += chunkSize) {
           const chunk = allAccessoryIds.slice(i, i + chunkSize);
           const { error: accError } = await supabase.from('accessories')
             .delete()
             .in('id', chunk);
-          if (accError) throw accError;
+          if (accError) throw new Error('Failed deleting accessories: ' + accError.message);
         }
       }
 
