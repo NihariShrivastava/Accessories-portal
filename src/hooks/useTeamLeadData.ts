@@ -74,10 +74,11 @@ export function useTeamLeadData(user: any) {
       const standaloneBills: any[] = [];
 
       (billsData || []).forEach(item => {
-        const bNo = item.bill_number;
-        if (!bNo) {
+        const bNo = item.bill_number ? item.bill_number.replace(/-\d+$/, '') : `TEMP-${item.id}`;
+        if (!item.bill_number) {
           standaloneBills.push({
             ...item,
+            bill_number: bNo,
             accessory_name: item.accessories?.name || 'Unknown',
             vehicle_model: item.accessories?.vehicle_model || 'Unknown',
             items: [item]
@@ -88,6 +89,7 @@ export function useTeamLeadData(user: any) {
         if (!groupedBills.has(bNo)) {
           groupedBills.set(bNo, { 
             ...item, 
+            bill_number: bNo,
             accessory_name: 'Multiple Items',
             vehicle_model: 'Multiple Models',
             items: [item]
@@ -96,6 +98,9 @@ export function useTeamLeadData(user: any) {
           const group = groupedBills.get(bNo);
           group.items.push(item);
           group.total_amount += item.total_amount || 0;
+          group.amount_paid += item.amount_paid || 0;
+          group.amount_left += item.amount_left || 0;
+          group.quantity += item.quantity || 0;
         }
       });
 

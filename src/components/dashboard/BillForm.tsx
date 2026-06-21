@@ -56,13 +56,13 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
 
     setLoading(true);
     try {
-      // Generate a unique sequential bill number by finding the highest current number
+      // Find the highest current number using like to ignore TEMP- strings and ordering by created_at
       const { data: allBills } = await supabase
         .from('bills')
         .select('bill_number')
-        .not('bill_number', 'is', null)
-        .order('bill_number', { ascending: false })
-        .limit(20); // Get a few to be safe and find the actual max numeric
+        .like('bill_number', 'INV-%')
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       let maxNum = 0;
       if (allBills && allBills.length > 0) {
@@ -76,39 +76,60 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
         });
       }
       
-      const nextNum = maxNum + 1;
-      const billNumber = `INV-${String(nextNum).padStart(4, '0')}`;
+      let inserted = false;
+      let retryCount = 0;
+      let finalBillNumber = '';
 
-      // Insert multiple rows for the same bill
-      const billRows = items.map((item, index) => {
-        const base = item.accessory.price * item.quantity;
-        const cgst = base * ((item.accessory.cgst_percent || 0) / 100);
-        const sgst = base * ((item.accessory.sgst_percent || 0) / 100);
-        const total = base + cgst + sgst;
+      while (!inserted && retryCount < 5) {
+        const nextNum = maxNum + 1 + retryCount;
+        const billNumber = `INV-${String(nextNum).padStart(4, '0')}`;
+        finalBillNumber = billNumber;
+
+        // Insert multiple rows for the same bill
+        const billRows = items.map((item, index) => {
+          const base = item.accessory.price * item.quantity;
+          const cgst = base * ((item.accessory.cgst_percent || 0) / 100);
+          const sgst = base * ((item.accessory.sgst_percent || 0) / 100);
+          const total = base + cgst + sgst;
+          
+          return {
+            // Append suffix to handle unique constraint if multiple items
+            bill_number: items.length > 1 ? `${billNumber}-${index + 1}` : billNumber,
+            counter_id: userId,
+            accessory_id: item.accessory.id,
+            chassis_number: chassisNo,
+            engine_number: engineNo,
+            checklist_number: checklistNo,
+            quantity: item.quantity,
+            base_amount: base,
+            cgst_amount: cgst,
+            sgst_amount: sgst,
+            total_amount: total,
+            payment_method: primaryMethod,
+            payment_details: payments,
+            // Store total paid and left ONLY in the first row to avoid overcounting in sums
+            amount_paid: index === 0 ? totalAmountPaid : 0,
+            amount_left: index === 0 ? totalAmountLeft : 0
+          };
+        });
+
+        const { error: billError } = await supabase.from('bills').insert(billRows);
         
-        return {
-          // Append suffix to handle unique constraint if multiple items
-          bill_number: items.length > 1 ? `${billNumber}-${index + 1}` : billNumber,
-          counter_id: userId,
-          accessory_id: item.accessory.id,
-          chassis_number: chassisNo,
-          engine_number: engineNo,
-          checklist_number: checklistNo,
-          quantity: item.quantity,
-          base_amount: base,
-          cgst_amount: cgst,
-          sgst_amount: sgst,
-          total_amount: total,
-          payment_method: primaryMethod,
-          payment_details: payments,
-          // Store total paid and left ONLY in the first row to avoid overcounting in sums
-          amount_paid: index === 0 ? totalAmountPaid : 0,
-          amount_left: index === 0 ? totalAmountLeft : 0
-        };
-      });
+        if (billError) {
+          // If it's a unique constraint error on bill_number, try the next number
+          if (billError.message?.includes('bills_bill_number_unique') || billError.code === '23505') {
+            retryCount++;
+            continue;
+          }
+          throw billError;
+        }
+        
+        inserted = true;
+      }
 
-      const { error: billError } = await supabase.from('bills').insert(billRows);
-      if (billError) throw billError;
+      if (!inserted) {
+        throw new Error('Failed to generate a unique bill number after multiple attempts. Please try again.');
+      }
 
       // Update quantities for each accessory
       for (const item of items) {
@@ -119,7 +140,7 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
         if (updateError) throw updateError;
       }
 
-      toast.success(`Bill ${billNumber} generated! Total: ₹${totalBillAmount.toFixed(2)}`);
+      toast.success(`Bill ${finalBillNumber} generated! Total: ₹${totalBillAmount.toFixed(2)}`);
       onSuccess();
     } catch (error: any) {
       toast.error(error.message || 'Failed to generate bill');
