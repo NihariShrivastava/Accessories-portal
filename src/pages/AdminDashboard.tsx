@@ -7,7 +7,7 @@ import { useAdminData } from '../hooks/useAdminData';
 import type { InventoryItem, CounterBill, SalesReport } from '../hooks/useAdminData';
 import { Modal } from '../components/dashboard/Modal';
 import { BillDetails } from '../components/dashboard/BillDetails';
-import { ManageCountersView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView, GlobalInventorySliderView, UploadHistoryView } from '../components/dashboard/sub-views/AdminSubViews';
+import { CounterManagementView, AddTeamLeadView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView, GlobalInventorySliderView, UploadHistoryView } from '../components/dashboard/sub-views/AdminSubViews';
 
 export function AdminDashboard() {
   const {
@@ -16,7 +16,7 @@ export function AdminDashboard() {
     fetchCounters, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter, deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories,
     transferCart, addToTransferCart, removeFromTransferCart, clearTransferCart, executeCartTransfer,
-    deleteDataByDate
+    deleteDataByDate, teamLeads, fetchTeamLeads, updateTeamLead, deleteTeamLead
   } = useAdminData();
 
   const [activeView, setActiveView] = useState('dashboard');
@@ -34,7 +34,8 @@ export function AdminDashboard() {
   const [showCartModal, setShowCartModal] = useState(false);
   const [cartTargetCounterId, setCartTargetCounterId] = useState('');
   const [uploadDate, setUploadDate] = useState(new Date().toLocaleDateString('en-CA'));
-  const [historyFilterDate, setHistoryFilterDate] = useState('');
+  const [historyStartDate, setHistoryStartDate] = useState('');
+  const [historyEndDate, setHistoryEndDate] = useState('');
   const [expandedUpload, setExpandedUpload] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,15 +55,19 @@ export function AdminDashboard() {
       if (i.created_at) timestamps.add(i.created_at);
     });
     let result = Array.from(timestamps).sort((a, b) => b.localeCompare(a));
-    if (historyFilterDate) {
+    if (historyStartDate || historyEndDate) {
       result = result.filter(t => {
         try {
-          return new Date(t).toLocaleDateString('en-CA') === historyFilterDate;
+          const dStr = new Date(t).toLocaleDateString('en-CA');
+          if (historyStartDate && historyEndDate) return dStr >= historyStartDate && dStr <= historyEndDate;
+          if (historyStartDate) return dStr >= historyStartDate;
+          if (historyEndDate) return dStr <= historyEndDate;
+          return true;
         } catch { return false; }
       });
     }
     return result;
-  }, [inventory, historyFilterDate]);
+  }, [inventory, historyStartDate, historyEndDate]);
 
   const handleCounterClick = useCallback(async (r: SalesReport) => {
     setSelectedCounterId(r.counter_id);
@@ -84,14 +89,19 @@ export function AdminDashboard() {
 
 
   let content;
-  if (activeView === 'logins') {
+  if (activeView === 'logins' || activeView === 'logins-team-leads') {
     content = (
-      <ManageCountersView 
-        data={counters} 
+      <CounterManagementView 
+        initialTab={activeView === 'logins-team-leads' ? 'team_leads' : 'counters'}
+        counters={counters}
+        teamLeads={teamLeads}
         onBack={() => setActiveView('dashboard')} 
         onAddCounter={() => setActiveView('add-counter')}
-        onUpdate={updateCounter}
-        onDelete={deleteCounter}
+        onUpdateCounter={updateCounter}
+        onDeleteCounter={deleteCounter}
+        onAddTeamLead={() => setActiveView('add-team-lead')}
+        onUpdateTeamLead={updateTeamLead}
+        onDeleteTeamLead={deleteTeamLead}
       />
     );
   } else if (activeView === 'add-counter') {
@@ -101,6 +111,18 @@ export function AdminDashboard() {
           setTimeout(() => {
             fetchCounters(); 
             setActiveView('logins'); 
+          }, 500);
+        }} 
+      />
+    );
+  } else if (activeView === 'add-team-lead') {
+    content = (
+      <AddTeamLeadView 
+        counters={counters}
+        onBack={() => { 
+          setTimeout(() => {
+            fetchTeamLeads(); 
+            setActiveView('logins-team-leads'); 
           }, 500);
         }} 
       />
@@ -167,8 +189,10 @@ export function AdminDashboard() {
         uploadHistory={uploadHistory}
         expandedUpload={expandedUpload}
         setExpandedUpload={setExpandedUpload}
-        historyFilterDate={historyFilterDate}
-        setHistoryFilterDate={setHistoryFilterDate}
+        historyStartDate={historyStartDate}
+        setHistoryStartDate={setHistoryStartDate}
+        historyEndDate={historyEndDate}
+        setHistoryEndDate={setHistoryEndDate}
         onDeleteByDate={deleteDataByDate}
         onBack={() => setActiveView('dashboard')}
       />
@@ -177,7 +201,7 @@ export function AdminDashboard() {
     content = (
       <div className="space-y-6 animate-in fade-in duration-500">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <DashboardCard icon={Users} label="Manage Counters" value={counters.length} onClick={() => { fetchCounters(); setActiveView('logins'); }} colorClass="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
+          <DashboardCard icon={Users} label="Counter Management" value={counters.length + teamLeads.length} onClick={() => { fetchCounters(); fetchTeamLeads(); setActiveView('logins'); }} colorClass="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
           <DashboardCard icon={Package} label="Total Inventory" value={stats.items} onClick={() => { fetchVehicleModels(); fetchCounters(); setActiveView('inventory-slider'); }} colorClass="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
           <DashboardCard icon={BarChart3} label="Reports" value={salesReport.length} onClick={() => { fetchBills(); setActiveView('reports'); }} colorClass="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
         </div>
@@ -250,13 +274,11 @@ export function AdminDashboard() {
               onTransfer={handleTransferClick}
               onDelete={deleteAccessory}
               onTransferAll={transferAllAccessories}
-              initialDate={startDate}
-              onDateChange={(date) => {
-                const d = new Date(date);
-                const prev = new Date(d.getTime() - 24 * 60 * 60 * 1000).toLocaleDateString('en-CA');
-                const next = new Date(d.getTime() + 24 * 60 * 60 * 1000).toLocaleDateString('en-CA');
-                setStartDate(prev);
-                setEndDate(next);
+              initialStartDate={startDate}
+              initialEndDate={endDate}
+              onDateRangeChange={(start, end) => {
+                setStartDate(start);
+                setEndDate(end);
               }}
               transferCartCount={transferCart.length}
               onCartClick={() => setShowCartModal(true)}

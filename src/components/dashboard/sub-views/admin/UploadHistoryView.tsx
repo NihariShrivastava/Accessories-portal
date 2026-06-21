@@ -1,4 +1,5 @@
 import { ViewHeader } from '../../ViewHeader';
+import { DateRangeFilter } from '../../DateRangeFilter';
 import { History, Trash2, FileSpreadsheet, ChevronRight, Package } from 'lucide-react';
 import type { InventoryItem } from '../../../../hooks/useAdminData';
 
@@ -7,8 +8,10 @@ export const UploadHistoryView = ({
   uploadHistory,
   expandedUpload,
   setExpandedUpload,
-  historyFilterDate,
-  setHistoryFilterDate,
+  historyStartDate,
+  setHistoryStartDate,
+  historyEndDate,
+  setHistoryEndDate,
   onDeleteByDate,
   onBack
 }: {
@@ -16,8 +19,10 @@ export const UploadHistoryView = ({
   uploadHistory: string[],
   expandedUpload: string | null,
   setExpandedUpload: (id: string | null) => void,
-  historyFilterDate: string,
-  setHistoryFilterDate: (date: string) => void,
+  historyStartDate: string,
+  setHistoryStartDate: (date: string) => void,
+  historyEndDate: string,
+  setHistoryEndDate: (date: string) => void,
   onDeleteByDate: (date: string) => void,
   onBack: () => void
 }) => {
@@ -34,20 +39,15 @@ export const UploadHistoryView = ({
 
       <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-3 bg-muted/30 p-2 rounded-lg border border-border">
-            <span className="text-[10px] font-bold uppercase text-muted-foreground">Filter by Date:</span>
-            <input 
-              type="date" 
-              className="bg-transparent border-none text-xs font-bold outline-none cursor-pointer dark:[&::-webkit-calendar-picker-indicator]:invert" 
-              value={historyFilterDate}
-              onChange={(e) => setHistoryFilterDate(e.target.value)}
-            />
-            {historyFilterDate && (
-              <button onClick={() => setHistoryFilterDate('')} className="p-1 hover:bg-destructive/10 text-destructive rounded transition-colors">
-                <Trash2 className="w-3 h-3" />
-              </button>
-            )}
-          </div>
+          <DateRangeFilter
+            initialStartDate={historyStartDate}
+            initialEndDate={historyEndDate}
+            onApply={(start, end) => {
+              setHistoryStartDate(start);
+              setHistoryEndDate(end);
+            }}
+            onClear={() => { setHistoryStartDate(''); setHistoryEndDate(''); }}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-4">

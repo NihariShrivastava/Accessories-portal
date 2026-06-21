@@ -67,7 +67,8 @@ export function CounterDashboard() {
         (b.accessories?.vehicle_model || '').toLowerCase().includes(billModelFilter.toLowerCase());
       
       const paymentMatch = !billPaymentFilter || 
-        (b.payment_method || 'Cash') === billPaymentFilter;
+        (b.payment_method || 'Cash') === billPaymentFilter ||
+        (b.payment_details && Array.isArray(b.payment_details) && b.payment_details.some((p: any) => p.method === billPaymentFilter));
         
       return accMatch && modelMatch && paymentMatch;
     });

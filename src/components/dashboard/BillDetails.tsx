@@ -24,9 +24,30 @@ export function BillDetails({ bill, onClose }: BillDetailsProps) {
         </div>
         <div className="bg-muted p-3 rounded-md">
           <p className="text-xs text-muted-foreground uppercase font-bold mb-1">Payment Method</p>
-          <Badge variant="secondary">{bill.payment_method || 'Cash'}</Badge>
+          <Badge variant="secondary">
+            {bill.payment_details && bill.payment_details.length > 1 ? 'Split Payment' : (bill.payment_method || 'Cash')}
+          </Badge>
         </div>
       </div>
+
+      {bill.payment_details && bill.payment_details.length > 0 && (
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="bg-muted/30 px-4 py-2 border-b border-border">
+            <h4 className="text-xs font-bold uppercase text-muted-foreground">Payment Details</h4>
+          </div>
+          <div className="divide-y divide-border">
+            {bill.payment_details.map((payment: any, idx: number) => (
+              <div key={idx} className="p-3 flex justify-between items-center text-sm">
+                <div>
+                  <p className="font-bold">{payment.method}</p>
+                  {payment.utr && <p className="text-[10px] text-muted-foreground font-mono">UTR: {payment.utr}</p>}
+                </div>
+                <span className="font-medium text-green-600 dark:text-green-400">₹{(Number(payment.amount) || 0).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="bg-card border border-border rounded-lg overflow-hidden">
         <div className="bg-muted/30 px-4 py-2 border-b border-border">
@@ -49,6 +70,12 @@ export function BillDetails({ bill, onClose }: BillDetailsProps) {
                 <span className="text-muted-foreground">Item Total</span>
                 <span className="font-semibold">₹{item.total_amount?.toFixed(2)}</span>
               </div>
+              {(item.cgst_amount > 0 || item.sgst_amount > 0) && (
+                <div className="flex justify-between items-center text-[10px] text-muted-foreground">
+                  <span>Base: ₹{(item.base_amount || 0).toFixed(2)}</span>
+                  <span>CGST: ₹{(item.cgst_amount || 0).toFixed(2)} | SGST: ₹{(item.sgst_amount || 0).toFixed(2)}</span>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -70,9 +97,17 @@ export function BillDetails({ bill, onClose }: BillDetailsProps) {
       </div>
 
       <div className="bg-muted/50 p-4 rounded-xl space-y-2">
+        <div className="flex justify-between text-xs text-muted-foreground mb-1 border-b border-border pb-2">
+          <span>Base Amount</span>
+          <span>₹{(bill.base_amount || 0).toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between text-xs text-muted-foreground mb-1 border-b border-border pb-2">
+          <span>Total CGST + SGST</span>
+          <span>₹{((bill.cgst_amount || 0) + (bill.sgst_amount || 0)).toFixed(2)}</span>
+        </div>
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Total Amount</span>
-          <span className="font-medium">₹{bill.total_amount.toFixed(2)}</span>
+          <span className="font-bold text-foreground">Total Amount</span>
+          <span className="font-bold text-foreground">₹{bill.total_amount.toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Amount Paid</span>

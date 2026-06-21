@@ -5,6 +5,7 @@ import { Layout } from './components/layout';
 import { Login } from './pages/Login';
 import { CounterDashboard } from './pages/CounterDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { TeamLeadDashboard } from './pages/TeamLeadDashboard';
 import { Toaster } from 'sonner';
 
 // Protected Route Component
@@ -33,7 +34,9 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
     }
 
     if (!allowedRoles.includes(profile.role)) {
-      return <Navigate to={profile.role === 'admin' ? '/admin' : '/counter'} replace />;
+      if (profile.role === 'admin') return <Navigate to="/admin" replace />;
+      if (profile.role === 'team_lead') return <Navigate to="/teamlead" replace />;
+      return <Navigate to="/counter" replace />;
     }
   }
 
@@ -67,6 +70,12 @@ function App() {
                   <AdminDashboard />
                 </ProtectedRoute>
               } />
+
+              <Route path="teamlead" element={
+                <ProtectedRoute allowedRoles={['team_lead']}>
+                  <TeamLeadDashboard />
+                </ProtectedRoute>
+              } />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -80,9 +89,8 @@ function App() {
 // Separate component to redirect based on role
 function RedirectToDashboard() {
   const { profile } = useAuth();
-  if (profile?.role === 'admin') {
-    return <Navigate to="/admin" replace />;
-  }
+  if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
+  if (profile?.role === 'team_lead') return <Navigate to="/teamlead" replace />;
   return <Navigate to="/counter" replace />;
 }
 

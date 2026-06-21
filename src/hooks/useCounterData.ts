@@ -10,6 +10,8 @@ export type Accessory = {
   quantity: number;
   price: number;
   vehicle_model: string;
+  cgst_percent?: number;
+  sgst_percent?: number;
 };
 
 export type Bill = {
@@ -19,8 +21,12 @@ export type Bill = {
   engine_number: string;
   checklist_number: string;
   quantity: number;
+  base_amount?: number;
+  cgst_amount?: number;
+  sgst_amount?: number;
   total_amount: number;
   payment_method: string;
+  payment_details?: any[];
   amount_paid: number;
   amount_left: number;
   created_at: string;
@@ -35,8 +41,12 @@ type RawBill = {
   engine_number: string;
   checklist_number: string;
   quantity: number;
+  base_amount?: number;
+  cgst_amount?: number;
+  sgst_amount?: number;
   total_amount: number;
   payment_method: string;
+  payment_details?: any[];
   amount_paid: number;
   amount_left: number;
   created_at: string;
@@ -96,6 +106,9 @@ export function useCounterData(user: User | null) {
           bill_number: bNo, // Show the base number in the list
           items: [item as any as Bill],
           quantity: item.quantity || 0,
+          base_amount: item.base_amount || 0,
+          cgst_amount: item.cgst_amount || 0,
+          sgst_amount: item.sgst_amount || 0,
           total_amount: item.total_amount || 0,
           amount_paid: item.amount_paid || 0,
           amount_left: item.amount_left || 0
@@ -104,6 +117,9 @@ export function useCounterData(user: User | null) {
         if (!existing.items) existing.items = [];
         existing.items.push(item as any as Bill);
         existing.quantity += item.quantity || 0;
+        existing.base_amount = (existing.base_amount || 0) + (item.base_amount || 0);
+        existing.cgst_amount = (existing.cgst_amount || 0) + (item.cgst_amount || 0);
+        existing.sgst_amount = (existing.sgst_amount || 0) + (item.sgst_amount || 0);
         existing.total_amount += item.total_amount || 0;
         existing.amount_paid += item.amount_paid || 0;
         existing.amount_left += item.amount_left || 0;

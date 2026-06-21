@@ -4,11 +4,12 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 export type Counter = { id: string; name: string; username?: string; password?: string };
-export type InventoryItem = { id: string; counter_id: string; counter_name: string; vehicle_model: string; name: string; accessory_code?: string; quantity: number; price: number; created_at: string };
+export type TeamLead = { id: string; name: string; username?: string; password?: string; assigned_counters?: string[]; login_count?: number };
+export type InventoryItem = { id: string; counter_id: string; counter_name: string; vehicle_model: string; name: string; accessory_code?: string; quantity: number; price: number; cgst_percent?: number; sgst_percent?: number; created_at: string };
 export type LoginDetail = { user_id: string; name: string; login_count: number };
 export type SalesReport = { counter_id: string; counter_name: string; total_bills: number; total_items: number; total_sales: number; total_collected: number; outstanding: number };
 export type InventorySummary = { counter_id: string; counter_name: string; surplus_count: number; shortage_count: number };
-export type ModelAccessory = { id: string; counter_id: string; vehicle_model: string; created_at: string; name: string; accessory_code?: string; counter_name: string; quantity: number; price: number };
+export type ModelAccessory = { id: string; counter_id: string; vehicle_model: string; created_at: string; name: string; accessory_code?: string; counter_name: string; quantity: number; price: number; cgst_percent?: number; sgst_percent?: number; };
 export type CounterBill = { 
   id: string; 
   bill_number?: string; 
@@ -17,8 +18,12 @@ export type CounterBill = {
   accessory_code?: string; 
   vehicle_model: string; 
   quantity: number; 
+  base_amount?: number;
+  cgst_amount?: number;
+  sgst_amount?: number;
   total_amount: number; 
   payment_method: string; 
+  payment_details?: any[];
   amount_paid: number; 
   amount_left: number; 
   chassis_number?: string; 
@@ -32,6 +37,7 @@ export type CounterBill = {
 export function useAdminData() {
   const [stats, setStats] = useState({ uniqueLogins: 0, items: 0, models: 0 });
   const [counters, setCounters] = useState<Counter[]>([]);
+  const [teamLeads, setTeamLeads] = useState<TeamLead[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loginDetails, setLoginDetails] = useState<LoginDetail[]>([]);
   const [vehicleModels, setVehicleModels] = useState<string[]>([]);
@@ -91,6 +97,32 @@ export function useAdminData() {
     setStats(prev => ({ ...prev, uniqueLogins: merged.length }));
   }, []);
 
+  const fetchTeamLeads = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').eq('role', 'team_lead');
+      if (error) throw error;
+      
+      const { data: logsData } = await supabase.from('login_logs').select('user_id');
+      const loginMap = new Map<string, number>();
+      (logsData || []).forEach(log => {
+        loginMap.set(log.user_id, (loginMap.get(log.user_id) || 0) + 1);
+      });
+      
+      const formatted = (data || []).map(p => ({
+        id: p.id,
+        name: p.name || p.username || 'Unknown',
+        username: p.username || '',
+        password: p.password || '',
+        assigned_counters: p.assigned_counters || [],
+        login_count: loginMap.get(p.id) || 0
+      }));
+      
+      setTeamLeads(formatted);
+    } catch (err) {
+      console.error('Error fetching team leads:', err);
+    }
+  }, []);
+
   const updateCounter = async (id: string, updates: Partial<Counter>) => {
     console.log('Updating Counter:', id, updates);
     try {
@@ -128,7 +160,7 @@ export function useAdminData() {
   };
 
   const fetchInventory = useCallback(async () => {
-    let query = supabase.from('accessories').select(`id, created_at, counter_id, vehicle_model, name, accessory_code, quantity, price, profiles!inner(name)`);
+    let query = supabase.from('accessories').select(`id, created_at, counter_id, vehicle_model, name, accessory_code, quantity, price, cgst_percent, sgst_percent, profiles!inner(name)`);
     
     if (startDate) {
       query = query.gte('created_at', `${startDate}T00:00:00`);
@@ -148,6 +180,8 @@ export function useAdminData() {
       accessory_code: item.accessory_code, 
       quantity: item.quantity, 
       price: item.price,
+      cgst_percent: item.cgst_percent,
+      sgst_percent: item.sgst_percent,
       created_at: item.created_at
     })));
   }, [startDate, endDate]);
@@ -209,6 +243,8 @@ export function useAdminData() {
             name: item.name,
             accessory_code: item.accessory_code,
             price: item.price,
+            cgst_percent: item.cgst_percent,
+            sgst_percent: item.sgst_percent,
             quantity: quantity,
             created_at: new Date().toISOString()
           });
@@ -261,6 +297,8 @@ export function useAdminData() {
               name: item.name,
               accessory_code: item.accessory_code,
               price: item.price,
+              cgst_percent: item.cgst_percent,
+              sgst_percent: item.sgst_percent,
               quantity: item.quantity
             });
           if (targetError) throw targetError;
@@ -331,6 +369,8 @@ export function useAdminData() {
             name: item.name,
             accessory_code: item.accessory_code,
             price: item.price,
+            cgst_percent: item.cgst_percent,
+            sgst_percent: item.sgst_percent,
             quantity: item.transferQuantity
           });
         }
@@ -358,6 +398,9 @@ export function useAdminData() {
           accessory_name: item.accessories?.name || 'Unknown',
           vehicle_model: item.accessories?.vehicle_model || '-',
           quantity: Number(item.quantity) || 0,
+          base_amount: Number(item.base_amount) || 0,
+          cgst_amount: Number(item.cgst_amount) || 0,
+          sgst_amount: Number(item.sgst_amount) || 0,
           total_amount: Number(item.total_amount) || 0,
           amount_paid: Number(item.amount_paid) || 0,
           amount_left: Number(item.amount_left) || 0
@@ -366,6 +409,9 @@ export function useAdminData() {
         if (!existing.items) existing.items = [];
         existing.items.push(item);
         existing.quantity += Number(item.quantity) || 0;
+        existing.base_amount = (existing.base_amount || 0) + (Number(item.base_amount) || 0);
+        existing.cgst_amount = (existing.cgst_amount || 0) + (Number(item.cgst_amount) || 0);
+        existing.sgst_amount = (existing.sgst_amount || 0) + (Number(item.sgst_amount) || 0);
         existing.total_amount += Number(item.total_amount) || 0;
         existing.amount_paid += Number(item.amount_paid) || 0;
         existing.amount_left += Number(item.amount_left) || 0;
@@ -453,7 +499,7 @@ export function useAdminData() {
   }, []);
 
   const fetchModelAccessories = useCallback(async (model: string) => {
-    const { data } = await supabase.from('accessories').select(`id, counter_id, vehicle_model, created_at, name, accessory_code, quantity, price, profiles!inner(name)`).eq('vehicle_model', model);
+    const { data } = await supabase.from('accessories').select(`id, counter_id, vehicle_model, created_at, name, accessory_code, quantity, price, cgst_percent, sgst_percent, profiles!inner(name)`).eq('vehicle_model', model);
     setModelAccessories((data || []).map((item: any) => ({ 
       id: item.id,
       counter_id: item.counter_id,
@@ -463,7 +509,9 @@ export function useAdminData() {
       accessory_code: item.accessory_code, 
       counter_name: item.profiles.name, 
       quantity: item.quantity, 
-      price: item.price 
+      price: item.price,
+      cgst_percent: item.cgst_percent,
+      sgst_percent: item.sgst_percent
     })));
   }, []);
 
@@ -551,6 +599,10 @@ export function useAdminData() {
         const accessory_code = getVal(['Accessory Code', 'Code', 'Item Code', 'Part Number', 'accessory_code']).toString().trim();
         const quantity = Math.abs(parseInt(getVal(['Quantity', 'Qty', 'quantity', 'qty']) || '0'));
         const price = parseNum(getVal(['Price (₹)', 'Price', 'Cost', 'MRP', 'Rate', 'Amount', 'Unit Price', 'Sale Price', 'price', 'cost', 'mrp']));
+        const gstRaw = parseNum(getVal(['GST', 'GST %', 'gst', 'Tax', 'tax', 'GST Percentage']));
+        const cgst_percent = gstRaw / 2;
+        const sgst_percent = gstRaw / 2;
+
         if (!name || !vehicle_model) return;
         
         const key = `${vehicle_model.toLowerCase()}|${name.toLowerCase()}`;
@@ -559,10 +611,14 @@ export function useAdminData() {
           existing.quantity += quantity; 
           existing.price = price > 0 ? price : existing.price; 
           if (!existing.accessory_code) existing.accessory_code = accessory_code;
+          if (gstRaw > 0) {
+            existing.cgst_percent = cgst_percent;
+            existing.sgst_percent = sgst_percent;
+          }
         }
         else { 
           const uploadTimestamp = customDate ? `${customDate}T12:00:00Z` : new Date().toISOString();
-          consolidatedData.set(key, { counter_id: counterId, vehicle_model, name, accessory_code, quantity, price, created_at: uploadTimestamp }); 
+          consolidatedData.set(key, { counter_id: counterId, vehicle_model, name, accessory_code, quantity, price, cgst_percent, sgst_percent, created_at: uploadTimestamp }); 
         }
       });
 
@@ -576,11 +632,37 @@ export function useAdminData() {
     finally { setUploading(false); }
   }, [fetchInventory, fetchStats]);
 
+  const updateTeamLead = async (id: string, updates: any) => {
+    try {
+      const { error } = await supabase.from('profiles').update(updates).eq('id', id);
+      if (error) throw error;
+      toast.success('Team Lead updated');
+      fetchTeamLeads();
+    } catch (err) {
+      toast.error('Failed to update team lead');
+      console.error(err);
+    }
+  };
+
+  const deleteTeamLead = async (id: string) => {
+    try {
+      await supabase.from('login_logs').delete().eq('user_id', id);
+      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Team Lead deleted');
+      fetchTeamLeads();
+    } catch (err) {
+      toast.error('Failed to delete team lead');
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchStats();
     fetchCounters();
+    fetchTeamLeads();
     fetchBills();
-  }, [fetchStats, fetchCounters, fetchBills]);
+  }, [fetchStats, fetchCounters, fetchTeamLeads, fetchBills]);
 
   useEffect(() => {
     fetchInventory();
@@ -593,6 +675,7 @@ export function useAdminData() {
     updateCounter, deleteCounter,
     deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories, fetchInventory,
     transferCart, addToTransferCart, removeFromTransferCart, clearTransferCart, executeCartTransfer,
-    deleteDataByDate
+    deleteDataByDate,
+    teamLeads, fetchTeamLeads, updateTeamLead, deleteTeamLead
   };
 }

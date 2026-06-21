@@ -14,8 +14,9 @@ export const GlobalInventorySliderView = ({
   onTransfer,
   onDelete,
   onTransferAll,
-  initialDate,
-  onDateChange,
+  initialStartDate,
+  initialEndDate,
+  onDateRangeChange,
   transferCartCount = 0,
   onCartClick
 }: {
@@ -25,26 +26,30 @@ export const GlobalInventorySliderView = ({
   onTransfer: (item: InventoryItem) => void,
   onDelete: (id: string) => void,
   onTransferAll: (items: InventoryItem[], targetCounterId: string) => void,
-  initialDate?: string,
-  onDateChange?: (date: string) => void,
+  initialStartDate?: string,
+  initialEndDate?: string,
+  onDateRangeChange?: (start: string, end: string) => void,
   transferCartCount?: number,
   onCartClick?: () => void
 }) => {
 
 
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [selectedDate, setSelectedDate] = useState(initialDate || new Date().toLocaleDateString('en-CA'));
+  const [startDate, setStartDate] = useState(initialStartDate || new Date().toLocaleDateString('en-CA'));
+  const [endDate, setEndDate] = useState(initialEndDate || new Date().toLocaleDateString('en-CA'));
   const [selectedCounterId, setSelectedCounterId] = useState('');
   const [targetCounterId, setTargetCounterId] = useState('');
   const [showTransferModal, setShowTransferModal] = useState(false);
 
   useEffect(() => {
-    if (initialDate) setSelectedDate(initialDate);
-  }, [initialDate]);
+    if (initialStartDate) setStartDate(initialStartDate);
+    if (initialEndDate) setEndDate(initialEndDate);
+  }, [initialStartDate, initialEndDate]);
 
-  const handleDateChange = (date: string) => {
-    setSelectedDate(date);
-    if (onDateChange) onDateChange(date);
+  const handleDateRangeChange = (start: string, end: string) => {
+    setStartDate(start);
+    setEndDate(end);
+    if (onDateRangeChange) onDateRangeChange(start, end);
   };
 
   const slideNames = ['Uploaded Excel Logs', 'Transfer Accessory'];
@@ -60,15 +65,26 @@ export const GlobalInventorySliderView = ({
   };
 
   const filteredInventoryLogs = useMemo(() => {
-    return inventory.filter(i => getLocalDateStr(i.created_at) === selectedDate);
-  }, [inventory, selectedDate]);
+    return inventory.filter(i => {
+      const dStr = getLocalDateStr(i.created_at);
+      if (!startDate && !endDate) return true;
+      if (startDate && !endDate) return dStr >= startDate;
+      if (!startDate && endDate) return dStr <= endDate;
+      return dStr >= startDate && dStr <= endDate;
+    });
+  }, [inventory, startDate, endDate]);
 
   const filteredCounterInventory = useMemo(() => {
-    return inventory.filter(i =>
-      i.counter_id === selectedCounterId &&
-      getLocalDateStr(i.created_at) === selectedDate
-    );
-  }, [inventory, selectedCounterId, selectedDate]);
+    return inventory.filter(i => {
+      const dStr = getLocalDateStr(i.created_at);
+      const matchesCounter = i.counter_id === selectedCounterId;
+      let matchesDate = true;
+      if (startDate && endDate) matchesDate = dStr >= startDate && dStr <= endDate;
+      else if (startDate) matchesDate = dStr >= startDate;
+      else if (endDate) matchesDate = dStr <= endDate;
+      return matchesCounter && matchesDate;
+    });
+  }, [inventory, selectedCounterId, startDate, endDate]);
 
   const goNext = () => setCurrentSlide((prev) => (prev + 1) % 2);
   const goPrev = () => setCurrentSlide((prev) => (prev - 1 + 2) % 2);
@@ -126,7 +142,7 @@ export const GlobalInventorySliderView = ({
           <button onClick={goNext} className="w-10 h-10 flex items-center justify-center rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-all hover:scale-110 active:scale-95">
             <ChevronRight className="w-6 h-6" />
           </button>
-          {onCartClick && (
+          {onCartClick && currentSlide === 1 && (
             <button
               onClick={onCartClick}
               className="relative flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-600/10 hover:bg-purple-600/20 text-purple-600 transition-all hover:scale-105 active:scale-95 group shadow-sm border border-purple-600/10"
@@ -158,13 +174,20 @@ export const GlobalInventorySliderView = ({
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider">All accessory uploads for selected date</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 bg-card p-1.5 px-3 rounded-lg border border-border shadow-sm">
-                <span className="text-xs font-bold uppercase text-muted-foreground">Select a Date:</span>
+              <div className="flex items-center gap-3 bg-card p-1.5 px-3 rounded-lg border border-border shadow-sm flex-wrap">
+                <span className="text-xs font-bold uppercase text-muted-foreground">From:</span>
                 <input
                   type="date"
                   className="bg-transparent border-none text-sm outline-none font-medium cursor-pointer dark:[&::-webkit-calendar-picker-indicator]:invert"
-                  value={selectedDate}
-                  onChange={(e) => handleDateChange(e.target.value)}
+                  value={startDate}
+                  onChange={(e) => handleDateRangeChange(e.target.value, endDate)}
+                />
+                <span className="text-xs font-bold uppercase text-muted-foreground ml-2">To:</span>
+                <input
+                  type="date"
+                  className="bg-transparent border-none text-sm outline-none font-medium cursor-pointer dark:[&::-webkit-calendar-picker-indicator]:invert"
+                  value={endDate}
+                  onChange={(e) => handleDateRangeChange(startDate, e.target.value)}
                 />
               </div>
             </div>
@@ -185,13 +208,21 @@ export const GlobalInventorySliderView = ({
                     {counters.map(c => <option key={c.id} value={c.id} className="bg-card">{c.name}</option>)}
                   </select>
                 </div>
-                <div className="flex items-center gap-2 bg-card p-1.5 px-3 rounded-lg border border-border shadow-sm">
+                <div className="flex items-center gap-2 bg-card p-1.5 px-3 rounded-lg border border-border shadow-sm flex-wrap">
                   <History className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-bold uppercase text-muted-foreground">From:</span>
                   <input
                     type="date"
                     className="bg-transparent border-none text-sm outline-none font-medium cursor-pointer dark:[&::-webkit-calendar-picker-indicator]:invert"
-                    value={selectedDate}
-                    onChange={(e) => handleDateChange(e.target.value)}
+                    value={startDate}
+                    onChange={(e) => handleDateRangeChange(e.target.value, endDate)}
+                  />
+                  <span className="text-xs font-bold uppercase text-muted-foreground ml-2">To:</span>
+                  <input
+                    type="date"
+                    className="bg-transparent border-none text-sm outline-none font-medium cursor-pointer dark:[&::-webkit-calendar-picker-indicator]:invert"
+                    value={endDate}
+                    onChange={(e) => handleDateRangeChange(startDate, e.target.value)}
                   />
                 </div>
               </div>
@@ -214,7 +245,7 @@ export const GlobalInventorySliderView = ({
         <div className="space-y-6">
           <div className="p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
             <p className="text-sm text-purple-700 dark:text-purple-300">
-              You are about to transfer <span className="font-bold">{filteredCounterInventory.length} items</span> from <span className="font-bold">{selectedDate}</span> to another counter.
+              You are about to transfer <span className="font-bold">{filteredCounterInventory.length} items</span> from <span className="font-bold">{startDate}{startDate !== endDate ? ` to ${endDate}` : ''}</span> to another counter.
             </p>
           </div>
 

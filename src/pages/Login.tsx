@@ -15,9 +15,8 @@ export function Login() {
 
   // If already logged in, redirect to dashboard
   if (!authLoading && user) {
-    if (profile?.role === 'admin') {
-      return <Navigate to="/admin" replace />;
-    }
+    if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
+    if (profile?.role === 'team_lead') return <Navigate to="/teamlead" replace />;
     return <Navigate to="/counter" replace />;
   }
 
@@ -55,7 +54,7 @@ export function Login() {
         // Log the login event (fire-and-forget, don't block login)
         supabase.from('login_logs').insert([{ user_id: data.user.id }]).then(() => {});
 
-        navigate(role === 'admin' ? '/admin' : '/counter', { replace: true });
+        navigate(role === 'admin' ? '/admin' : role === 'team_lead' ? '/teamlead' : '/counter', { replace: true });
       }
     } catch (error: unknown) {
       if (error instanceof Error) {
