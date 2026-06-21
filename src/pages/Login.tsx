@@ -25,10 +25,23 @@ export function Login() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      let { data, error } = await supabase.auth.signInWithPassword({
         email: `${username.trim().toLowerCase()}@portal.local`,
         password,
       });
+
+      // Fallback for previously created team leads with @teamlead.local
+      if (error && error.message.includes('Invalid login credentials')) {
+        const fallbackResult = await supabase.auth.signInWithPassword({
+          email: `${username.trim().toLowerCase()}@teamlead.local`,
+          password,
+        });
+        
+        if (!fallbackResult.error) {
+          data = fallbackResult.data;
+          error = fallbackResult.error;
+        }
+      }
 
       if (error) throw error;
 

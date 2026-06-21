@@ -43,10 +43,12 @@ export function useTeamLeadData(user: any) {
       setAssignedCounters(countersData || []);
 
       // 3. Fetch Inventory for assigned counters
-      const { data: invData } = await supabase
+      const { data: invData, error: invErr } = await supabase
         .from('accessories')
         .select('*')
         .in('counter_id', counterIds);
+        
+      if (invErr) console.error("Team Lead Inventory Fetch Error:", invErr);
         
       // Fetch counter names to enrich inventory
       const enrichedInv = (invData || []).map(item => {
@@ -56,7 +58,7 @@ export function useTeamLeadData(user: any) {
       setInventory(enrichedInv);
 
       // 4. Fetch Bills for assigned counters
-      const { data: billsData } = await supabase
+      const { data: billsData, error: billsErr } = await supabase
         .from('bills')
         .select(`
           *,
@@ -64,6 +66,8 @@ export function useTeamLeadData(user: any) {
         `)
         .in('counter_id', counterIds)
         .order('created_at', { ascending: false });
+
+      if (billsErr) console.error("Team Lead Bills Fetch Error:", billsErr);
 
       // Group bills by bill_number
       const groupedBills = new Map<string, any>();

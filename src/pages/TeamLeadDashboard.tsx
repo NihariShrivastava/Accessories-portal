@@ -97,13 +97,12 @@ export function TeamLeadDashboard() {
                 icon={Store} 
                 label="Assigned Counters" 
                 value={assignedCounters.length} 
-                onClick={() => setActiveView('reports')} 
                 colorClass="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" 
               />
               <DashboardCard 
                 icon={Package} 
                 label="Total Inventory" 
-                value={inventory.reduce((sum, i) => sum + i.quantity, 0)} 
+                value={inventory.length} 
                 onClick={() => setActiveView('reports')} 
                 colorClass="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" 
               />

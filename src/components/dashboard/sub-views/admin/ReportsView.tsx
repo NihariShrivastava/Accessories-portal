@@ -13,15 +13,36 @@ export const ReportsView = ({
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [expandedCounter, setExpandedCounter] = useState<string | null>(null);
+  const [selectedCounterFilter, setSelectedCounterFilter] = useState<string>('all');
   const totalSlides = 3;
   const slideNames = ['Ledger', 'Revenue Report', 'Inventory Report'];
+
+  const filteredData = selectedCounterFilter === 'all' ? data : data.filter(d => d.counter_id === selectedCounterFilter);
+  const filteredInventoryReport = selectedCounterFilter === 'all' ? inventoryReport : inventoryReport.filter(r => r.counter_id === selectedCounterFilter);
+  const filteredInventory = selectedCounterFilter === 'all' ? inventory : inventory.filter(i => i.counter_id === selectedCounterFilter);
+
+  const uniqueCounters = Array.from(new Map(data.map(d => [d.counter_id, d])).values());
 
   const goNext = () => { setExpandedCounter(null); setCurrentSlide((prev) => (prev + 1) % totalSlides); };
   const goPrev = () => { setExpandedCounter(null); setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides); };
 
   return (
     <div className="space-y-6">
-      <ViewHeader title="System Reports" onBack={onBack} icon={BarChart3} />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <ViewHeader title="System Reports" onBack={onBack} icon={BarChart3} />
+        <div className="w-full sm:w-64">
+          <select
+            className="w-full px-4 py-2 bg-card border border-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary text-sm font-medium"
+            value={selectedCounterFilter}
+            onChange={(e) => setSelectedCounterFilter(e.target.value)}
+          >
+            <option value="all">All Counters</option>
+            {uniqueCounters.map(c => (
+              <option key={c.counter_id} value={c.counter_id}>{c.counter_name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {/* Slider Container */}
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
@@ -70,7 +91,7 @@ export const ReportsView = ({
                   Click a counter to view all their bills.
                 </p>
               </div>
-              <DataTable<SalesReport> idAccessor="counter_id" data={data} onRowClick={onCounterClick} columns={[
+              <DataTable<SalesReport> idAccessor="counter_id" data={filteredData} onRowClick={onCounterClick} columns={[
                 { header: 'Counter Name', accessor: 'counter_name', sortAccessor: 'counter_name', className: 'text-left font-semibold text-primary group-hover:underline' },
                 { header: 'Total Bills', accessor: 'total_bills', sortAccessor: 'total_bills', className: 'text-center' },
                 { header: 'Receivable Amt (Debit) ₹', accessor: (r) => `₹${r.total_sales.toFixed(2)}`, sortAccessor: 'total_sales', className: 'text-right font-medium' },
@@ -89,7 +110,7 @@ export const ReportsView = ({
               </div>
               <DataTable<SalesReport>
                 idAccessor="counter_id"
-                data={data}
+                data={filteredData}
                 columns={[
                   { header: 'Counter Name', accessor: 'counter_name', sortAccessor: 'counter_name', className: 'text-left font-semibold' },
                   { header: 'Total Bills', accessor: 'total_bills', sortAccessor: 'total_bills', className: 'text-center' },
@@ -109,9 +130,9 @@ export const ReportsView = ({
               </div>
 
               <div className="mt-2 divide-y divide-border border-t border-border">
-                {inventoryReport.map((r) => {
+                {filteredInventoryReport.map((r) => {
                   const isExpanded = expandedCounter === r.counter_id;
-                  const counterInv = inventory.filter(i => i.counter_name === r.counter_name);
+                  const counterInv = filteredInventory.filter(i => i.counter_name === r.counter_name);
                   const surplus = counterInv.filter(i => i.quantity > 5);
                   const shortage = counterInv.filter(i => i.quantity <= 5);
 

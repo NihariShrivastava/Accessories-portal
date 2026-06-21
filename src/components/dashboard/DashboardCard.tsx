@@ -6,7 +6,7 @@ interface DashboardCardProps {
   label: string;
   value: string | number;
   subValue?: string;
-  onClick: () => void;
+  onClick?: () => void;
   colorClass?: string;
   iconColorClass?: string;
   rightIcon?: LucideIcon;
@@ -22,20 +22,33 @@ export function DashboardCard({
   iconColorClass: _,
   rightIcon: RightIcon = ChevronRight
 }: DashboardCardProps) {
-  return (
-    <button
-      onClick={onClick}
-      className="bg-card p-6 rounded-xl border border-border shadow-sm flex items-center gap-4 hover:border-primary/50 hover:shadow-md transition-all text-left group"
-    >
+  const content = (
+    <>
       <div className={`w-12 h-12 rounded-full flex items-center justify-center ${colorClass}`}>
         <Icon className="w-6 h-6" />
       </div>
-      <div className="flex-1">
+      <div className="flex-1 text-left">
         <p className="text-sm text-muted-foreground font-medium">{label}</p>
         <p className="text-2xl font-bold">{value}</p>
         {subValue && <p className="text-xs text-muted-foreground">{subValue}</p>}
       </div>
-      <RightIcon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-    </button>
+      {onClick && <RightIcon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />}
+    </>
+  );
+
+  const baseClassName = "bg-card p-6 rounded-xl border border-border shadow-sm flex items-center gap-4 transition-all group";
+
+  if (onClick) {
+    return (
+      <button onClick={onClick} className={`${baseClassName} hover:border-primary/50 hover:shadow-md cursor-pointer w-full`}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className={baseClassName}>
+      {content}
+    </div>
   );
 }
