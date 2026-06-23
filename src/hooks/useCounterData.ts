@@ -20,6 +20,9 @@ export type Bill = {
   chassis_number: string;
   engine_number: string;
   checklist_number: string;
+  customer_name?: string;
+  customer_phone?: string;
+  customer_id?: string;
   quantity: number;
   base_amount?: number;
   cgst_amount?: number;
@@ -40,6 +43,9 @@ type RawBill = {
   chassis_number: string;
   engine_number: string;
   checklist_number: string;
+  customer_name?: string;
+  customer_phone?: string;
+  customer_id?: string;
   quantity: number;
   base_amount?: number;
   cgst_amount?: number;
@@ -105,6 +111,9 @@ export function useCounterData(user: User | null) {
           ...item, 
           bill_number: bNo, // Show the base number in the list
           items: [item as any as Bill],
+          customer_name: item.customer_name,
+          customer_phone: item.customer_phone,
+          customer_id: item.customer_id,
           quantity: item.quantity || 0,
           base_amount: item.base_amount || 0,
           cgst_amount: item.cgst_amount || 0,

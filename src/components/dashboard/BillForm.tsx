@@ -12,7 +12,7 @@ interface CartItem {
 interface BillFormProps {
   items: CartItem[];
   userId: string;
-  onSuccess: () => void;
+  onSuccess: (bill: any) => void;
   loading: boolean;
   setLoading: (loading: boolean) => void;
 }
@@ -21,6 +21,9 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
   const [chassisNo, setChassisNo] = useState('');
   const [engineNo, setEngineNo] = useState('');
   const [checklistNo, setChecklistNo] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerId, setCustomerId] = useState('');
   const [payments, setPayments] = useState<{ method: string; amount: number | ''; utr: string }[]>([
     { method: 'Cash', amount: '', utr: '' }
   ]);
@@ -100,6 +103,9 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
             chassis_number: chassisNo,
             engine_number: engineNo,
             checklist_number: checklistNo,
+            customer_name: customerName,
+            customer_phone: customerPhone,
+            customer_id: customerId,
             quantity: item.quantity,
             base_amount: base,
             cgst_amount: cgst,
@@ -141,7 +147,39 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
       }
 
       toast.success(`Bill ${finalBillNumber} generated! Total: ₹${totalBillAmount.toFixed(2)}`);
-      onSuccess();
+      
+      const generatedBill = {
+        id: `TEMP-${Date.now()}`, // Temporary ID for immediate rendering
+        bill_number: finalBillNumber,
+        chassis_number: chassisNo,
+        engine_number: engineNo,
+        checklist_number: checklistNo,
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        customer_id: customerId,
+        quantity: items.reduce((sum, item) => sum + item.quantity, 0),
+        base_amount: totals.baseAmount,
+        cgst_amount: totals.cgstAmount,
+        sgst_amount: totals.sgstAmount,
+        total_amount: totalBillAmount,
+        payment_method: primaryMethod,
+        payment_details: payments,
+        amount_paid: totalAmountPaid,
+        amount_left: totalAmountLeft,
+        created_at: new Date().toISOString(),
+        accessories: items[0].accessory, // Base accessory info for top level
+        items: items.map(item => ({
+          ...item,
+          accessories: item.accessory,
+          quantity: item.quantity,
+          base_amount: item.accessory.price * item.quantity,
+          cgst_amount: (item.accessory.price * item.quantity) * ((item.accessory.cgst_percent || 0) / 100),
+          sgst_amount: (item.accessory.price * item.quantity) * ((item.accessory.sgst_percent || 0) / 100),
+          total_amount: (item.accessory.price * item.quantity) * (1 + ((item.accessory.cgst_percent || 0) + (item.accessory.sgst_percent || 0)) / 100),
+        }))
+      };
+
+      onSuccess(generatedBill);
     } catch (error: any) {
       toast.error(error.message || 'Failed to generate bill');
     } finally {
@@ -211,6 +249,21 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
           <div>
             <label className="block font-medium mb-1">Checklist No.</label>
             <input type="text" required className="w-full px-3 py-2 bg-input border border-border rounded-md focus:ring-2 focus:ring-primary" value={checklistNo} onChange={e => setChecklistNo(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-border">
+          <div>
+            <label className="block font-medium mb-1 text-xs">Customer Name</label>
+            <input type="text" className="w-full px-3 py-2 bg-input border border-border rounded-md focus:ring-2 focus:ring-primary text-sm" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="e.g. John Doe" />
+          </div>
+          <div>
+            <label className="block font-medium mb-1 text-xs">Phone Number</label>
+            <input type="tel" className="w-full px-3 py-2 bg-input border border-border rounded-md focus:ring-2 focus:ring-primary text-sm" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="e.g. 9876543210" />
+          </div>
+          <div>
+            <label className="block font-medium mb-1 text-xs">Customer ID</label>
+            <input type="text" className="w-full px-3 py-2 bg-input border border-border rounded-md focus:ring-2 focus:ring-primary text-sm" value={customerId} onChange={e => setCustomerId(e.target.value)} placeholder="e.g. CUST-1234" />
           </div>
         </div>
 

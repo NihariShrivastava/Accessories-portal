@@ -17,16 +17,37 @@ export function BillDetails({ bill, onClose }: BillDetailsProps) {
         </div>
       )}
       
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        <div className="bg-muted p-3 rounded-md">
-          <p className="text-xs text-muted-foreground uppercase font-bold mb-1">Date</p>
-          <p className="font-medium">{new Date(bill.created_at).toLocaleString()}</p>
+      <div className="space-y-4">
+        {/* Customer Info */}
+        <div className="bg-muted/30 p-3 rounded-lg border border-border">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Customer Details</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+            <div>
+              <span className="text-muted-foreground">Name:</span>
+              <p className="font-medium">{bill.customer_name || 'N/A'}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Phone:</span>
+              <p className="font-medium">{bill.customer_phone || 'N/A'}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">ID:</span>
+              <p className="font-medium">{bill.customer_id || 'N/A'}</p>
+            </div>
+          </div>
         </div>
-        <div className="bg-muted p-3 rounded-md">
-          <p className="text-xs text-muted-foreground uppercase font-bold mb-1">Payment Method</p>
-          <Badge variant="secondary">
-            {bill.payment_details && bill.payment_details.length > 1 ? 'Split Payment' : (bill.payment_method || 'Cash')}
-          </Badge>
+
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="bg-muted p-3 rounded-md">
+            <p className="text-xs text-muted-foreground uppercase font-bold mb-1">Date</p>
+            <p className="font-medium">{new Date(bill.created_at).toLocaleString()}</p>
+          </div>
+          <div className="bg-muted p-3 rounded-md">
+            <p className="text-xs text-muted-foreground uppercase font-bold mb-1">Payment Method</p>
+            <Badge variant="secondary">
+              {bill.payment_details && bill.payment_details.length > 1 ? 'Split Payment' : (bill.payment_method || 'Cash')}
+            </Badge>
+          </div>
         </div>
       </div>
 

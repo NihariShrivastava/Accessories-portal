@@ -10,6 +10,7 @@ import { useCounterData } from '../hooks/useCounterData';
 import type { Accessory, Bill } from '../hooks/useCounterData';
 import { BillForm } from '../components/dashboard/BillForm';
 import { BillDetails } from '../components/dashboard/BillDetails';
+import { BillReceipt } from '../components/dashboard/BillReceipt';
 import { DateRangeFilter } from '../components/dashboard/DateRangeFilter';
 
 import { QuantityModal } from '../components/dashboard/QuantityModal';
@@ -42,6 +43,8 @@ export function CounterDashboard() {
   const [billAccessoryFilter, setBillAccessoryFilter] = useState('');
   const [billModelFilter, setBillModelFilter] = useState('');
   const [billPaymentFilter, setBillPaymentFilter] = useState('');
+  const [generatedBill, setGeneratedBill] = useState<Bill | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
 
   const [cart, setCart] = useState<{ accessory: Accessory; quantity: number }[]>([]);
   const [accSearch, setAccSearch] = useState('');
@@ -114,7 +117,7 @@ export function CounterDashboard() {
     }));
   };
 
-  const handleBillSuccess = () => {
+  const handleBillSuccess = (bill: any) => {
     setShowCheckout(false);
     setShowCart(false);
     setCart([]);
@@ -123,7 +126,17 @@ export function CounterDashboard() {
     else if (selectedModel) fetchAccessories(selectedModel);
     fetchRecentBills();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    setGeneratedBill(bill);
+    setShowReceipt(true);
   };
+
+  if (showReceipt && generatedBill) {
+    return (
+      <div className="fixed inset-0 z-[100] bg-white overflow-y-auto">
+        <BillReceipt bill={generatedBill} onClose={() => { setShowReceipt(false); setGeneratedBill(null); }} />
+      </div>
+    );
+  }
 
   let content;
   if (activeView === 'bills') {
@@ -237,7 +250,27 @@ export function CounterDashboard() {
               { header: 'Payment', accessor: (b) => <Badge variant="secondary">{b.payment_method || 'Cash'}</Badge> },
               { header: 'Total', accessor: (b) => `₹${b.total_amount?.toFixed(2)}`, sortAccessor: 'total_amount', className: 'text-right font-medium' },
               { header: 'Paid', accessor: (b) => `₹${(b.amount_paid ?? b.total_amount)?.toFixed(2)}`, sortAccessor: 'amount_paid', className: 'text-right text-green-600 dark:text-green-400' },
-              { header: 'Balance', accessor: (b) => `₹${(b.amount_left ?? 0)?.toFixed(2)}`, sortAccessor: 'amount_left', className: 'text-right text-destructive font-medium' }
+              { header: 'Balance', accessor: (b) => `₹${(b.amount_left ?? 0)?.toFixed(2)}`, sortAccessor: 'amount_left', className: 'text-right text-destructive font-medium' },
+              {
+                header: 'Actions',
+                accessor: (b) => (
+                  <div className="flex justify-end items-center gap-2" onClick={e => e.stopPropagation()}>
+                    <button 
+                      onClick={() => { setSelectedBill(b); setShowBillDetails(true); }} 
+                      className="px-2 py-1 bg-secondary text-secondary-foreground text-xs rounded hover:bg-secondary/80 whitespace-nowrap"
+                    >
+                      View Details
+                    </button>
+                    <button 
+                      onClick={() => { setGeneratedBill(b); setShowReceipt(true); }} 
+                      className="px-2 py-1 bg-primary text-primary-foreground text-xs rounded hover:bg-primary/90 flex items-center gap-1 whitespace-nowrap"
+                    >
+                      <ReceiptText className="w-3 h-3" /> Download
+                    </button>
+                  </div>
+                ),
+                className: 'text-right pr-4'
+              }
             ]}
             data={filteredBills}
             emptyMessage="No bills found for the selected period."
