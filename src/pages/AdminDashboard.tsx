@@ -11,7 +11,7 @@ import { CounterManagementView, AddTeamLeadView, AddCashierView, ModelDetailView
 
 export function AdminDashboard() {
   const {
-    stats, counters, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, uploading, cashierReports,
+    counters, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, uploading, cashierReports,
     startDate, endDate, setStartDate, setEndDate,
     fetchCounters, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter, deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories,
@@ -74,7 +74,7 @@ export function AdminDashboard() {
   const handleCounterClick = (report: SalesReport) => {
     setSelectedCounterId(report.counter_id);
     setSelectedCounterName(report.counter_name);
-    fetchCounterBills(report.counter_id, startDate, endDate);
+    fetchCounterBills(report.counter_id);
     setActiveView('counter-bills');
   };
 

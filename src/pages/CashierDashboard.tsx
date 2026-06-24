@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../components/auth-provider';
 import { useCashierData } from '../hooks/useCashierData';
-import { supabase } from '../lib/supabase';
+
 import { toast } from 'sonner';
-import { UserCircle, RefreshCw, Download, Check, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { UserCircle, RefreshCw, Check, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MultiSelectDropdown } from '../components/dashboard/MultiSelectDropdown';
 
 export function CashierDashboard() {
@@ -39,20 +39,6 @@ export function CashierDashboard() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignedCounters]);
-
-  const handleToggleCounter = (id: string) => {
-    setSelectedCounters(prev => 
-      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
-    );
-  };
-
-  const handleSelectAll = () => {
-    if (selectedCounters.length === assignedCounters.length) {
-      setSelectedCounters([]); // Clear all
-    } else {
-      setSelectedCounters(assignedCounters.map(c => c.id)); // Select all
-    }
-  };
 
   const selectedCounterNames = useMemo(() => {
     return assignedCounters

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import { ViewHeader } from '../../ViewHeader';
 import { ChevronLeft, ChevronRight, Clock, Check, UserCircle } from 'lucide-react';
@@ -12,13 +12,6 @@ export const CashierDetailsView = ({
   const [tableTab, setTableTab] = useState<'pending' | 'approved' | 'expenses' | 'bank' | 'refunds'>('approved');
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Derive allowed IDs
-  const allowedIds = useMemo(() => {
-    // We don't have assigned_counters in CashierReport directly.
-    // Wait, let's fetch profiles assigned_counters to be safe.
-    return [cashierReport.cashier_id]; // Fallback
-  }, [cashierReport]);
 
   useEffect(() => {
     const fetchTransactions = async () => {

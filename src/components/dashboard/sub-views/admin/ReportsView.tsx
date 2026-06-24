@@ -9,14 +9,18 @@ export const ReportsView = ({
   data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick
 }: {
   data: SalesReport[], onBack: () => void, onCounterClick: (r: SalesReport) => void,
-  inventory: InventoryItem[], inventoryReport: InventorySummary[], cashierReports: CashierReport[],
-  onCashierClick: (r: CashierReport) => void
+  inventory: InventoryItem[], inventoryReport: InventorySummary[], cashierReports?: CashierReport[],
+  onCashierClick?: (r: CashierReport) => void
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [expandedCounter, setExpandedCounter] = useState<string | null>(null);
   const [selectedCounterFilter, setSelectedCounterFilter] = useState<string>('all');
-  const totalSlides = 4;
-  const slideNames = ['Ledger', 'Revenue Report', 'Inventory Report', 'Cashier Report'];
+  
+  const hasCashierReports = cashierReports !== undefined && onCashierClick !== undefined;
+  const totalSlides = hasCashierReports ? 4 : 3;
+  const slideNames = hasCashierReports 
+    ? ['Ledger', 'Revenue Report', 'Inventory Report', 'Cashier Report']
+    : ['Ledger', 'Revenue Report', 'Inventory Report'];
 
   const filteredData = selectedCounterFilter === 'all' ? data : data.filter(d => d.counter_id === selectedCounterFilter);
   const filteredInventoryReport = selectedCounterFilter === 'all' ? inventoryReport : inventoryReport.filter(r => r.counter_id === selectedCounterFilter);
@@ -229,26 +233,28 @@ export const ReportsView = ({
               </div>
             </div>
             {/* Slide 4: Cashier Report */}
-            <div className="w-full flex-shrink-0">
-              <div className="px-4 sm:px-6 pt-4 pb-2">
-                <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  <IndianRupee className="w-4 h-4 text-emerald-600" />
-                  Detailed cashier drawer balances and handovers.
-                </p>
+            {hasCashierReports && (
+              <div className="w-full flex-shrink-0">
+                <div className="px-4 sm:px-6 pt-4 pb-2">
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <IndianRupee className="w-4 h-4 text-emerald-600" />
+                    Detailed cashier drawer balances and handovers.
+                  </p>
+                </div>
+                <DataTable<CashierReport>
+                  idAccessor="cashier_id"
+                  data={cashierReports}
+                  onRowClick={onCashierClick}
+                  columns={[
+                    { header: 'Cashier Name', accessor: 'cashier_name', sortAccessor: 'cashier_name', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
+                    { header: 'Total Cash Collected', accessor: (r) => `₹${r.total_cash_collected.toLocaleString()}`, sortAccessor: 'total_cash_collected', className: 'text-right font-medium' },
+                    { header: 'Pending Handover', accessor: (r) => <span className="text-amber-500 font-medium">₹{r.pending_handover.toLocaleString()}</span>, sortAccessor: 'pending_handover', className: 'text-right' },
+                    { header: 'Approved Handover', accessor: (r) => <span className="text-emerald-600 dark:text-emerald-400 font-medium">₹{r.approved_handover.toLocaleString()}</span>, sortAccessor: 'approved_handover', className: 'text-right' },
+                    { header: 'Drawer Cash Balance', accessor: (r) => <span className="font-black text-foreground">₹{r.drawer_balance.toLocaleString()}</span>, sortAccessor: 'drawer_balance', className: 'text-right font-bold' }
+                  ]}
+                />
               </div>
-              <DataTable<CashierReport>
-                idAccessor="cashier_id"
-                data={cashierReports}
-                onRowClick={onCashierClick}
-                columns={[
-                  { header: 'Cashier Name', accessor: 'cashier_name', sortAccessor: 'cashier_name', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
-                  { header: 'Total Cash Collected', accessor: (r) => `₹${r.total_cash_collected.toLocaleString()}`, sortAccessor: 'total_cash_collected', className: 'text-right font-medium' },
-                  { header: 'Pending Handover', accessor: (r) => <span className="text-amber-500 font-medium">₹{r.pending_handover.toLocaleString()}</span>, sortAccessor: 'pending_handover', className: 'text-right' },
-                  { header: 'Approved Handover', accessor: (r) => <span className="text-emerald-600 dark:text-emerald-400 font-medium">₹{r.approved_handover.toLocaleString()}</span>, sortAccessor: 'approved_handover', className: 'text-right' },
-                  { header: 'Drawer Cash Balance', accessor: (r) => <span className="font-black text-foreground">₹{r.drawer_balance.toLocaleString()}</span>, sortAccessor: 'drawer_balance', className: 'text-right font-bold' }
-                ]}
-              />
-            </div>
+            )}
           </div>
         </div>
       </div>
