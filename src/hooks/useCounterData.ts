@@ -65,6 +65,7 @@ export function useCounterData(user: User | null) {
   const [accessories, setAccessories] = useState<Accessory[]>([]);
   const [recentBills, setRecentBills] = useState<Bill[]>([]);
   const [allBills, setAllBills] = useState<Bill[]>([]);
+  const [drawerTransactions, setDrawerTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -155,13 +156,47 @@ export function useCounterData(user: User | null) {
     }
   }, [user, groupBills]);
   
+
+
+  const fetchDrawerTransactions = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('drawer_transactions')
+        .select('*')
+        .eq('counter_id', user.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setDrawerTransactions(data || []);
+    } catch (error) {
+      console.error('Error fetching drawer transactions:', error);
+    }
+  }, [user]);
+
+  const createCashierTransfer = async (amount: number) => {
+    if (!user) return false;
+    try {
+      const { error } = await supabase.from('drawer_transactions').insert([{
+        counter_id: user.id,
+        transaction_type: 'cashier_transfer',
+        amount,
+        status: 'pending'
+      }]);
+      if (error) throw error;
+      toast.success('Transfer submitted to cashier successfully');
+      fetchDrawerTransactions();
+      return true;
+    } catch (error: any) {
+      toast.error(error.message || 'Error submitting transfer');
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (user) {
-      fetchModels();
-      fetchRecentBills();
-      fetchDashboardStats();
+      fetchDrawerTransactions();
     }
-  }, [user, fetchModels, fetchRecentBills, fetchDashboardStats]);
+  }, [user, fetchDrawerTransactions]);
   
   const filteredBills = useMemo(() => {
     return allBills.filter(bill => {
@@ -189,7 +224,15 @@ export function useCounterData(user: User | null) {
       console.error('Error fetching all bills:', error);
     }
   }, [user, groupBills]);
-
+  useEffect(() => {
+    if (user) {
+      fetchModels();
+      fetchRecentBills();
+      fetchAllBills();
+      fetchDashboardStats();
+      fetchDrawerTransactions();
+    }
+  }, [user, fetchModels, fetchRecentBills, fetchAllBills, fetchDashboardStats, fetchDrawerTransactions]);
 
 
   const fetchAccessories = async (model: string) => {
@@ -280,6 +323,9 @@ export function useCounterData(user: User | null) {
     fetchShortageModels,
     fetchSurplusModels,
     fetchShortageAccessories,
-    fetchSurplusAccessories
+    fetchSurplusAccessories,
+    drawerTransactions,
+    fetchDrawerTransactions,
+    createCashierTransfer
   };
 }

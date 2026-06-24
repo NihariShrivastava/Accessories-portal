@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { ManageCountersView } from './ManageCountersView';
 import { ManageTeamLeadsView } from './ManageTeamLeadsView';
-import type { Counter, TeamLead } from '../../../../hooks/useAdminData';
+import { ManageCashiersView } from './ManageCashiersView';
+import type { Counter, TeamLead, Cashier } from '../../../../hooks/useAdminData';
 
 export const CounterManagementView = (props: {
   counters: (Counter & { login_count?: number })[],
@@ -13,9 +14,13 @@ export const CounterManagementView = (props: {
   onAddTeamLead: () => void,
   onUpdateTeamLead: (id: string, updates: any) => void,
   onDeleteTeamLead: (id: string) => void,
-  initialTab?: 'counters' | 'team_leads'
+  cashiers: Cashier[],
+  onAddCashier: () => void,
+  onUpdateCashier: (id: string, updates: any) => void,
+  onDeleteCashier: (id: string) => void,
+  initialTab?: 'counters' | 'team_leads' | 'cashiers'
 }) => {
-  const [activeTab, setActiveTab] = useState<'counters' | 'team_leads'>(props.initialTab || 'counters');
+  const [activeTab, setActiveTab] = useState<'counters' | 'team_leads' | 'cashiers'>(props.initialTab || 'counters');
 
   useEffect(() => {
     if (props.initialTab) {
@@ -40,6 +45,13 @@ export const CounterManagementView = (props: {
         >
           Manage Team Leads
         </button>
+        <button
+          onClick={() => setActiveTab('cashiers')}
+          className={`px-6 py-2 rounded-md font-semibold transition-all ${activeTab === 'cashiers' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+        >
+          Manage Cashiers
+        </button>
       </div>
 
       {activeTab === 'counters' ? (
@@ -50,7 +62,7 @@ export const CounterManagementView = (props: {
           onUpdate={props.onUpdateCounter}
           onDelete={props.onDeleteCounter}
         />
-      ) : (
+      ) : activeTab === 'team_leads' ? (
         <ManageTeamLeadsView
           data={props.teamLeads}
           counters={props.counters}
@@ -58,6 +70,15 @@ export const CounterManagementView = (props: {
           onAddTeamLead={props.onAddTeamLead}
           onUpdate={props.onUpdateTeamLead}
           onDelete={props.onDeleteTeamLead}
+        />
+      ) : (
+        <ManageCashiersView
+          data={props.cashiers}
+          counters={props.counters}
+          onBack={props.onBack}
+          onAddCashier={props.onAddCashier}
+          onUpdate={props.onUpdateCashier}
+          onDelete={props.onDeleteCashier}
         />
       )}
     </div>

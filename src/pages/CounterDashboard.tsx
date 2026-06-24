@@ -12,6 +12,7 @@ import { BillForm } from '../components/dashboard/BillForm';
 import { BillDetails } from '../components/dashboard/BillDetails';
 import { BillReceipt } from '../components/dashboard/BillReceipt';
 import { DateRangeFilter } from '../components/dashboard/DateRangeFilter';
+import { CashDrawerView } from '../components/dashboard/sub-views/counter/CashDrawerView';
 
 import { QuantityModal } from '../components/dashboard/QuantityModal';
 import { CartModal } from '../components/dashboard/CartModal';
@@ -26,14 +27,15 @@ export function CounterDashboard() {
     startDate, endDate, setStartDate, setEndDate,
     shortageCount, surplusCount, searchResults, setSearchResults,
     handleModelChange, fetchAllBills, fetchAccessories, fetchRecentBills,
-    searchAccessories, fetchShortageModels, fetchSurplusModels, fetchShortageAccessories, fetchSurplusAccessories
+    searchAccessories, fetchShortageModels, fetchSurplusModels, fetchShortageAccessories, fetchSurplusAccessories,
+    drawerTransactions, fetchDrawerTransactions, createCashierTransfer
   } = useCounterData(user);
 
   const [selectedAccessory, setSelectedAccessory] = useState<Accessory | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [activeView, setActiveView] = useState<'dashboard' | 'bills' | 'shortage-models' | 'surplus-models'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'bills' | 'shortage-models' | 'surplus-models' | 'cash-drawer'>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewModels, setViewModels] = useState<string[]>([]);
   const [viewTitle, setViewTitle] = useState('');
@@ -303,6 +305,15 @@ export function CounterDashboard() {
         </div>
       </div>
     );
+  } else if (activeView === 'cash-drawer') {
+    content = (
+      <CashDrawerView 
+        allBills={allBills}
+        drawerTransactions={drawerTransactions}
+        onBack={() => setActiveView('dashboard')}
+        onCreateTransfer={createCashierTransfer}
+      />
+    );
   } else {
     content = (
       <div className="space-y-6">
@@ -395,7 +406,13 @@ export function CounterDashboard() {
                 />
               </div>
 
-              <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <DashboardCard
+                  icon={IndianRupee} label="Cash Drawer" value="Settle" subValue="handover to cashier"
+                  onClick={() => { fetchDrawerTransactions(); setActiveView('cash-drawer'); }}
+                  colorClass="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                  rightIcon={IndianRupee}
+                />
                 <DashboardCard
                   icon={ReceiptText} label="Previous Bills" value={`${recentBills.length}+`} subValue="view all transactions"
                   onClick={() => { fetchAllBills(); setActiveView('bills'); }}

@@ -7,16 +7,17 @@ import { useAdminData } from '../hooks/useAdminData';
 import type { InventoryItem, CounterBill, SalesReport } from '../hooks/useAdminData';
 import { Modal } from '../components/dashboard/Modal';
 import { BillDetails } from '../components/dashboard/BillDetails';
-import { CounterManagementView, AddTeamLeadView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView, GlobalInventorySliderView, UploadHistoryView } from '../components/dashboard/sub-views/AdminSubViews';
+import { CounterManagementView, AddTeamLeadView, AddCashierView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView, GlobalInventorySliderView, UploadHistoryView, CashierDetailsView } from '../components/dashboard/sub-views/AdminSubViews';
 
 export function AdminDashboard() {
   const {
-    stats, counters, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, uploading,
+    stats, counters, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, uploading, cashierReports,
     startDate, endDate, setStartDate, setEndDate,
     fetchCounters, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter, deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories,
     transferCart, addToTransferCart, removeFromTransferCart, clearTransferCart, executeCartTransfer,
-    deleteDataByDate, teamLeads, fetchTeamLeads, updateTeamLead, deleteTeamLead
+    deleteDataByDate, teamLeads, fetchTeamLeads, updateTeamLead, deleteTeamLead,
+    cashiers, fetchCashiers, updateCashier, deleteCashier
   } = useAdminData();
 
   const [activeView, setActiveView] = useState('dashboard');
@@ -25,6 +26,7 @@ export function AdminDashboard() {
   const [selectedCounterName, setSelectedCounterName] = useState('');
   const [selectedBill, setSelectedBill] = useState<CounterBill | null>(null);
   const [showBillDetails, setShowBillDetails] = useState(false);
+  const [selectedCashierReport, setSelectedCashierReport] = useState<any>(null);
   
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [transferringItem, setTransferringItem] = useState<InventoryItem | null>(null);
@@ -69,11 +71,17 @@ export function AdminDashboard() {
     return result;
   }, [inventory, historyStartDate, historyEndDate]);
 
-  const handleCounterClick = useCallback(async (r: SalesReport) => {
-    setSelectedCounterId(r.counter_id);
-    setSelectedCounterName(r.counter_name);
+  const handleCounterClick = (report: SalesReport) => {
+    setSelectedCounterId(report.counter_id);
+    setSelectedCounterName(report.counter_name);
+    fetchCounterBills(report.counter_id, startDate, endDate);
     setActiveView('counter-bills');
-  }, []);
+  };
+
+  const handleCashierClick = (report: any) => {
+    setSelectedCashierReport(report);
+    setActiveView('cashier-details');
+  };
 
 
   const handleEditClick = (item: InventoryItem) => {
@@ -89,12 +97,13 @@ export function AdminDashboard() {
 
 
   let content;
-  if (activeView === 'logins' || activeView === 'logins-team-leads') {
+  if (activeView === 'logins' || activeView === 'logins-team-leads' || activeView === 'logins-cashiers') {
     content = (
       <CounterManagementView 
-        initialTab={activeView === 'logins-team-leads' ? 'team_leads' : 'counters'}
+        initialTab={activeView === 'logins-team-leads' ? 'team_leads' : activeView === 'logins-cashiers' ? 'cashiers' : 'counters'}
         counters={counters}
         teamLeads={teamLeads}
+        cashiers={cashiers}
         onBack={() => setActiveView('dashboard')} 
         onAddCounter={() => setActiveView('add-counter')}
         onUpdateCounter={updateCounter}
@@ -102,6 +111,9 @@ export function AdminDashboard() {
         onAddTeamLead={() => setActiveView('add-team-lead')}
         onUpdateTeamLead={updateTeamLead}
         onDeleteTeamLead={deleteTeamLead}
+        onAddCashier={() => setActiveView('add-cashier')}
+        onUpdateCashier={updateCashier}
+        onDeleteCashier={deleteCashier}
       />
     );
   } else if (activeView === 'add-counter') {
@@ -123,6 +135,18 @@ export function AdminDashboard() {
           setTimeout(() => {
             fetchTeamLeads(); 
             setActiveView('logins-team-leads'); 
+          }, 500);
+        }} 
+      />
+    );
+  } else if (activeView === 'add-cashier') {
+    content = (
+      <AddCashierView 
+        counters={counters}
+        onBack={() => { 
+          setTimeout(() => {
+            fetchCashiers(); 
+            setActiveView('logins-cashiers'); 
           }, 500);
         }} 
       />
@@ -176,8 +200,17 @@ export function AdminDashboard() {
         data={salesReport}
         inventory={inventory}
         inventoryReport={inventoryReport}
+        cashierReports={cashierReports}
         onBack={() => setActiveView('dashboard')}
         onCounterClick={handleCounterClick}
+        onCashierClick={handleCashierClick}
+      />
+    );
+  } else if (activeView === 'cashier-details' && selectedCashierReport) {
+    content = (
+      <CashierDetailsView 
+        cashierReport={selectedCashierReport} 
+        onBack={() => setActiveView('reports')} 
       />
     );
   } else if (activeView === 'counter-bills') {
@@ -201,9 +234,9 @@ export function AdminDashboard() {
     content = (
       <div className="space-y-6 animate-in fade-in duration-500">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <DashboardCard icon={Users} label="Counter Management" value={counters.length + teamLeads.length} onClick={() => { fetchCounters(); fetchTeamLeads(); setActiveView('logins'); }} colorClass="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
-          <DashboardCard icon={Package} label="Total Inventory" value={stats.items} onClick={() => { fetchVehicleModels(); fetchCounters(); setActiveView('inventory-slider'); }} colorClass="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
-          <DashboardCard icon={BarChart3} label="Reports" value={salesReport.length} onClick={() => { fetchBills(); setActiveView('reports'); }} colorClass="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
+          <DashboardCard icon={Users} label="Counter Management" value="" onClick={() => { fetchCounters(); fetchTeamLeads(); fetchCashiers(); setActiveView('logins'); }} colorClass="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
+          <DashboardCard icon={Package} label="Total Inventory" value="" onClick={() => { fetchVehicleModels(); fetchCounters(); setActiveView('inventory-slider'); }} colorClass="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
+          <DashboardCard icon={BarChart3} label="Reports" value="" onClick={() => { fetchBills(); setActiveView('reports'); }} colorClass="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">

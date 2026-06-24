@@ -29,6 +29,8 @@ export const AddCounterView = ({ onBack }: { onBack: () => void }) => {
           data: {
             name: username,
             role: 'counter',
+            username: username,
+            password: password,
           },
         },
       });

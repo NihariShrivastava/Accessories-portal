@@ -5,9 +5,11 @@ import * as XLSX from 'xlsx';
 
 export type Counter = { id: string; name: string; username?: string; password?: string };
 export type TeamLead = { id: string; name: string; username?: string; password?: string; assigned_counters?: string[]; login_count?: number };
+export type Cashier = { id: string; name: string; username?: string; password?: string; assigned_counters?: string[]; login_count?: number };
 export type InventoryItem = { id: string; counter_id: string; counter_name: string; vehicle_model: string; name: string; accessory_code?: string; quantity: number; price: number; cgst_percent?: number; sgst_percent?: number; created_at: string };
 export type LoginDetail = { user_id: string; name: string; login_count: number };
 export type SalesReport = { counter_id: string; counter_name: string; total_bills: number; total_items: number; total_sales: number; total_collected: number; outstanding: number };
+export type CashierReport = { cashier_id: string; cashier_name: string; total_cash_collected: number; pending_handover: number; approved_handover: number; drawer_balance: number; };
 export type InventorySummary = { counter_id: string; counter_name: string; surplus_count: number; shortage_count: number };
 export type ModelAccessory = { id: string; counter_id: string; vehicle_model: string; created_at: string; name: string; accessory_code?: string; counter_name: string; quantity: number; price: number; cgst_percent?: number; sgst_percent?: number; };
 export type CounterBill = { 
@@ -38,6 +40,8 @@ export function useAdminData() {
   const [stats, setStats] = useState({ uniqueLogins: 0, items: 0, models: 0 });
   const [counters, setCounters] = useState<Counter[]>([]);
   const [teamLeads, setTeamLeads] = useState<TeamLead[]>([]);
+  const [cashiers, setCashiers] = useState<Cashier[]>([]);
+  const [cashierReports, setCashierReports] = useState<CashierReport[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loginDetails, setLoginDetails] = useState<LoginDetail[]>([]);
   const [vehicleModels, setVehicleModels] = useState<string[]>([]);
@@ -120,6 +124,73 @@ export function useAdminData() {
       setTeamLeads(formatted);
     } catch (err) {
       console.error('Error fetching team leads:', err);
+    }
+  }, []);
+
+  const fetchCashiers = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').eq('role', 'cashier');
+      if (error) throw error;
+      
+      const { data: logsData } = await supabase.from('login_logs').select('user_id');
+      const loginMap = new Map<string, number>();
+      (logsData || []).forEach(log => {
+        loginMap.set(log.user_id, (loginMap.get(log.user_id) || 0) + 1);
+      });
+      
+      const { data: drawerData } = await supabase.from('drawer_transactions').select('*');
+      const reports: CashierReport[] = [];
+
+      const formatted = (data || []).map(p => {
+        const assigned = p.assigned_counters || [];
+        const allowedIds = [...assigned, p.id];
+        let cashCollected = 0;
+        let pendingHandover = 0;
+        let approvedHandover = 0;
+        let expenses = 0;
+        let bankTransfers = 0;
+        let refunds = 0;
+
+        (drawerData || []).forEach(t => {
+          if (allowedIds.includes(t.counter_id)) {
+            if (t.transaction_type === 'cashier_transfer') {
+              if (t.status === 'pending') {
+                pendingHandover += Number(t.amount);
+              } else if (t.status === 'approved') {
+                approvedHandover += Number(t.amount);
+                cashCollected += Number(t.amount);
+              }
+            } else if (t.status === 'approved') {
+              if (t.transaction_type === 'daily_expense') expenses += Number(t.amount);
+              if (t.transaction_type === 'bank_transfer') bankTransfers += Number(t.amount);
+              if (t.transaction_type === 'refund') refunds += Number(t.amount);
+            }
+          }
+        });
+
+        reports.push({
+          cashier_id: p.id,
+          cashier_name: p.name || p.username || 'Unknown',
+          total_cash_collected: cashCollected,
+          pending_handover: pendingHandover,
+          approved_handover: approvedHandover,
+          drawer_balance: cashCollected - expenses - bankTransfers - refunds
+        });
+
+        return {
+          id: p.id,
+          name: p.name || p.username || 'Unknown',
+          username: p.username || '',
+          password: p.password || '',
+          assigned_counters: assigned,
+          login_count: loginMap.get(p.id) || 0
+        };
+      });
+      
+      setCashiers(formatted);
+      setCashierReports(reports);
+    } catch (err) {
+      console.error('Error fetching cashiers:', err);
     }
   }, []);
 
@@ -657,25 +728,52 @@ export function useAdminData() {
     }
   };
 
+  const updateCashier = async (id: string, updates: any) => {
+    try {
+      const { error } = await supabase.from('profiles').update(updates).eq('id', id);
+      if (error) throw error;
+      toast.success('Cashier updated');
+      fetchCashiers();
+    } catch (err) {
+      toast.error('Failed to update cashier');
+      console.error(err);
+    }
+  };
+
+  const deleteCashier = async (id: string) => {
+    try {
+      await supabase.from('login_logs').delete().eq('user_id', id);
+      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Cashier deleted');
+      fetchCashiers();
+    } catch (err) {
+      toast.error('Failed to delete cashier');
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchStats();
     fetchCounters();
     fetchTeamLeads();
+    fetchCashiers();
     fetchBills();
-  }, [fetchStats, fetchCounters, fetchTeamLeads, fetchBills]);
+  }, [fetchStats, fetchCounters, fetchTeamLeads, fetchCashiers, fetchBills]);
 
   useEffect(() => {
     fetchInventory();
   }, [fetchInventory]);
 
   return {
-    stats, counters, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, uploading,
+    stats, counters, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, uploading, cashierReports,
     startDate, endDate, setStartDate, setEndDate,
     fetchLoginDetails, fetchCounters, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter,
     deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories, fetchInventory,
     transferCart, addToTransferCart, removeFromTransferCart, clearTransferCart, executeCartTransfer,
     deleteDataByDate,
-    teamLeads, fetchTeamLeads, updateTeamLead, deleteTeamLead
+    teamLeads, fetchTeamLeads, updateTeamLead, deleteTeamLead,
+    cashiers, fetchCashiers, updateCashier, deleteCashier
   };
 }

@@ -7,7 +7,7 @@ import { supabase } from '../../../../lib/supabase';
 import { MultiSelectDropdown } from '../../MultiSelectDropdown';
 import type { Counter } from '../../../../hooks/useAdminData';
 
-export const AddTeamLeadView = ({ counters, onBack }: { counters: Counter[], onBack: () => void }) => {
+export const AddCashierView = ({ counters, onBack }: { counters: Counter[], onBack: () => void }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [assignedCounters, setAssignedCounters] = useState<string[]>([]);
@@ -30,7 +30,7 @@ export const AddTeamLeadView = ({ counters, onBack }: { counters: Counter[], onB
         options: {
           data: {
             name: username,
-            role: 'team_lead',
+            role: 'cashier',
             username: username,
             password: password,
           },
@@ -47,7 +47,7 @@ export const AddTeamLeadView = ({ counters, onBack }: { counters: Counter[], onB
             name: username,
             username,
             password,
-            role: 'team_lead',
+            role: 'cashier',
             assigned_counters: assignedCounters
           });
 
@@ -56,7 +56,7 @@ export const AddTeamLeadView = ({ counters, onBack }: { counters: Counter[], onB
         }
       }
 
-      toast.success('Team Lead created successfully!');
+      toast.success('Cashier created successfully!');
       setUsername('');
       setPassword('');
       setAssignedCounters([]);
@@ -65,7 +65,7 @@ export const AddTeamLeadView = ({ counters, onBack }: { counters: Counter[], onB
       if (error instanceof Error) {
         toast.error(error.message);
       } else {
-        toast.error('Error creating team lead');
+        toast.error('Error creating cashier');
       }
     } finally {
       setLoading(false);
@@ -74,7 +74,7 @@ export const AddTeamLeadView = ({ counters, onBack }: { counters: Counter[], onB
 
   return (
     <div className="space-y-6">
-      <ViewHeader title="Create New Team Lead" onBack={onBack} icon={UserPlus} description="Add a new Team Lead and assign counters." />
+      <ViewHeader title="Create New Cashier" onBack={onBack} icon={UserPlus} description="Add a new Cashier and assign counters." />
       <div className="bg-card p-6 rounded-xl border border-border shadow-sm max-w-2xl mx-auto">
         <form onSubmit={handleCreate} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -115,7 +115,7 @@ export const AddTeamLeadView = ({ counters, onBack }: { counters: Counter[], onB
             disabled={loading}
             className="w-full bg-primary text-primary-foreground py-3 px-4 rounded-md hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 font-bold shadow-md"
           >
-            {loading ? 'Creating...' : <><UserPlus className="w-5 h-5" /> Create Team Lead</>}
+            {loading ? 'Creating...' : <><UserPlus className="w-5 h-5" /> Create Cashier</>}
           </button>
         </form>
       </div>
