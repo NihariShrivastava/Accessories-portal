@@ -58,7 +58,7 @@ export const ManageCountersView = ({
           data={data}
           columns={[
             {
-              header: 'Counter Name / Username',
+              header: 'Username',
               accessor: (c) => editingId === c.id ? (
                 <input
                   className="w-full px-2 py-1 bg-background border rounded text-sm"
