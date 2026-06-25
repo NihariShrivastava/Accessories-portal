@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../components/auth-provider';
 import { useTeamLeadData } from '../hooks/useTeamLeadData';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
-import { ReportsView, BillsView } from '../components/dashboard/sub-views/AdminSubViews';
+import { ReportsView, BillsView, TeamLeadInventoryView } from '../components/dashboard/sub-views/AdminSubViews';
 import { Store, Package, BarChart3, ReceiptText } from 'lucide-react';
 import type { SalesReport } from '../hooks/useAdminData';
 
@@ -18,7 +18,7 @@ export function TeamLeadDashboard() {
     loading 
   } = useTeamLeadData(user);
 
-  const [activeView, setActiveView] = useState<'dashboard' | 'reports' | 'bills'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'reports' | 'bills' | 'inventory'>('dashboard');
   const [selectedCounterId, setSelectedCounterId] = useState('');
   const [selectedCounterName, setSelectedCounterName] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -63,6 +63,14 @@ export function TeamLeadDashboard() {
         setEndDate={setEndDate} 
       />
     );
+  } else if (activeView === 'inventory') {
+    content = (
+      <TeamLeadInventoryView
+        counters={assignedCounters}
+        inventory={inventory}
+        onBack={() => setActiveView('dashboard')}
+      />
+    );
   } else {
     content = (
       <div className="space-y-6 animate-in fade-in duration-500">
@@ -103,7 +111,7 @@ export function TeamLeadDashboard() {
                 icon={Package} 
                 label="Total Inventory" 
                 value={inventory.length} 
-                onClick={() => setActiveView('reports')} 
+                onClick={() => setActiveView('inventory')} 
                 colorClass="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" 
               />
               <DashboardCard 

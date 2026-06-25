@@ -11,6 +11,10 @@ interface BillReceiptProps {
 export function BillReceipt({ bill, onClose }: BillReceiptProps) {
   const billNumber = bill.bill_number || 'PENDING';
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const handleDownload = () => {
     const element = document.getElementById('receipt-content');
     
@@ -57,10 +61,19 @@ export function BillReceipt({ bill, onClose }: BillReceiptProps) {
     : [{ method: bill.payment_method || 'Cash', amount: amountPaid, utr: '' }];
 
   return (
-    <div className="min-h-screen flex flex-col items-center py-8 bg-gray-100" style={{ backgroundColor: '#f3f4f6' }}>
-      
-      {/* Top Action Bar (Outside the PDF content) */}
-      <div className="w-full max-w-4xl flex justify-end gap-3 mb-4 px-4">
+    <>
+      <style type="text/css" media="print">{`
+        @page { size: A4 portrait; margin: 10mm; }
+        body { background: white !important; }
+        /* Hide everything else if needed, though print:hidden handles most */
+      `}</style>
+      <div className="min-h-screen flex flex-col items-center py-8 bg-gray-100 print:bg-white print:block print:py-0 print:min-h-0">
+        
+        {/* Top Action Bar (Outside the PDF content) */}
+      <div className="w-full max-w-4xl flex justify-end gap-3 mb-4 px-4 print:hidden">
+        <button onClick={handlePrint} className="px-6 py-2.5 rounded-md text-sm font-bold shadow-md transition-colors hover:opacity-90" style={{ backgroundColor: '#4338ca', color: '#ffffff' }}>
+          Print
+        </button>
         <button onClick={handleDownload} className="px-6 py-2.5 rounded-md text-sm font-bold shadow-md transition-colors hover:opacity-90" style={{ backgroundColor: '#000000', color: '#ffffff' }}>
           Download PDF
         </button>
@@ -71,13 +84,13 @@ export function BillReceipt({ bill, onClose }: BillReceiptProps) {
 
       <div 
         id="receipt-content"
-        className="w-[794px] shadow-2xl relative px-12 py-4 mx-auto"
+        className="w-[794px] shadow-2xl relative px-12 py-4 mx-auto print:w-full print:max-w-none print:shadow-none print:px-0 print:py-0 print:mx-0"
         style={{ backgroundColor: '#ffffff', color: '#1a202c' }}
       >
         
         {/* Header */}
         <div className="text-center mb-3">
-          <h1 className="text-[28px] font-black tracking-tight leading-tight" style={{ color: '#1a202c' }}>OMADVANCE PVT. LTD.</h1>
+          <h1 className="text-[28px] font-black tracking-tight leading-tight uppercase" style={{ color: '#1a202c' }}>Classy Rides Pvt. Ltd.</h1>
           <p className="text-[9px] font-bold tracking-[0.2em] uppercase" style={{ color: '#6b7280' }}>Authorised Automotive Dealer — Bill Receipt</p>
         </div>
 
@@ -253,5 +266,6 @@ export function BillReceipt({ bill, onClose }: BillReceiptProps) {
 
       </div>
     </div>
+    </>
   );
 }

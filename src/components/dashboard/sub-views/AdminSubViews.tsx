@@ -14,3 +14,4 @@ export * from './admin/ManageTeamLeadsView';
 export * from './admin/AddTeamLeadView';
 export * from './admin/ManageCashiersView';
 export * from './admin/AddCashierView';
+export * from './admin/TeamLeadInventoryView';

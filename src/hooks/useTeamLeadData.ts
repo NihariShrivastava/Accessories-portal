@@ -34,40 +34,40 @@ export function useTeamLeadData(user: any) {
         return;
       }
 
-      // 2. Fetch those specific counters
-      const { data: countersData } = await supabase
-        .from('profiles')
-        .select('id, name')
-        .in('id', counterIds);
-        
-      setAssignedCounters(countersData || []);
+      // 2. Fetch specific counters, inventory, and bills in parallel
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const [countersRes, invRes, billsRes] = await Promise.all([
+        supabase.from('profiles').select('id, name').in('id', counterIds),
+        supabase.from('accessories').select('*').in('counter_id', counterIds),
+        supabase.from('bills')
+          .select(`
+            id, bill_number, created_at, total_amount, payment_method, amount_paid, amount_left, quantity, counter_id,
+            accessories:accessory_id (name, accessory_code, vehicle_model)
+          `)
+          .in('counter_id', counterIds)
+          .gte('created_at', thirtyDaysAgo.toISOString())
+          .order('created_at', { ascending: false })
+      ]);
 
-      // 3. Fetch Inventory for assigned counters
-      const { data: invData, error: invErr } = await supabase
-        .from('accessories')
-        .select('*')
-        .in('counter_id', counterIds);
-        
-      if (invErr) console.error("Team Lead Inventory Fetch Error:", invErr);
-        
-      // Fetch counter names to enrich inventory
-      const enrichedInv = (invData || []).map(item => {
-        const c = countersData?.find(c => c.id === item.counter_id);
+      const countersData = countersRes.data || [];
+      const invData = invRes.data || [];
+      const billsData = billsRes.data || [];
+
+      if (invRes.error) console.error("Team Lead Inventory Fetch Error:", invRes.error);
+      if (billsRes.error) console.error("Team Lead Bills Fetch Error:", billsRes.error);
+
+      setAssignedCounters(countersData);
+
+      // 3. Enrich inventory with counter names
+      const enrichedInv = invData.map(item => {
+        const c = countersData.find(c => c.id === item.counter_id);
         return { ...item, counter_name: c?.name || 'Unknown' };
       });
       setInventory(enrichedInv);
 
-      // 4. Fetch Bills for assigned counters
-      const { data: billsData, error: billsErr } = await supabase
-        .from('bills')
-        .select(`
-          *,
-          accessories:accessory_id (name, accessory_code, vehicle_model)
-        `)
-        .in('counter_id', counterIds)
-        .order('created_at', { ascending: false });
-
-      if (billsErr) console.error("Team Lead Bills Fetch Error:", billsErr);
+      // 4. Process Bills
 
       // Group bills by bill_number
       const groupedBills = new Map<string, any>();
@@ -75,12 +75,13 @@ export function useTeamLeadData(user: any) {
 
       (billsData || []).forEach(item => {
         const bNo = item.bill_number ? item.bill_number.replace(/-\d+$/, '') : `TEMP-${item.id}`;
+        const acc = item.accessories as any;
         if (!item.bill_number) {
           standaloneBills.push({
             ...item,
             bill_number: bNo,
-            accessory_name: item.accessories?.name || 'Unknown',
-            vehicle_model: item.accessories?.vehicle_model || 'Unknown',
+            accessory_name: acc?.name || 'Unknown',
+            vehicle_model: acc?.vehicle_model || 'Unknown',
             items: [item]
           });
           return;
