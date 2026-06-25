@@ -58,25 +58,15 @@ export const ManageCountersView = ({
           data={data}
           columns={[
             {
-              header: 'Counter Name',
+              header: 'Counter Name / Username',
               accessor: (c) => editingId === c.id ? (
                 <input
                   className="w-full px-2 py-1 bg-background border rounded text-sm"
                   value={editForm.name}
-                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                  onChange={e => setEditForm({ ...editForm, name: e.target.value, username: e.target.value })}
                 />
               ) : <span className="font-semibold text-primary">{c.name}</span>,
               className: 'min-w-[150px]'
-            },
-            {
-              header: 'Username',
-              accessor: (c) => editingId === c.id ? (
-                <input
-                  className="w-full px-2 py-1 bg-background border rounded text-sm"
-                  value={editForm.username}
-                  onChange={e => setEditForm({ ...editForm, username: e.target.value })}
-                />
-              ) : <span className="text-muted-foreground font-mono text-xs">{c.username || c.name || '-'}</span>
             },
             {
               header: 'Password',
