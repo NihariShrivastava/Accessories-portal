@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
+import { toast } from 'sonner';
 import type { InventoryItem, SalesReport, CounterBill, Counter } from './useAdminData';
 
 export function useTeamLeadData(user: any) {
@@ -9,9 +10,12 @@ export function useTeamLeadData(user: any) {
   const [bills, setBills] = useState<CounterBill[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfileAndData = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
+  const fetchProfileAndData = useCallback(async (showLoading = true) => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    if (showLoading) setLoading(true);
     
     try {
       // 1. Fetch Team Lead Profile to get assigned counters
@@ -43,7 +47,7 @@ export function useTeamLeadData(user: any) {
         supabase.from('accessories').select('*').in('counter_id', counterIds),
         supabase.from('bills')
           .select(`
-            id, bill_number, created_at, total_amount, payment_method, amount_paid, amount_left, quantity, counter_id,
+            id, bill_number, created_at, total_amount, payment_method, amount_paid, amount_left, quantity, counter_id, approval_status,
             accessories:accessory_id (name, accessory_code, vehicle_model)
           `)
           .in('counter_id', counterIds)
@@ -76,12 +80,15 @@ export function useTeamLeadData(user: any) {
       (billsData || []).forEach(item => {
         const bNo = item.bill_number ? item.bill_number.replace(/-\d+$/, '') : `TEMP-${item.id}`;
         const acc = item.accessories as any;
+        const counterObj = countersData.find(c => c.id === item.counter_id);
+        
         if (!item.bill_number) {
           standaloneBills.push({
             ...item,
             bill_number: bNo,
             accessory_name: acc?.name || 'Unknown',
             vehicle_model: acc?.vehicle_model || 'Unknown',
+            profiles: { name: counterObj?.name || 'Unknown Counter' },
             items: [item]
           });
           return;
@@ -93,6 +100,7 @@ export function useTeamLeadData(user: any) {
             bill_number: bNo,
             accessory_name: 'Multiple Items',
             vehicle_model: 'Multiple Models',
+            profiles: { name: counterObj?.name || 'Unknown Counter' },
             items: [item]
           });
         } else {
@@ -102,6 +110,8 @@ export function useTeamLeadData(user: any) {
           group.amount_paid += item.amount_paid || 0;
           group.amount_left += item.amount_left || 0;
           group.quantity += item.quantity || 0;
+          // Status from the first item
+          group.approval_status = group.approval_status || item.approval_status;
         }
       });
 
@@ -119,7 +129,7 @@ export function useTeamLeadData(user: any) {
   }, [user]);
 
   useEffect(() => {
-    fetchProfileAndData();
+    fetchProfileAndData(true);
   }, [fetchProfileAndData]);
 
   // Aggregate Sales Report
@@ -139,6 +149,9 @@ export function useTeamLeadData(user: any) {
     });
 
     bills.forEach(b => {
+      // Ignore reverted bills in sales report
+      if (b.approval_status === 'reverted') return;
+
       const cId = b.counter_id;
       if (!cId || !reportMap.has(cId)) return;
       const r = reportMap.get(cId)!;
@@ -178,6 +191,68 @@ export function useTeamLeadData(user: any) {
     return Array.from(reportMap.values());
   }, [inventory, assignedCounters]);
 
+  const updateBillStatus = async (billId: string, status: 'approved' | 'reverted', _items: any[], counterId: string) => {
+    try {
+      // Find all actual bill items from the grouped bill
+      const billToUpdate = bills.find(b => b.id === billId);
+      if (!billToUpdate) throw new Error('Bill not found');
+      
+      const itemIds = billToUpdate.items ? billToUpdate.items.map(i => i.id) : [billId];
+
+      const { data: updatedBills, error: billError } = await supabase
+        .from('bills')
+        .update({ approval_status: status })
+        .in('id', itemIds)
+        .select();
+
+      if (billError) throw billError;
+      if (!updatedBills || updatedBills.length === 0) {
+        throw new Error("Update failed. You may not have permission to update this bill.");
+      }
+
+      // Optimistic update
+      setBills(prev => prev.map(b => {
+        if (b.id === billId || (b.items && b.items.some(i => i.id === billId))) {
+          return { ...b, approval_status: status };
+        }
+        return b;
+      }));
+
+      if (status === 'reverted') {
+        // Restore inventory for all items in the bill
+        for (const item of (billToUpdate.items || [billToUpdate])) {
+          if (!item.accessories || !item.accessories.name) continue;
+          
+          // Get current accessory using accessory_id if we have it, else try matching
+          let query = supabase.from('accessories').select('id, quantity');
+          if (item.accessory_id) {
+             query = query.eq('id', item.accessory_id);
+          } else {
+             query = query.eq('counter_id', counterId)
+                          .eq('vehicle_model', item.accessories.vehicle_model)
+                          .eq('name', item.accessories.name);
+          }
+          
+          const { data: accData } = await query.maybeSingle();
+
+          if (accData) {
+            await supabase
+              .from('accessories')
+              .update({ quantity: accData.quantity + (item.quantity || 1) })
+              .eq('id', accData.id);
+          }
+        }
+        toast.success(`Bill ${billToUpdate.bill_number} reverted and inventory restored.`);
+      } else {
+        toast.success(`Bill ${billToUpdate.bill_number} approved successfully.`);
+      }
+
+      await fetchProfileAndData(false);
+    } catch (error: any) {
+      toast.error(error.message || 'Error updating bill status');
+    }
+  };
+
   return {
     profile,
     assignedCounters,
@@ -186,6 +261,7 @@ export function useTeamLeadData(user: any) {
     salesReport,
     inventoryReport,
     loading,
-    refreshData: fetchProfileAndData
+    refreshData: fetchProfileAndData,
+    updateBillStatus
   };
 }

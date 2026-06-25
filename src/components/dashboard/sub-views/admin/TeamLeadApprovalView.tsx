@@ -1,0 +1,143 @@
+import { useState } from 'react';
+import { ArrowLeft, CheckCircle, RotateCcw, Filter } from 'lucide-react';
+import { DataTable } from '../../DataTable';
+import { Badge } from '../../Badge';
+import type { CounterBill, Counter } from '../../../../hooks/useAdminData';
+
+type Props = {
+  counters: Counter[];
+  bills: CounterBill[];
+  onBack: () => void;
+  onUpdateBillStatus: (billId: string, status: 'approved' | 'reverted', items: any[], counterId: string) => Promise<void>;
+};
+
+export function TeamLeadApprovalView({ counters, bills, onBack, onUpdateBillStatus }: Props) {
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved'>('pending');
+  const [selectedCounterId, setSelectedCounterId] = useState<string>('all');
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  // Filter bills
+  const filteredBills = bills.filter(b => {
+    // Determine status: if approval_status is undefined or 'pending', it's pending.
+    const status = b.approval_status || 'pending';
+    if (activeTab === 'pending' && status !== 'pending') return false;
+    if (activeTab === 'approved' && status !== 'approved') return false;
+    
+    if (selectedCounterId !== 'all' && b.counter_id !== selectedCounterId) return false;
+    return true;
+  });
+
+  const handleStatusUpdate = async (bill: CounterBill, newStatus: 'approved' | 'reverted') => {
+    if (!bill.counter_id) return;
+    setProcessingId(bill.id);
+    try {
+      await onUpdateBillStatus(bill.id, newStatus, bill.items || [], bill.counter_id);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex items-center gap-4">
+        <button
+          onClick={onBack}
+          className="p-2 bg-card hover:bg-muted rounded-xl border border-border shadow-sm transition-colors text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <div>
+          <h2 className="text-2xl font-black uppercase tracking-tight">Bill Approvals</h2>
+          <p className="text-sm text-muted-foreground uppercase tracking-widest font-medium">
+            Manage counter bill approvals
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col md:flex-row items-center justify-between p-4 gap-4">
+        <div className="flex bg-muted/50 p-1 rounded-lg w-full md:w-auto">
+          <button
+            onClick={() => setActiveTab('pending')}
+            className={`flex-1 md:flex-none px-6 py-2 rounded-md text-sm font-bold transition-all ${
+              activeTab === 'pending'
+                ? 'bg-background text-primary shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Pending Bills
+          </button>
+          <button
+            onClick={() => setActiveTab('approved')}
+            className={`flex-1 md:flex-none px-6 py-2 rounded-md text-sm font-bold transition-all ${
+              activeTab === 'approved'
+                ? 'bg-background text-primary shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Approved Bills
+          </button>
+        </div>
+
+        <div className="relative w-full md:w-64">
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <select
+            value={selectedCounterId}
+            onChange={(e) => setSelectedCounterId(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none font-medium"
+          >
+            <option value="all">All Counters</option>
+            {counters.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <DataTable<CounterBill>
+          idAccessor="id"
+          pageSize={50}
+          columns={[
+            { header: 'Bill No.', accessor: (b) => <span className="font-mono font-medium">{b.bill_number}</span>, sortAccessor: 'bill_number', className: 'text-left' },
+            { header: 'Counter Name', accessor: (b) => <Badge variant="secondary">{b.profiles?.name || 'Unknown Counter'}</Badge>, className: 'text-left' },
+            { header: 'Amount', accessor: (b) => `₹${(b.total_amount || 0).toLocaleString('en-IN')}`, sortAccessor: 'total_amount', className: 'text-right font-medium' },
+            { header: 'No. of Accessories', accessor: (b) => b.items?.length || 1, className: 'text-center' },
+            { header: 'Date', accessor: (b) => new Date(b.created_at).toLocaleString(), sortAccessor: 'created_at', className: 'text-left text-muted-foreground text-sm' },
+            {
+              header: 'Actions',
+              accessor: (b) => activeTab === 'pending' ? (
+                <div className="flex justify-end items-center gap-2">
+                  <button
+                    onClick={() => handleStatusUpdate(b, 'reverted')}
+                    disabled={processingId === b.id}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 font-bold transition-colors disabled:opacity-50 text-xs"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Revert
+                  </button>
+                  <button
+                    onClick={() => handleStatusUpdate(b, 'approved')}
+                    disabled={processingId === b.id}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded bg-emerald-500 text-white hover:bg-emerald-600 font-bold transition-colors disabled:opacity-50 text-xs"
+                  >
+                    <CheckCircle className="w-3 h-3" />
+                    Approve
+                  </button>
+                </div>
+              ) : (
+                <div className="text-right">
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-end gap-1">
+                    <CheckCircle className="w-3 h-3" /> Approved
+                  </span>
+                </div>
+              ),
+              className: 'text-right pr-4'
+            }
+          ]}
+          data={filteredBills}
+          emptyMessage={`There are currently no ${activeTab} bills for the selected filter.`}
+        />
+      </div>
+    </div>
+  );
+}

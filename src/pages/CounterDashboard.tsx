@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '../components/auth-provider';
-import { Search, ShoppingCart, History, ReceiptText, AlertTriangle, PackageCheck, LayoutGrid, Store, Package, Car, IndianRupee, X } from 'lucide-react';
+import { Search, ShoppingCart, History, ReceiptText, AlertTriangle, PackageCheck, LayoutGrid, Store, Package, Car, IndianRupee, X, CheckCircle } from 'lucide-react';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
 import { DataTable } from '../components/dashboard/DataTable';
 import { ViewHeader } from '../components/dashboard/ViewHeader';
@@ -13,6 +13,7 @@ import { BillDetails } from '../components/dashboard/BillDetails';
 import { BillReceipt } from '../components/dashboard/BillReceipt';
 import { DateRangeFilter } from '../components/dashboard/DateRangeFilter';
 import { CashDrawerView } from '../components/dashboard/sub-views/counter/CashDrawerView';
+import { CounterApprovalView } from '../components/dashboard/sub-views/counter/CounterApprovalView';
 
 import { QuantityModal } from '../components/dashboard/QuantityModal';
 import { CartModal } from '../components/dashboard/CartModal';
@@ -35,7 +36,7 @@ export function CounterDashboard() {
   const [showDialog, setShowDialog] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [activeView, setActiveView] = useState<'dashboard' | 'bills' | 'shortage-models' | 'surplus-models' | 'cash-drawer'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'bills' | 'shortage-models' | 'surplus-models' | 'cash-drawer' | 'approvals'>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewModels, setViewModels] = useState<string[]>([]);
   const [viewTitle, setViewTitle] = useState('');
@@ -314,6 +315,15 @@ export function CounterDashboard() {
         onCreateTransfer={createCashierTransfer}
       />
     );
+  } else if (activeView === 'approvals') {
+    content = (
+      <CounterApprovalView
+        bills={allBills}
+        onBack={() => setActiveView('dashboard')}
+        onViewBill={(b) => { setSelectedBill(b); setShowBillDetails(true); }}
+        onDownloadBill={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
+      />
+    );
   } else {
     content = (
       <div className="space-y-6">
@@ -442,6 +452,12 @@ export function CounterDashboard() {
                   }}
                   colorClass="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
                   rightIcon={LayoutGrid}
+                />
+                <DashboardCard
+                  icon={CheckCircle} label="Team Lead Approval" value={allBills.filter(b => b.approval_status === 'pending').length.toString()} subValue="pending bills"
+                  onClick={() => setActiveView('approvals')}
+                  colorClass="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
+                  rightIcon={History}
                 />
               </div>
             </div>

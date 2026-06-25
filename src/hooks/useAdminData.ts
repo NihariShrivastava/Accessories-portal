@@ -34,6 +34,7 @@ export type CounterBill = {
   items?: any[];
   counter_id?: string;
   profiles?: { name: string };
+  approval_status?: string;
 };
 
 export function useAdminData() {

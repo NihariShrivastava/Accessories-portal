@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useAuth } from '../components/auth-provider';
 import { useTeamLeadData } from '../hooks/useTeamLeadData';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
-import { ReportsView, BillsView, TeamLeadInventoryView } from '../components/dashboard/sub-views/AdminSubViews';
+import { ReportsView, BillsView, TeamLeadInventoryView, TeamLeadApprovalView } from '../components/dashboard/sub-views/AdminSubViews';
 import { Store, Package, BarChart3, ReceiptText } from 'lucide-react';
 import type { SalesReport } from '../hooks/useAdminData';
 
 export function TeamLeadDashboard() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { 
     profile, 
     assignedCounters, 
@@ -15,16 +15,17 @@ export function TeamLeadDashboard() {
     bills, 
     salesReport, 
     inventoryReport, 
-    loading 
+    loading,
+    updateBillStatus
   } = useTeamLeadData(user);
 
-  const [activeView, setActiveView] = useState<'dashboard' | 'reports' | 'bills' | 'inventory'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'reports' | 'bills' | 'inventory' | 'approvals'>('dashboard');
   const [selectedCounterId, setSelectedCounterId] = useState('');
   const [selectedCounterName, setSelectedCounterName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -71,6 +72,15 @@ export function TeamLeadDashboard() {
         onBack={() => setActiveView('dashboard')}
       />
     );
+  } else if (activeView === 'approvals') {
+    content = (
+      <TeamLeadApprovalView
+        counters={assignedCounters}
+        bills={bills}
+        onBack={() => setActiveView('dashboard')}
+        onUpdateBillStatus={updateBillStatus}
+      />
+    );
   } else {
     content = (
       <div className="space-y-6 animate-in fade-in duration-500">
@@ -100,7 +110,7 @@ export function TeamLeadDashboard() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <DashboardCard 
                 icon={Store} 
                 label="Assigned Counters" 
@@ -121,30 +131,13 @@ export function TeamLeadDashboard() {
                 onClick={() => setActiveView('reports')} 
                 colorClass="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" 
               />
-            </div>
-
-            <div className="bg-card p-6 rounded-xl border border-border shadow-sm mt-8">
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <ReceiptText className="w-6 h-6 text-primary" />
-                Quick Counter Select
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {assignedCounters.map(counter => {
-                  const report = salesReport.find(r => r.counter_id === counter.id);
-                  return (
-                    <button
-                      key={counter.id}
-                      onClick={() => handleCounterClick(report || { counter_id: counter.id, counter_name: counter.name } as SalesReport)}
-                      className="text-left p-4 rounded-xl border border-border bg-muted/30 hover:bg-muted hover:border-primary/50 transition-all group"
-                    >
-                      <h3 className="font-bold text-primary group-hover:text-primary transition-colors line-clamp-1">{counter.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {report?.total_bills || 0} Bills Generated
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
+              <DashboardCard 
+                icon={ReceiptText} 
+                label="Bill Approvals" 
+                value={bills.filter(b => b.approval_status === 'pending').length} 
+                onClick={() => setActiveView('approvals')} 
+                colorClass="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" 
+              />
             </div>
           </>
         )}

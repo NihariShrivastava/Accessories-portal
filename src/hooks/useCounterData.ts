@@ -35,6 +35,7 @@ export type Bill = {
   created_at: string;
   accessories: { name: string; accessory_code?: string; vehicle_model: string };
   items?: Bill[];
+  approval_status?: string;
 };
 
 type RawBill = {
@@ -57,6 +58,7 @@ type RawBill = {
   amount_left: number;
   created_at: string;
   accessories: { name: string; accessory_code?: string; vehicle_model: string };
+  approval_status?: string;
 };
 
 export function useCounterData(user: User | null) {
@@ -133,6 +135,7 @@ export function useCounterData(user: User | null) {
         existing.total_amount += item.total_amount || 0;
         existing.amount_paid += item.amount_paid || 0;
         existing.amount_left += item.amount_left || 0;
+        existing.approval_status = existing.approval_status || item.approval_status;
       }
     });
     return Array.from(map.values());
@@ -142,7 +145,7 @@ export function useCounterData(user: User | null) {
     try {
       const { data, error } = await supabase
         .from('bills')
-        .select('*, accessories (name, accessory_code, vehicle_model)')
+        .select('*, approval_status, accessories (name, accessory_code, vehicle_model)')
         .eq('counter_id', user?.id)
         .order('created_at', { ascending: false });
       
@@ -215,7 +218,7 @@ export function useCounterData(user: User | null) {
     try {
       const { data, error } = await supabase
         .from('bills')
-        .select('*, accessories (name, accessory_code, vehicle_model)')
+        .select('*, approval_status, accessories (name, accessory_code, vehicle_model)')
         .eq('counter_id', user?.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
