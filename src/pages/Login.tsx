@@ -17,6 +17,7 @@ export function Login() {
   if (!authLoading && user) {
     if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
     if (profile?.role === 'team_lead') return <Navigate to="/teamlead" replace />;
+    if (profile?.role === 'cashier') return <Navigate to="/cashier" replace />;
     return <Navigate to="/counter" replace />;
   }
 
@@ -40,6 +41,17 @@ export function Login() {
         if (!fallbackResult.error) {
           data = fallbackResult.data;
           error = fallbackResult.error;
+        } else {
+          // Additional fallback for previously created cashiers with @cashier.local
+          const cashierFallbackResult = await supabase.auth.signInWithPassword({
+            email: `${username.trim().toLowerCase()}@cashier.local`,
+            password,
+          });
+
+          if (!cashierFallbackResult.error) {
+            data = cashierFallbackResult.data;
+            error = cashierFallbackResult.error;
+          }
         }
       }
 
@@ -67,7 +79,7 @@ export function Login() {
         // Log the login event (fire-and-forget, don't block login)
         supabase.from('login_logs').insert([{ user_id: data.user.id }]).then(() => {});
 
-        navigate(role === 'admin' ? '/admin' : role === 'team_lead' ? '/teamlead' : '/counter', { replace: true });
+        navigate(role === 'admin' ? '/admin' : role === 'team_lead' ? '/teamlead' : role === 'cashier' ? '/cashier' : '/counter', { replace: true });
       }
     } catch (error: unknown) {
       if (error instanceof Error) {

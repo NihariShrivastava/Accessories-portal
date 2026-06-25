@@ -67,6 +67,13 @@ const syncAuthCredentials = async (
       password: oldPassword
     });
     signInError = fallback.error;
+  } else if (signInError && role === 'cashier') {
+    emailToTry = `${oldUsername.trim().toLowerCase()}@cashier.local`;
+    const fallback = await tempSupabase.auth.signInWithPassword({
+      email: emailToTry,
+      password: oldPassword
+    });
+    signInError = fallback.error;
   }
 
   if (signInError) {
