@@ -78,7 +78,7 @@ const syncAuthCredentials = async (
 
   if (signInError) {
     console.warn("Could not sync auth credentials:", signInError.message);
-    return; // Silently fail sync, but allow profile update
+    throw new Error("Could not authenticate with current credentials. If you previously updated this user and they cannot log in, they are out of sync. Please delete and recreate this account.");
   }
 
   const authUpdates: any = {};
@@ -90,7 +90,14 @@ const syncAuthCredentials = async (
   }
 
   if (Object.keys(authUpdates).length > 0) {
-    await tempSupabase.auth.updateUser(authUpdates);
+    const { error: updateError } = await tempSupabase.auth.updateUser(authUpdates);
+    if (updateError) {
+      console.warn("Error updating auth user:", updateError.message);
+      if (updateError.message.includes('invalid') || updateError.message.includes('email')) {
+        throw new Error("Cannot update username (email) because 'Secure Email Change' is enabled in your Supabase project settings. Please turn it off in Authentication -> Providers -> Email, or create a new account instead.");
+      }
+      throw new Error("Failed to update login credentials: " + updateError.message);
+    }
   }
 
   await tempSupabase.auth.signOut();
