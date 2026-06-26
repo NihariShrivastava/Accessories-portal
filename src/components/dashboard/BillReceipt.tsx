@@ -127,72 +127,49 @@ export function BillReceipt({ bill, onClose }: BillReceiptProps) {
         <div className="border-t mb-2" style={{ borderColor: '#f3f4f6' }}></div>
 
         {/* Table Header */}
-        <div className="flex justify-between py-2 text-[9px] font-bold tracking-wider uppercase border-b page-break-avoid" style={{ color: '#1a202c', borderColor: '#e5e7eb' }}>
-          <span>DESCRIPTION</span>
-          <span>VALUE (INR)</span>
+        <div className="grid grid-cols-12 gap-2 py-2 text-[9px] font-bold tracking-wider uppercase border-b page-break-avoid" style={{ color: '#1a202c', borderColor: '#e5e7eb' }}>
+          <div className="col-span-4">NAME OF ACCESSORY</div>
+          <div className="col-span-1 text-center">QTY</div>
+          <div className="col-span-2 text-right">BASE PRICE</div>
+          <div className="col-span-1 text-right">CGST</div>
+          <div className="col-span-1 text-right">SGST</div>
+          <div className="col-span-3 text-right">TOTAL</div>
         </div>
 
         {/* Table Body */}
-        <div className="space-y-2 mb-4 pt-2">
-          <div className="page-break-avoid">
-            <h4 className="text-[10px] font-bold tracking-wider uppercase mb-1.5" style={{ color: '#4338ca' }}>PART A (REGISTRATION, TAX & INSURANCE)</h4>
-          </div>
-          <div className="space-y-2 text-[11px] font-medium" style={{ color: '#1a202c' }}>
-            {bill.items && bill.items.length > 0 ? (
-              bill.items.map((item, idx) => (
-                <div key={idx} className="flex flex-col mb-1.5 page-break-avoid border-b pb-1" style={{ borderColor: '#f3f4f6' }}>
-                  <div className="flex justify-between font-bold mb-1 text-[12px]">
-                    <span>{item.accessories?.name || 'Item'} (x{item.quantity})</span>
-                    <span>₹{((item.base_amount || 0) + (item.cgst_amount || 0) + (item.sgst_amount || 0)).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                  </div>
-                    <div className="flex justify-between pl-4 py-0.5 text-[10px]" style={{ color: '#4b5563' }}>
-                      <span>Ex-Showroom Price (Base)</span>
-                      <span>₹{(item.base_amount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                    </div>
-                    {(item.cgst_amount || 0) > 0 && (
-                      <div className="flex justify-between pl-4 py-0.5 text-[10px]" style={{ color: '#4b5563' }}>
-                        <span>CGST</span>
-                        <span>₹{(item.cgst_amount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                      </div>
-                    )}
-                    {(item.sgst_amount || 0) > 0 && (
-                      <div className="flex justify-between pl-4 py-0.5 text-[10px]" style={{ color: '#4b5563' }}>
-                        <span>SGST</span>
-                        <span>₹{(item.sgst_amount || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                      </div>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="space-y-1 page-break-avoid">
-                  <div className="flex justify-between" style={{ color: '#4b5563' }}>
-                    <span>Ex-Showroom Price (Base)</span>
-                    <span>₹{baseAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                  </div>
-                  {cgstAmount > 0 && (
-                    <div className="flex justify-between" style={{ color: '#4b5563' }}>
-                      <span>CGST</span>
-                      <span>₹{cgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                    </div>
-                  )}
-                  {sgstAmount > 0 && (
-                    <div className="flex justify-between" style={{ color: '#4b5563' }}>
-                      <span>SGST</span>
-                      <span>₹{sgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                    </div>
-                  )}
+        <div className="mb-4 text-[11px] font-medium" style={{ color: '#1a202c' }}>
+          {bill.items && bill.items.length > 0 ? (
+            bill.items.map((item, idx) => {
+              const itemBase = item.base_amount || 0;
+              const itemCgst = item.cgst_amount || 0;
+              const itemSgst = item.sgst_amount || 0;
+              const itemTotal = itemBase + itemCgst + itemSgst;
+              
+              return (
+                <div key={idx} className="grid grid-cols-12 gap-2 py-1.5 border-b page-break-avoid items-center" style={{ borderColor: '#f3f4f6' }}>
+                  <div className="col-span-4 font-bold truncate pr-2">{item.accessories?.name || 'Item'}</div>
+                  <div className="col-span-1 text-center">{item.quantity}</div>
+                  <div className="col-span-2 text-right text-[10px]" style={{ color: '#4b5563' }}>₹{itemBase.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                  <div className="col-span-1 text-right text-[10px]" style={{ color: '#4b5563' }}>₹{itemCgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                  <div className="col-span-1 text-right text-[10px]" style={{ color: '#4b5563' }}>₹{itemSgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                  <div className="col-span-3 text-right font-bold">₹{itemTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                 </div>
-              )}
-          </div>
-
-          <div className="pt-2 page-break-avoid">
-            <h4 className="text-[10px] font-bold tracking-wider uppercase mb-1" style={{ color: '#4338ca' }}>PART B (OTHER FEES & ACCESSORIES)</h4>
-            <div className="space-y-1.5 text-[11px] font-medium" style={{ color: '#4b5563' }}>
-              <div className="flex justify-between">
-                <span>Exchange Value (Discount)</span>
-                <span style={{ color: '#e53e3e' }}>-₹0.00</span>
-              </div>
+              );
+            })
+          ) : (
+            <div className="grid grid-cols-12 gap-2 py-1.5 border-b page-break-avoid items-center" style={{ borderColor: '#f3f4f6' }}>
+              <div className="col-span-4 font-bold truncate pr-2">Accessories Bundle</div>
+              <div className="col-span-1 text-center">1</div>
+              <div className="col-span-2 text-right text-[10px]" style={{ color: '#4b5563' }}>₹{baseAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+              <div className="col-span-1 text-right text-[10px]" style={{ color: '#4b5563' }}>₹{cgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+              <div className="col-span-1 text-right text-[10px]" style={{ color: '#4b5563' }}>₹{sgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+              <div className="col-span-3 text-right font-bold">₹{(baseAmount + cgstAmount + sgstAmount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
             </div>
+          )}
+          
+          <div className="grid grid-cols-12 gap-2 py-1.5 page-break-avoid items-center" style={{ color: '#4b5563' }}>
+            <div className="col-span-9 text-right font-bold text-[10px] uppercase">Exchange Value (Discount)</div>
+            <div className="col-span-3 text-right font-bold" style={{ color: '#e53e3e' }}>-₹0.00</div>
           </div>
         </div>
 
