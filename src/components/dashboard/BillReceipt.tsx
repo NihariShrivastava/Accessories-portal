@@ -127,7 +127,7 @@ export function BillReceipt({ bill, onClose }: BillReceiptProps) {
         <div className="border-t mb-2" style={{ borderColor: '#f3f4f6' }}></div>
 
         {/* Table Header */}
-        <div className="grid grid-cols-12 gap-2 py-2 text-[9px] font-bold tracking-wider uppercase border-b page-break-avoid" style={{ color: '#1a202c', borderColor: '#e5e7eb' }}>
+        <div className="grid grid-cols-12 gap-2 py-2 px-3 text-[9px] font-bold tracking-wider uppercase rounded-t-md page-break-avoid" style={{ backgroundColor: '#f3f4f6', color: '#1a202c' }}>
           <div className="col-span-4">NAME OF ACCESSORY</div>
           <div className="col-span-1 text-center">QTY</div>
           <div className="col-span-2 text-right">BASE PRICE</div>
@@ -137,7 +137,7 @@ export function BillReceipt({ bill, onClose }: BillReceiptProps) {
         </div>
 
         {/* Table Body */}
-        <div className="mb-4 text-[11px] font-medium" style={{ color: '#1a202c' }}>
+        <div className="mb-4 text-[11px] font-medium border-x border-b rounded-b-md" style={{ borderColor: '#e5e7eb', color: '#1a202c' }}>
           {bill.items && bill.items.length > 0 ? (
             bill.items.map((item, idx) => {
               const itemBase = item.base_amount || 0;
@@ -145,32 +145,28 @@ export function BillReceipt({ bill, onClose }: BillReceiptProps) {
               const itemSgst = item.sgst_amount || 0;
               const itemTotal = itemBase + itemCgst + itemSgst;
               
+              const isLast = idx === bill.items!.length - 1;
               return (
-                <div key={idx} className="grid grid-cols-12 gap-2 py-1.5 border-b page-break-avoid items-center" style={{ borderColor: '#f3f4f6' }}>
+                <div key={idx} className={`grid grid-cols-12 gap-2 py-2 px-3 page-break-avoid items-center ${isLast ? '' : 'border-b'}`} style={{ borderColor: '#f3f4f6' }}>
                   <div className="col-span-4 font-bold truncate pr-2">{item.accessories?.name || 'Item'}</div>
-                  <div className="col-span-1 text-center">{item.quantity}</div>
+                  <div className="col-span-1 text-center font-semibold text-[10px]">{item.quantity}</div>
                   <div className="col-span-2 text-right text-[10px]" style={{ color: '#4b5563' }}>₹{itemBase.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                   <div className="col-span-1 text-right text-[10px]" style={{ color: '#4b5563' }}>₹{itemCgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                   <div className="col-span-1 text-right text-[10px]" style={{ color: '#4b5563' }}>₹{itemSgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-                  <div className="col-span-3 text-right font-bold">₹{itemTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                  <div className="col-span-3 text-right font-bold text-[12px]" style={{ color: '#111827' }}>₹{itemTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                 </div>
               );
             })
           ) : (
-            <div className="grid grid-cols-12 gap-2 py-1.5 border-b page-break-avoid items-center" style={{ borderColor: '#f3f4f6' }}>
+            <div className="grid grid-cols-12 gap-2 py-2 px-3 page-break-avoid items-center">
               <div className="col-span-4 font-bold truncate pr-2">Accessories Bundle</div>
-              <div className="col-span-1 text-center">1</div>
+              <div className="col-span-1 text-center font-semibold text-[10px]">1</div>
               <div className="col-span-2 text-right text-[10px]" style={{ color: '#4b5563' }}>₹{baseAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
               <div className="col-span-1 text-right text-[10px]" style={{ color: '#4b5563' }}>₹{cgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
               <div className="col-span-1 text-right text-[10px]" style={{ color: '#4b5563' }}>₹{sgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-              <div className="col-span-3 text-right font-bold">₹{(baseAmount + cgstAmount + sgstAmount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+              <div className="col-span-3 text-right font-bold text-[12px]" style={{ color: '#111827' }}>₹{(baseAmount + cgstAmount + sgstAmount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
             </div>
           )}
-          
-          <div className="grid grid-cols-12 gap-2 py-1.5 page-break-avoid items-center" style={{ color: '#4b5563' }}>
-            <div className="col-span-9 text-right font-bold text-[10px] uppercase">Exchange Value (Discount)</div>
-            <div className="col-span-3 text-right font-bold" style={{ color: '#e53e3e' }}>-₹0.00</div>
-          </div>
         </div>
 
         <div className="border-t-[3px] mb-1 page-break-avoid" style={{ borderColor: '#1a202c' }}></div>
