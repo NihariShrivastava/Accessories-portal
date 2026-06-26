@@ -91,7 +91,6 @@ export function BillReceipt({ bill, onClose }: BillReceiptProps) {
         {/* Header */}
         <div className="text-center mb-3">
           <h1 className="text-[28px] font-black tracking-tight leading-tight uppercase" style={{ color: '#1a202c' }}>Classy Rides Pvt. Ltd.</h1>
-          <p className="text-[9px] font-bold tracking-[0.2em] uppercase" style={{ color: '#6b7280' }}>Authorised Automotive Dealer — Bill Receipt</p>
         </div>
 
         <div className="border-t-[3px] mb-3" style={{ borderColor: '#1a202c' }}></div>
