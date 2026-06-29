@@ -15,6 +15,7 @@ export function TeamLeadDashboard() {
     bills, 
     salesReport, 
     inventoryReport, 
+    amountCollectedReport,
     loading,
     updateBillStatus
   } = useTeamLeadData(user);
@@ -46,6 +47,7 @@ export function TeamLeadDashboard() {
         data={salesReport}
         inventory={inventory}
         inventoryReport={inventoryReport}
+        amountCollectedReport={amountCollectedReport}
         onBack={() => setActiveView('dashboard')}
         onCounterClick={handleCounterClick}
       />

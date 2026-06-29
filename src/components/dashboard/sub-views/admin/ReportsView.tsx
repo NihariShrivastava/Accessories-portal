@@ -2,25 +2,27 @@ import { useState } from 'react';
 import { DataTable } from '../../DataTable';
 import { ViewHeader } from '../../ViewHeader';
 import { Badge } from '../../Badge';
-import { BarChart3, ChevronLeft, ChevronRight, History, IndianRupee, Package, X, Save } from 'lucide-react';
-import type { SalesReport, InventoryItem, InventorySummary, CashierReport } from '../../../../hooks/useAdminData';
+import { BarChart3, ChevronLeft, ChevronRight, History, IndianRupee, Package, X, Save, Users } from 'lucide-react';
+import type { SalesReport, InventoryItem, InventorySummary, CashierReport, AmountCollectedReport, TeamLeadReport } from '../../../../hooks/useAdminData';
+import { AmountCollectedDialog } from './AmountCollectedDialog';
 
 export const ReportsView = ({
-  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick
+  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports
 }: {
   data: SalesReport[], onBack: () => void, onCounterClick: (r: SalesReport) => void,
   inventory: InventoryItem[], inventoryReport: InventorySummary[], cashierReports?: CashierReport[],
-  onCashierClick?: (r: CashierReport) => void
+  onCashierClick?: (r: CashierReport) => void, amountCollectedReport?: AmountCollectedReport[],
+  teamLeadReports?: TeamLeadReport[]
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [expandedCounter, setExpandedCounter] = useState<string | null>(null);
   const [selectedCounterFilter, setSelectedCounterFilter] = useState<string>('all');
+  const [selectedAmountReport, setSelectedAmountReport] = useState<AmountCollectedReport | null>(null);
   
-  const hasCashierReports = cashierReports !== undefined && onCashierClick !== undefined;
-  const totalSlides = hasCashierReports ? 4 : 3;
-  const slideNames = hasCashierReports 
-    ? ['Ledger', 'Revenue Report', 'Inventory Report', 'Cashier Report']
-    : ['Ledger', 'Revenue Report', 'Inventory Report'];
+  const slideNames = ['Ledger', 'Revenue Report', 'Inventory Report', 'Amount Collected'];
+  if (teamLeadReports) slideNames.push('Team Lead Report');
+  if (cashierReports && onCashierClick) slideNames.push('Cashier Report');
+  const totalSlides = slideNames.length;
 
   const filteredData = selectedCounterFilter === 'all' ? data : data.filter(d => d.counter_id === selectedCounterFilter);
   const filteredInventoryReport = selectedCounterFilter === 'all' ? inventoryReport : inventoryReport.filter(r => r.counter_id === selectedCounterFilter);
@@ -120,7 +122,8 @@ export const ReportsView = ({
                   { header: 'Counter Name', accessor: 'counter_name', sortAccessor: 'counter_name', className: 'text-left font-semibold' },
                   { header: 'Total Bills', accessor: 'total_bills', sortAccessor: 'total_bills', className: 'text-center' },
                   { header: 'Total Items Sold', accessor: 'total_items', sortAccessor: 'total_items', className: 'text-center font-medium text-primary' },
-                  { header: 'Revenue Generated', accessor: (r) => `₹${r.total_sales.toLocaleString()}`, sortAccessor: 'total_sales', className: 'text-right font-bold text-green-600' }
+                  { header: 'Revenue Generated', accessor: (r) => `₹${r.total_sales.toLocaleString()}`, sortAccessor: 'total_sales', className: 'text-right font-bold text-green-600' },
+                  { header: 'Profit Generated', accessor: (r) => `₹${(r.total_profit || 0).toLocaleString()}`, sortAccessor: 'total_profit', className: 'text-right font-bold text-indigo-500' }
                 ]}
               />
             </div>
@@ -232,8 +235,58 @@ export const ReportsView = ({
                 })}
               </div>
             </div>
-            {/* Slide 4: Cashier Report */}
-            {hasCashierReports && (
+
+            {/* Slide 4: Amount Collected Report */}
+            <div className="w-full flex-shrink-0">
+              <div className="px-4 sm:px-6 pt-4 pb-2">
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <IndianRupee className="w-4 h-4 text-primary" />
+                  Detailed payment collection breakdown by counter.
+                </p>
+              </div>
+              <DataTable<AmountCollectedReport>
+                idAccessor="counter_id"
+                data={selectedCounterFilter === 'all' ? amountCollectedReport : amountCollectedReport.filter(r => r.counter_id === selectedCounterFilter)}
+                onRowClick={(r) => setSelectedAmountReport(r)}
+                columns={[
+                  { header: 'Counter Name', accessor: 'counter_name', sortAccessor: 'counter_name', className: 'text-left font-semibold text-primary group-hover:underline cursor-pointer' },
+                  { header: 'Cash Collected (₹)', accessor: (r) => `₹${r.cash_collected.toLocaleString()}`, sortAccessor: 'cash_collected', className: 'text-right font-medium text-emerald-600' },
+                  { header: 'UPI (₹)', accessor: (r) => `₹${r.upi_collected.toLocaleString()}`, sortAccessor: 'upi_collected', className: 'text-right' },
+                  { header: 'Card (₹)', accessor: (r) => `₹${r.card_collected.toLocaleString()}`, sortAccessor: 'card_collected', className: 'text-right' },
+                  { header: 'Bank Transfer (₹)', accessor: (r) => `₹${r.bank_transfer_collected.toLocaleString()}`, sortAccessor: 'bank_transfer_collected', className: 'text-right' }
+                ]}
+              />
+            </div>
+            
+            {/* Slide 5: Team Lead Report */}
+            {teamLeadReports && (
+              <div className="w-full flex-shrink-0">
+                <div className="px-4 sm:px-6 pt-4 pb-2">
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Users className="w-4 h-4 text-blue-500" />
+                    Overview of team leads and their assigned counters.
+                  </p>
+                </div>
+                <DataTable<TeamLeadReport>
+                  idAccessor="team_lead_id"
+                  data={teamLeadReports}
+                  columns={[
+                    { header: 'Team Lead', accessor: 'team_lead_name', sortAccessor: 'team_lead_name', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
+                    { header: 'Counters Assigned', accessor: (r) => (
+                      <div className="flex flex-col gap-1">
+                        <span className="font-bold">{r.assigned_counters_count}</span>
+                        <span className="text-[10px] text-muted-foreground">{r.assigned_counters_names.join(', ')}</span>
+                      </div>
+                    ), sortAccessor: 'assigned_counters_count', className: 'text-left' },
+                    { header: 'Pending Approvals', accessor: (r) => <span className="text-amber-500 font-bold">{r.pending_approvals}</span>, sortAccessor: 'pending_approvals', className: 'text-right' },
+                    { header: 'Approved Approvals', accessor: (r) => <span className="text-emerald-600 font-bold">{r.approved_approvals}</span>, sortAccessor: 'approved_approvals', className: 'text-right' }
+                  ]}
+                />
+              </div>
+            )}
+            
+            {/* Slide 6: Cashier Report */}
+            {cashierReports && onCashierClick && (
               <div className="w-full flex-shrink-0">
                 <div className="px-4 sm:px-6 pt-4 pb-2">
                   <p className="text-sm text-muted-foreground flex items-center gap-2">
@@ -258,6 +311,13 @@ export const ReportsView = ({
           </div>
         </div>
       </div>
+
+      {selectedAmountReport && (
+        <AmountCollectedDialog
+          report={selectedAmountReport}
+          onClose={() => setSelectedAmountReport(null)}
+        />
+      )}
     </div>
   );
 };

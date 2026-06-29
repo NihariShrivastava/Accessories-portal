@@ -111,6 +111,7 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
             cgst_amount: cgst,
             sgst_amount: sgst,
             total_amount: total,
+            total_purchase_price: (item.accessory.purchase_price || 0) * item.quantity,
             payment_method: primaryMethod,
             payment_details: payments,
             // Store total paid and left ONLY in the first row to avoid overcounting in sums
@@ -176,6 +177,7 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
           cgst_amount: (item.accessory.price * item.quantity) * ((item.accessory.cgst_percent || 0) / 100),
           sgst_amount: (item.accessory.price * item.quantity) * ((item.accessory.sgst_percent || 0) / 100),
           total_amount: (item.accessory.price * item.quantity) * (1 + ((item.accessory.cgst_percent || 0) + (item.accessory.sgst_percent || 0)) / 100),
+          total_purchase_price: (item.accessory.purchase_price || 0) * item.quantity,
         }))
       };
 

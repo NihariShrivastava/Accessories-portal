@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
-import type { InventoryItem, SalesReport, CounterBill, Counter } from './useAdminData';
+import type { InventoryItem, SalesReport, CounterBill, Counter, AmountCollectedReport } from './useAdminData';
 
 export function useTeamLeadData(user: any) {
   const [profile, setProfile] = useState<any>(null);
@@ -191,6 +191,60 @@ export function useTeamLeadData(user: any) {
     return Array.from(reportMap.values());
   }, [inventory, assignedCounters]);
 
+  const amountCollectedReport = useMemo(() => {
+    const map = new Map<string, AmountCollectedReport>();
+    bills.forEach((bill: any) => {
+      if (bill.approval_status === 'reverted') return;
+      const cId = bill.counter_id;
+      if (!cId) return;
+      
+      const cObj = assignedCounters.find(c => c.id === cId);
+      const existing = map.get(cId) || {
+        counter_id: cId,
+        counter_name: cObj?.name || 'Unknown',
+        cash_collected: 0,
+        upi_collected: 0,
+        card_collected: 0,
+        bank_transfer_collected: 0,
+        bills_data: []
+      };
+      
+      let cash = 0, upi = 0, card = 0, bank = 0;
+      
+      if (bill.payment_method === 'Split Payment' && bill.payment_details) {
+        bill.payment_details.forEach((p: any) => {
+          const amt = Number(p.amount) || 0;
+          const m = (p.method || '').toLowerCase();
+          if (m.includes('cash')) cash += amt;
+          else if (m.includes('upi')) upi += amt;
+          else if (m.includes('card')) card += amt;
+          else if (m.includes('bank')) bank += amt;
+        });
+      } else {
+        const amt = Number(bill.amount_paid) || 0;
+        const m = (bill.payment_method || '').toLowerCase();
+        if (m.includes('cash')) cash += amt;
+        else if (m.includes('upi')) upi += amt;
+        else if (m.includes('card')) card += amt;
+        else if (m.includes('bank')) bank += amt;
+      }
+      
+      existing.cash_collected += cash;
+      existing.upi_collected += upi;
+      existing.card_collected += card;
+      existing.bank_transfer_collected += bank;
+      
+      existing.bills_data.push({
+        bill_number: bill.bill_number,
+        cash_amount: cash,
+        payment_details: bill.payment_details || [{ method: bill.payment_method, amount: bill.amount_paid }]
+      });
+      
+      map.set(cId, existing);
+    });
+    return Array.from(map.values());
+  }, [bills, assignedCounters]);
+
   const updateBillStatus = async (billId: string, status: 'approved' | 'reverted', _items: any[], counterId: string) => {
     try {
       // Find all actual bill items from the grouped bill
@@ -260,6 +314,7 @@ export function useTeamLeadData(user: any) {
     bills,
     salesReport,
     inventoryReport,
+    amountCollectedReport,
     loading,
     refreshData: fetchProfileAndData,
     updateBillStatus

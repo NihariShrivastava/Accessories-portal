@@ -11,7 +11,7 @@ import { CounterManagementView, AddTeamLeadView, AddCashierView, ModelDetailView
 
 export function AdminDashboard() {
   const {
-    counters, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, uploading, cashierReports,
+    counters, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports,
     startDate, endDate, setStartDate, setEndDate,
     fetchCounters, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter, deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories,
@@ -201,6 +201,8 @@ export function AdminDashboard() {
         inventory={inventory}
         inventoryReport={inventoryReport}
         cashierReports={cashierReports}
+        teamLeadReports={teamLeadReports}
+        amountCollectedReport={amountCollectedReport}
         onBack={() => setActiveView('dashboard')}
         onCounterClick={handleCounterClick}
         onCashierClick={handleCashierClick}

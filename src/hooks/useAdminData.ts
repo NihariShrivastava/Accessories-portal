@@ -9,9 +9,34 @@ export type TeamLead = { id: string; name: string; username?: string; password?:
 export type Cashier = { id: string; name: string; username?: string; password?: string; assigned_counters?: string[]; login_count?: number };
 export type InventoryItem = { id: string; counter_id: string; counter_name: string; vehicle_model: string; name: string; accessory_code?: string; quantity: number; price: number; cgst_percent?: number; sgst_percent?: number; created_at: string };
 export type LoginDetail = { user_id: string; name: string; login_count: number };
-export type SalesReport = { counter_id: string; counter_name: string; total_bills: number; total_items: number; total_sales: number; total_collected: number; outstanding: number };
-export type CashierReport = { cashier_id: string; cashier_name: string; total_cash_collected: number; pending_handover: number; approved_handover: number; drawer_balance: number; };
+export type SalesReport = { counter_id: string; counter_name: string; total_bills: number; total_items: number; total_sales: number; total_collected: number; outstanding: number; total_profit: number };
+export interface CashierReport {
+  cashier_id: string;
+  cashier_name: string;
+  total_cash_collected: number;
+  pending_handover: number;
+  approved_handover: number;
+  drawer_balance: number;
+}
+
+export interface TeamLeadReport {
+  team_lead_id: string;
+  team_lead_name: string;
+  assigned_counters_count: number;
+  assigned_counters_names: string[];
+  pending_approvals: number;
+  approved_approvals: number;
+};
 export type InventorySummary = { counter_id: string; counter_name: string; surplus_count: number; shortage_count: number };
+export type AmountCollectedReport = {
+  counter_id: string;
+  counter_name: string;
+  cash_collected: number;
+  upi_collected: number;
+  card_collected: number;
+  bank_transfer_collected: number;
+  bills_data: any[];
+};
 export type ModelAccessory = { id: string; counter_id: string; vehicle_model: string; created_at: string; name: string; accessory_code?: string; counter_name: string; quantity: number; price: number; cgst_percent?: number; sgst_percent?: number; };
 export type CounterBill = { 
   id: string; 
@@ -569,6 +594,7 @@ export function useAdminData() {
 
   const filteredBills = useMemo(() => {
     return allBills.filter(bill => {
+      if (bill.approval_status === 'reverted') return false;
       if (!startDate && !endDate) return true;
       const billDate = new Date(bill.created_at);
       const billDateStr = billDate.toISOString().split('T')[0];
@@ -588,11 +614,13 @@ export function useAdminData() {
         existing.total_sales += Number(bill.total_amount) || 0;
         existing.total_collected += Number(bill.amount_paid) || 0;
         existing.outstanding += Number(bill.amount_left) || 0;
+        existing.total_profit += (Number(bill.base_amount) || 0) - (Number(bill.total_purchase_price) || 0);
       } else {
         map.set(bill.counter_id, {
           counter_id: bill.counter_id, counter_name: bill.profiles?.name || 'Unknown', total_bills: 1,
           total_items: Number(bill.quantity) || 0,
-          total_sales: Number(bill.total_amount) || 0, total_collected: Number(bill.amount_paid) || 0, outstanding: Number(bill.amount_left) || 0
+          total_sales: Number(bill.total_amount) || 0, total_collected: Number(bill.amount_paid) || 0, outstanding: Number(bill.amount_left) || 0,
+          total_profit: (Number(bill.base_amount) || 0) - (Number(bill.total_purchase_price) || 0)
         });
       }
     });
@@ -620,6 +648,77 @@ export function useAdminData() {
     });
     return Array.from(map.values());
   }, [inventory]);
+
+  const amountCollectedReport = useMemo(() => {
+    const map = new Map<string, AmountCollectedReport>();
+    filteredBills.forEach((bill: any) => {
+      const existing = map.get(bill.counter_id) || {
+        counter_id: bill.counter_id,
+        counter_name: bill.profiles?.name || 'Unknown',
+        cash_collected: 0,
+        upi_collected: 0,
+        card_collected: 0,
+        bank_transfer_collected: 0,
+        bills_data: []
+      };
+      
+      let cash = 0, upi = 0, card = 0, bank = 0;
+      
+      if (bill.payment_method === 'Split Payment' && bill.payment_details) {
+        bill.payment_details.forEach((p: any) => {
+          const amt = Number(p.amount) || 0;
+          const m = (p.method || '').toLowerCase();
+          if (m.includes('cash')) cash += amt;
+          else if (m.includes('upi')) upi += amt;
+          else if (m.includes('card')) card += amt;
+          else if (m.includes('bank')) bank += amt;
+        });
+      } else {
+        const amt = Number(bill.amount_paid) || 0;
+        const m = (bill.payment_method || '').toLowerCase();
+        if (m.includes('cash')) cash += amt;
+        else if (m.includes('upi')) upi += amt;
+        else if (m.includes('card')) card += amt;
+        else if (m.includes('bank')) bank += amt;
+      }
+      
+      existing.cash_collected += cash;
+      existing.upi_collected += upi;
+      existing.card_collected += card;
+      existing.bank_transfer_collected += bank;
+      
+      existing.bills_data.push({
+        bill_number: bill.bill_number,
+        cash_amount: cash,
+        payment_details: bill.payment_details || [{ method: bill.payment_method, amount: bill.amount_paid }]
+      });
+      
+      map.set(bill.counter_id, existing);
+    });
+    return Array.from(map.values());
+  }, [filteredBills]);
+
+  const teamLeadReports = useMemo(() => {
+    if (!teamLeads || teamLeads.length === 0) return [];
+    
+    return teamLeads.map((tl: any) => {
+      const assignedIds = tl.assigned_counters || [];
+      const assignedNames = counters.filter(c => assignedIds.includes(c.id)).map(c => c.name);
+      
+      const tlBills = filteredBills.filter(b => assignedIds.includes(b.counter_id));
+      const pendingCount = tlBills.filter(b => b.approval_status === 'pending').length;
+      const approvedCount = tlBills.filter(b => b.approval_status === 'approved').length;
+      
+      return {
+        team_lead_id: tl.id,
+        team_lead_name: tl.name,
+        assigned_counters_count: assignedIds.length,
+        assigned_counters_names: assignedNames,
+        pending_approvals: pendingCount,
+        approved_approvals: approvedCount
+      };
+    });
+  }, [teamLeads, counters, filteredBills]);
 
   const fetchLoginDetails = useCallback(async () => {
     const { data: countersData } = await supabase.from('profiles').select('id, name').eq('role', 'counter');
@@ -741,6 +840,7 @@ export function useAdminData() {
         const accessory_code = getVal(['Accessory Code', 'Code', 'Item Code', 'Part Number', 'accessory_code']).toString().trim();
         const quantity = Math.abs(parseInt(getVal(['Quantity', 'Qty', 'quantity', 'qty']) || '0'));
         const price = parseNum(getVal(['Price (₹)', 'Price', 'Cost', 'MRP', 'Rate', 'Amount', 'Unit Price', 'Sale Price', 'price', 'cost', 'mrp']));
+        const purchase_price = parseNum(getVal(['Purchase Price', 'purchase_price', 'Cost Price', 'cost_price', 'Buy Price']));
         const gstRaw = parseNum(getVal(['GST', 'GST %', 'gst', 'Tax', 'tax', 'GST Percentage']));
         const cgst_percent = gstRaw / 2;
         const sgst_percent = gstRaw / 2;
@@ -752,6 +852,7 @@ export function useAdminData() {
         if (existing) { 
           existing.quantity += quantity; 
           existing.price = price > 0 ? price : existing.price; 
+          existing.purchase_price = purchase_price > 0 ? purchase_price : existing.purchase_price;
           if (!existing.accessory_code) existing.accessory_code = accessory_code;
           if (gstRaw > 0) {
             existing.cgst_percent = cgst_percent;
@@ -760,7 +861,7 @@ export function useAdminData() {
         }
         else { 
           const uploadTimestamp = customDate ? `${customDate}T12:00:00Z` : new Date().toISOString();
-          consolidatedData.set(key, { counter_id: counterId, vehicle_model, name, accessory_code, quantity, price, cgst_percent, sgst_percent, created_at: uploadTimestamp }); 
+          consolidatedData.set(key, { counter_id: counterId, vehicle_model, name, accessory_code, quantity, price, purchase_price, cgst_percent, sgst_percent, created_at: uploadTimestamp }); 
         }
       });
 
@@ -845,7 +946,7 @@ export function useAdminData() {
   }, [fetchInventory]);
 
   return {
-    stats, counters, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, uploading, cashierReports,
+    stats, counters, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports,
     startDate, endDate, setStartDate, setEndDate,
     fetchLoginDetails, fetchCounters, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter,

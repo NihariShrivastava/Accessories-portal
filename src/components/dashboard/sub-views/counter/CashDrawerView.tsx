@@ -22,8 +22,16 @@ export const CashDrawerView = ({
 
   const totalCashCollected = useMemo(() => {
     return allBills
-      .filter(b => b.payment_method === 'Cash' || (b.payment_details && b.payment_details.some(p => p.method === 'Cash')))
-      .reduce((sum, b) => sum + (b.amount_paid || 0), 0);
+      .filter(b => b.approval_status !== 'reverted')
+      .filter(b => b.payment_method === 'Cash' || (b.payment_method === 'Split Payment' && b.payment_details && b.payment_details.some(p => p.method.toLowerCase().includes('cash'))))
+      .reduce((sum, b) => {
+        if (b.payment_method === 'Split Payment' && b.payment_details) {
+          const cashPayments = b.payment_details.filter(p => p.method.toLowerCase().includes('cash'));
+          const cashAmount = cashPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+          return sum + cashAmount;
+        }
+        return sum + Number(b.amount_paid || 0);
+      }, 0);
   }, [allBills]);
 
   const cashierTransfers = useMemo(() => {
