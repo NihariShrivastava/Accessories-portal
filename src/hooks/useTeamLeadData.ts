@@ -144,7 +144,8 @@ export function useTeamLeadData(user: any) {
         total_items: 0,
         total_sales: 0,
         total_collected: 0,
-        outstanding: 0
+        outstanding: 0,
+        total_profit: 0
       });
     });
 
@@ -159,6 +160,7 @@ export function useTeamLeadData(user: any) {
       r.total_sales += b.total_amount || 0;
       r.total_collected += b.amount_paid || 0;
       r.outstanding += b.amount_left || 0;
+      r.total_profit += (Number(b.base_amount) || 0) - (Number(b.total_purchase_price) || 0);
       
       const qty = b.items ? b.items.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0) : b.quantity || 1;
       r.total_items += qty;
@@ -193,15 +195,16 @@ export function useTeamLeadData(user: any) {
 
   const amountCollectedReport = useMemo(() => {
     const map = new Map<string, AmountCollectedReport>();
+    const countersMap = new Map(assignedCounters.map(c => [c.id, c.name]));
+
     bills.forEach((bill: any) => {
       if (bill.approval_status === 'reverted') return;
       const cId = bill.counter_id;
-      if (!cId) return;
+      if (!cId || !countersMap.has(cId)) return;
       
-      const cObj = assignedCounters.find(c => c.id === cId);
-      const existing = map.get(cId) || {
+      const existing: AmountCollectedReport = map.get(cId) || {
         counter_id: cId,
-        counter_name: cObj?.name || 'Unknown',
+        counter_name: countersMap.get(cId) || 'Unknown',
         cash_collected: 0,
         upi_collected: 0,
         card_collected: 0,

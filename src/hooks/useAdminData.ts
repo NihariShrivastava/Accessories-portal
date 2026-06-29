@@ -50,6 +50,7 @@ export type CounterBill = {
   cgst_amount?: number;
   sgst_amount?: number;
   total_amount: number; 
+  total_purchase_price?: number;
   payment_method: string; 
   payment_details?: any[];
   amount_paid: number; 
@@ -652,7 +653,7 @@ export function useAdminData() {
   const amountCollectedReport = useMemo(() => {
     const map = new Map<string, AmountCollectedReport>();
     filteredBills.forEach((bill: any) => {
-      const existing = map.get(bill.counter_id) || {
+      const existing: AmountCollectedReport = map.get(bill.counter_id) || {
         counter_id: bill.counter_id,
         counter_name: bill.profiles?.name || 'Unknown',
         cash_collected: 0,
