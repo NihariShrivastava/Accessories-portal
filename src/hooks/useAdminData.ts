@@ -24,6 +24,7 @@ export interface TeamLeadReport {
   team_lead_name: string;
   assigned_counters_count: number;
   assigned_counters_names: string[];
+  assigned_counters_ids: string[];
   pending_approvals: number;
   approved_approvals: number;
 };
@@ -596,7 +597,7 @@ export function useAdminData() {
 
   const filteredBills = useMemo(() => {
     return allBills.filter(bill => {
-      if (bill.approval_status === 'reverted') return false;
+      if (bill.approval_status === 'reverted' || bill.approval_status === 'reverted_by_admin') return false;
       if (!startDate && !endDate) return true;
       const billDate = new Date(bill.created_at);
       const billDateStr = billDate.toISOString().split('T')[0];
@@ -714,6 +715,7 @@ export function useAdminData() {
         team_lead_name: tl.name,
         assigned_counters_count: assignedIds.length,
         assigned_counters_names: assignedNames,
+        assigned_counters_ids: assignedIds,
         pending_approvals: pendingCount,
         approved_approvals: approvedCount
       };
@@ -993,7 +995,7 @@ export function useAdminData() {
   }, [fetchInventory]);
 
   return {
-    stats, counters, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports,
+    stats, counters, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, allBills,
     startDate, endDate, setStartDate, setEndDate,
     fetchLoginDetails, fetchCounters, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter,

@@ -64,6 +64,7 @@ export function CounterDashboard() {
   
   const filteredBills = useMemo(() => {
     return allBills.filter(b => {
+      if (b.approval_status === 'reverted' || b.approval_status === 'reverted_by_admin') return false;
       const bItems = b.items || [];
       const accMatch = !billAccessoryFilter || 
         bItems.some(i => (i.accessories?.name || '').toLowerCase().includes(billAccessoryFilter.toLowerCase())) || 
@@ -237,7 +238,21 @@ export function CounterDashboard() {
             pageSize={50}
             onRowClick={(b) => { setSelectedBill(b); setShowBillDetails(true); }}
             columns={[
-              { header: 'Bill No.', accessor: (b) => <span className="font-mono text-xs">{b.bill_number || '-'}</span>, sortAccessor: 'bill_number', className: 'text-left font-medium' },
+              { 
+                header: 'Bill No.', 
+                accessor: (b) => (
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs">{b.bill_number || '-'}</span>
+                    {(!b.approval_status || b.approval_status === 'pending') ? (
+                      <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Pending Approval" />
+                    ) : b.approval_status === 'approved' ? (
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Approved" />
+                    ) : null}
+                  </div>
+                ), 
+                sortAccessor: 'bill_number', 
+                className: 'text-left font-medium' 
+              },
               { header: 'Date', accessor: (b) => new Date(b.created_at).toLocaleDateString(), sortAccessor: 'created_at', className: 'text-left text-muted-foreground' },
               { 
                 header: 'Accessories', 

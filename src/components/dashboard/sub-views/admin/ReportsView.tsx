@@ -7,12 +7,12 @@ import type { SalesReport, InventoryItem, InventorySummary, CashierReport, Amoun
 import { AmountCollectedDialog } from './AmountCollectedDialog';
 
 export const ReportsView = ({
-  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports
+  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick
 }: {
   data: SalesReport[], onBack: () => void, onCounterClick: (r: SalesReport) => void,
   inventory: InventoryItem[], inventoryReport: InventorySummary[], cashierReports?: CashierReport[],
   onCashierClick?: (r: CashierReport) => void, amountCollectedReport?: AmountCollectedReport[],
-  teamLeadReports?: TeamLeadReport[]
+  teamLeadReports?: TeamLeadReport[], onTeamLeadClick?: (r: TeamLeadReport) => void
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [expandedCounter, setExpandedCounter] = useState<string | null>(null);
@@ -269,6 +269,7 @@ export const ReportsView = ({
                 <DataTable<TeamLeadReport>
                   idAccessor="team_lead_id"
                   data={teamLeadReports}
+                  onRowClick={onTeamLeadClick}
                   columns={[
                     { header: 'Team Lead', accessor: 'team_lead_name', sortAccessor: 'team_lead_name', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
                     { header: 'Counters Assigned', accessor: (r) => (

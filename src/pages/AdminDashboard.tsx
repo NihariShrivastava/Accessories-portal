@@ -4,15 +4,16 @@ import { DashboardCard } from '../components/dashboard/DashboardCard';
 
 
 import { useAdminData } from '../hooks/useAdminData';
-import type { InventoryItem, CounterBill, SalesReport } from '../hooks/useAdminData';
+import type { InventoryItem, CounterBill, SalesReport, TeamLeadReport } from '../hooks/useAdminData';
 import { Modal } from '../components/dashboard/Modal';
 import { BillDetails } from '../components/dashboard/BillDetails';
 import { BillReceipt } from '../components/dashboard/BillReceipt';
 import { CounterManagementView, AddTeamLeadView, AddCashierView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView, GlobalInventorySliderView, UploadHistoryView, CashierDetailsView } from '../components/dashboard/sub-views/AdminSubViews';
+import { TeamLeadApprovalView } from '../components/dashboard/sub-views/admin/TeamLeadApprovalView';
 
 export function AdminDashboard() {
   const {
-    counters, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports,
+    counters, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, allBills,
     startDate, endDate, setStartDate, setEndDate,
     fetchCounters, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter, deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories,
@@ -29,6 +30,7 @@ export function AdminDashboard() {
   const [selectedBill, setSelectedBill] = useState<CounterBill | null>(null);
   const [showBillDetails, setShowBillDetails] = useState(false);
   const [selectedCashierReport, setSelectedCashierReport] = useState<any>(null);
+  const [selectedTeamLeadReport, setSelectedTeamLeadReport] = useState<TeamLeadReport | null>(null);
   const [generatedBill, setGeneratedBill] = useState<CounterBill | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   
@@ -87,6 +89,10 @@ export function AdminDashboard() {
     setActiveView('cashier-details');
   };
 
+  const handleTeamLeadClick = (report: TeamLeadReport) => {
+    setSelectedTeamLeadReport(report);
+    setActiveView('team-lead-approvals');
+  };
 
   const handleEditClick = (item: InventoryItem) => {
     setEditingItem(item);
@@ -210,6 +216,7 @@ export function AdminDashboard() {
         onBack={() => setActiveView('dashboard')}
         onCounterClick={handleCounterClick}
         onCashierClick={handleCashierClick}
+        onTeamLeadClick={handleTeamLeadClick}
       />
     );
   } else if (activeView === 'cashier-details' && selectedCashierReport) {
@@ -217,6 +224,21 @@ export function AdminDashboard() {
       <CashierDetailsView 
         cashierReport={selectedCashierReport} 
         onBack={() => setActiveView('reports')} 
+      />
+    );
+  } else if (activeView === 'team-lead-approvals' && selectedTeamLeadReport) {
+    const tlCounters = counters.filter(c => selectedTeamLeadReport.assigned_counters_ids.includes(c.id));
+    const tlBills = allBills.filter(b => b.counter_id && selectedTeamLeadReport.assigned_counters_ids.includes(b.counter_id));
+    content = (
+      <TeamLeadApprovalView
+        counters={tlCounters}
+        bills={tlBills}
+        onBack={() => setActiveView('reports')}
+        onUpdateBillStatus={async (billId, status, _items, counterId) => {
+          if (!counterId) return;
+          await updateBillStatusAdmin(billId, status, counterId);
+        }}
+        onViewBill={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
       />
     );
   } else if (activeView === 'counter-bills') {
