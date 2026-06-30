@@ -9,10 +9,11 @@ type Props = {
   bills: CounterBill[];
   onBack: () => void;
   onUpdateBillStatus: (billId: string, status: 'approved' | 'reverted', items: any[], counterId: string) => Promise<void>;
+  onViewBill: (bill: CounterBill) => void;
 };
 
-export function TeamLeadApprovalView({ counters, bills, onBack, onUpdateBillStatus }: Props) {
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved'>('pending');
+export function TeamLeadApprovalView({ counters, bills, onBack, onUpdateBillStatus, onViewBill }: Props) {
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'reverted'>('pending');
   const [selectedCounterId, setSelectedCounterId] = useState<string>('all');
   const [processingId, setProcessingId] = useState<string | null>(null);
 
@@ -22,6 +23,7 @@ export function TeamLeadApprovalView({ counters, bills, onBack, onUpdateBillStat
     const status = b.approval_status || 'pending';
     if (activeTab === 'pending' && status !== 'pending') return false;
     if (activeTab === 'approved' && status !== 'approved') return false;
+    if (activeTab === 'reverted' && status !== 'reverted' && status !== 'reverted_by_admin') return false;
     
     if (selectedCounterId !== 'all' && b.counter_id !== selectedCounterId) return false;
     return true;
@@ -76,6 +78,16 @@ export function TeamLeadApprovalView({ counters, bills, onBack, onUpdateBillStat
           >
             Approved Bills
           </button>
+          <button
+            onClick={() => setActiveTab('reverted')}
+            className={`flex-1 md:flex-none px-6 py-2 rounded-md text-sm font-bold transition-all ${
+              activeTab === 'reverted'
+                ? 'bg-background text-red-600 shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Reverted Bills
+          </button>
         </div>
 
         <div className="relative w-full md:w-64">
@@ -105,30 +117,42 @@ export function TeamLeadApprovalView({ counters, bills, onBack, onUpdateBillStat
             { header: 'Date', accessor: (b) => new Date(b.created_at).toLocaleString(), sortAccessor: 'created_at', className: 'text-left text-muted-foreground text-sm' },
             {
               header: 'Actions',
-              accessor: (b) => activeTab === 'pending' ? (
+              accessor: (b) => (
                 <div className="flex justify-end items-center gap-2">
                   <button
-                    onClick={() => handleStatusUpdate(b, 'reverted')}
-                    disabled={processingId === b.id}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 font-bold transition-colors disabled:opacity-50 text-xs"
+                    onClick={() => onViewBill(b)}
+                    className="px-2 py-1.5 bg-secondary text-secondary-foreground text-xs rounded hover:bg-secondary/80 whitespace-nowrap font-medium"
                   >
-                    <RotateCcw className="w-3 h-3" />
-                    Revert
+                    View Bill
                   </button>
-                  <button
-                    onClick={() => handleStatusUpdate(b, 'approved')}
-                    disabled={processingId === b.id}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded bg-emerald-500 text-white hover:bg-emerald-600 font-bold transition-colors disabled:opacity-50 text-xs"
-                  >
-                    <CheckCircle className="w-3 h-3" />
-                    Approve
-                  </button>
-                </div>
-              ) : (
-                <div className="text-right">
-                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-end gap-1">
-                    <CheckCircle className="w-3 h-3" /> Approved
-                  </span>
+                  {activeTab === 'pending' ? (
+                    <>
+                      <button
+                        onClick={() => handleStatusUpdate(b, 'reverted')}
+                        disabled={processingId === b.id}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 font-bold transition-colors disabled:opacity-50 text-xs"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        Revert
+                      </button>
+                      <button
+                        onClick={() => handleStatusUpdate(b, 'approved')}
+                        disabled={processingId === b.id}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded bg-emerald-500 text-white hover:bg-emerald-600 font-bold transition-colors disabled:opacity-50 text-xs"
+                      >
+                        <CheckCircle className="w-3 h-3" />
+                        Approve
+                      </button>
+                    </>
+                  ) : activeTab === 'approved' ? (
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-end gap-1 ml-2">
+                      <CheckCircle className="w-3 h-3" /> Approved
+                    </span>
+                  ) : (
+                    <span className="text-xs font-bold text-red-600 dark:text-red-400 flex items-center justify-end gap-1 ml-2 uppercase">
+                      Reverted {b.approval_status === 'reverted_by_admin' ? 'by Admin' : ''}
+                    </span>
+                  )}
                 </div>
               ),
               className: 'text-right pr-4'

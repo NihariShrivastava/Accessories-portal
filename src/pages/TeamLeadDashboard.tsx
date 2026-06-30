@@ -4,7 +4,8 @@ import { useTeamLeadData } from '../hooks/useTeamLeadData';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
 import { ReportsView, BillsView, TeamLeadInventoryView, TeamLeadApprovalView } from '../components/dashboard/sub-views/AdminSubViews';
 import { Store, Package, BarChart3, ReceiptText } from 'lucide-react';
-import type { SalesReport } from '../hooks/useAdminData';
+import type { SalesReport, CounterBill } from '../hooks/useAdminData';
+import { BillReceipt } from '../components/dashboard/BillReceipt';
 
 export function TeamLeadDashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -25,6 +26,8 @@ export function TeamLeadDashboard() {
   const [selectedCounterName, setSelectedCounterName] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [generatedBill, setGeneratedBill] = useState<CounterBill | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
 
   if (authLoading || loading) {
     return (
@@ -60,6 +63,7 @@ export function TeamLeadDashboard() {
         data={counterBills} 
         onBack={() => { setActiveView('reports'); setSelectedCounterId(''); }} 
         onRowClick={() => {}} 
+        onViewBillReceipt={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
         startDate={startDate} 
         endDate={endDate} 
         setStartDate={setStartDate} 
@@ -78,9 +82,10 @@ export function TeamLeadDashboard() {
     content = (
       <TeamLeadApprovalView
         counters={assignedCounters}
-        bills={bills}
+        bills={bills as CounterBill[]}
         onBack={() => setActiveView('dashboard')}
         onUpdateBillStatus={updateBillStatus}
+        onViewBill={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
       />
     );
   } else {
@@ -143,6 +148,14 @@ export function TeamLeadDashboard() {
             </div>
           </>
         )}
+      </div>
+    );
+  }
+
+  if (showReceipt && generatedBill) {
+    return (
+      <div className="fixed inset-0 z-[100] bg-white overflow-y-auto">
+        <BillReceipt bill={generatedBill as any} onClose={() => { setShowReceipt(false); setGeneratedBill(null); }} />
       </div>
     );
   }
