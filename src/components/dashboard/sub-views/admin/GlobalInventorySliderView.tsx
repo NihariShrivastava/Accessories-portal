@@ -198,14 +198,15 @@ export const GlobalInventorySliderView = ({
         ) : (
           <div className="space-y-4 animate-in slide-in-from-right duration-300">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-muted/20 p-4 rounded-lg border border-border">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="flex items-center gap-2 bg-card p-1.5 px-3 rounded-lg border border-border shadow-sm">
-                  <Store className="w-4 h-4 text-primary" />
-                  <select
-                    className="bg-transparent border-none text-sm outline-none font-medium cursor-pointer dark:text-white [color-scheme:dark]"
-                    value={selectedCounterId}
-                    onChange={(e) => setSelectedCounterId(e.target.value)}
-                  >
+              <div className="flex flex-col xl:flex-row xl:items-center gap-4 w-full">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1">
+                  <div className="flex items-center gap-2 bg-card p-2 px-3 rounded-lg border border-border shadow-sm min-w-[220px] flex-1 sm:flex-none">
+                    <Store className="w-4 h-4 text-primary shrink-0" />
+                    <select
+                      className="bg-transparent border-none text-sm outline-none font-medium cursor-pointer dark:text-white [color-scheme:dark] w-full"
+                      value={selectedCounterId}
+                      onChange={(e) => setSelectedCounterId(e.target.value)}
+                    >
                     <option value="" className="bg-card">-- Select Source --</option>
                     {counters.length > 0 && (
                       <optgroup label="Counters" className="bg-muted text-muted-foreground font-bold">
@@ -219,7 +220,7 @@ export const GlobalInventorySliderView = ({
                     )}
                   </select>
                 </div>
-                <div className="flex items-center gap-2 bg-card p-1.5 px-3 rounded-lg border border-border shadow-sm flex-wrap">
+                <div className="flex items-center gap-2 bg-card p-2 px-3 rounded-lg border border-border shadow-sm flex-wrap flex-1 sm:flex-none">
                   <History className="w-4 h-4 text-primary" />
                   <span className="text-xs font-bold uppercase text-muted-foreground">From:</span>
                   <input
@@ -236,14 +237,14 @@ export const GlobalInventorySliderView = ({
                     onChange={(e) => handleDateRangeChange(startDate, e.target.value)}
                   />
                 </div>
+                </div>
               </div>
-
-              <button
+            <button
                 disabled={!selectedCounterId || filteredCounterInventory.length === 0}
                 onClick={() => setShowTransferModal(true)}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-bold hover:bg-purple-700 disabled:opacity-50 transition-all flex items-center gap-2 shadow-sm active:scale-95"
+                className="px-5 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-bold hover:bg-purple-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95 w-full xl:w-auto mt-4 xl:mt-0"
               >
-                <ArrowLeftRight className="w-4 h-4" /> Transfer All Accessory
+                <ArrowLeftRight className="w-4 h-4 shrink-0" /> Transfer All Accessory
               </button>
             </div>
 
@@ -267,17 +268,8 @@ export const GlobalInventorySliderView = ({
               value={targetCounterId}
               onChange={(e) => setTargetCounterId(e.target.value)}
             >
-              <option value="" className="bg-card">-- Choose Destination --</option>
-              {counters.length > 0 && (
-                <optgroup label="Counters" className="bg-muted text-muted-foreground font-bold">
-                  {counters.filter(c => c.id !== selectedCounterId).map(c => <option key={c.id} value={c.id} className="bg-card font-medium">{c.name}</option>)}
-                </optgroup>
-              )}
-              {warehouses.length > 0 && (
-                <optgroup label="Warehouses" className="bg-muted text-muted-foreground font-bold">
-                  {warehouses.filter(w => w.id !== selectedCounterId).map(w => <option key={w.id} value={w.id} className="bg-card font-medium">{w.name}</option>)}
-                </optgroup>
-              )}
+              <option value="" className="bg-card">-- Choose Destination Counter --</option>
+              {counters.filter(c => c.id !== selectedCounterId).map(c => <option key={c.id} value={c.id} className="bg-card font-medium">{c.name}</option>)}
             </select>
           </div>
 

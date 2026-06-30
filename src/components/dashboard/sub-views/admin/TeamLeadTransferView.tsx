@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { ArrowLeftRight, Search, Plus, Minus, Check, ShoppingCart, Trash2 } from 'lucide-react';
 import { ViewHeader } from '../../ViewHeader';
 import { DataTable } from '../../DataTable';
+import { Modal } from '../../Modal';
 import { toast } from 'sonner';
 
 type Props = {
@@ -18,6 +19,8 @@ export function TeamLeadTransferView({ warehouses, counters, inventory, onBack, 
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState<{ id: string, name: string, quantity: number, max: number, vehicle_model: string, price: number }[]>([]);
   const [loading, setLoading] = useState(false);
+  const [addingItem, setAddingItem] = useState<any | null>(null);
+  const [addQuantity, setAddQuantity] = useState('1');
 
   // Filter inventory based on selected source warehouse
   const availableInventory = useMemo(() => {
@@ -34,18 +37,38 @@ export function TeamLeadTransferView({ warehouses, counters, inventory, onBack, 
     return items;
   }, [inventory, sourceId, searchQuery]);
 
-  const addToCart = (item: any) => {
-    const existing = cart.find(c => c.id === item.id);
+  const handleAddClick = (item: any) => {
+    setAddingItem(item);
+    setAddQuantity('1');
+  };
+
+  const confirmAddToCart = () => {
+    if (!addingItem) return;
+    
+    const qty = parseInt(addQuantity, 10);
+    if (isNaN(qty) || qty <= 0) {
+      toast.error("Please enter a valid quantity.");
+      return;
+    }
+    
+    if (qty > addingItem.quantity) {
+      toast.error(`Cannot exceed available stock (${addingItem.quantity}).`);
+      return;
+    }
+
+    const existing = cart.find(c => c.id === addingItem.id);
     if (existing) {
-      if (existing.quantity >= existing.max) {
-        toast.error("Cannot exceed available stock.");
+      const newQty = existing.quantity + qty;
+      if (newQty > existing.max) {
+        toast.error(`Total quantity in cart cannot exceed available stock (${addingItem.quantity}).`);
         return;
       }
-      setCart(cart.map(c => c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c));
+      setCart(cart.map(c => c.id === addingItem.id ? { ...c, quantity: newQty } : c));
     } else {
-      setCart([...cart, { id: item.id, name: item.name, quantity: 1, max: item.quantity, vehicle_model: item.vehicle_model, price: item.price }]);
+      setCart([...cart, { id: addingItem.id, name: addingItem.name, quantity: qty, max: addingItem.quantity, vehicle_model: addingItem.vehicle_model, price: addingItem.price }]);
     }
-    toast.success("Added to transfer cart");
+    toast.success(`Added ${qty} to transfer cart`);
+    setAddingItem(null);
   };
 
   const updateCartQuantity = (id: string, delta: number) => {
@@ -97,7 +120,7 @@ export function TeamLeadTransferView({ warehouses, counters, inventory, onBack, 
             <h3 className="font-bold text-lg border-b border-border pb-2">Transfer Details</h3>
             
             <div className="space-y-2">
-              <label className="block text-sm font-semibold">From Warehouse</label>
+              <label className="block text-sm font-semibold">Transfer From</label>
               <select 
                 className="w-full px-3 py-2 bg-input border border-border rounded-lg"
                 value={sourceId}
@@ -106,10 +129,17 @@ export function TeamLeadTransferView({ warehouses, counters, inventory, onBack, 
                   setCart([]); // Clear cart when source changes
                 }}
               >
-                <option value="">-- Select Source Warehouse --</option>
-                {warehouses.map(w => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
-                ))}
+                <option value="">-- Select Source --</option>
+                {counters && counters.length > 0 && (
+                  <optgroup label="Counters" className="bg-muted text-muted-foreground font-bold">
+                    {counters.map(c => <option key={c.id} value={c.id} className="bg-card font-medium">{c.name}</option>)}
+                  </optgroup>
+                )}
+                {warehouses && warehouses.length > 0 && (
+                  <optgroup label="Warehouses" className="bg-muted text-muted-foreground font-bold">
+                    {warehouses.map(w => <option key={w.id} value={w.id} className="bg-card font-medium">{w.name}</option>)}
+                  </optgroup>
+                )}
               </select>
             </div>
 
@@ -118,15 +148,15 @@ export function TeamLeadTransferView({ warehouses, counters, inventory, onBack, 
             </div>
 
             <div className="space-y-2">
-              <label className="block text-sm font-semibold">To Counter</label>
+              <label className="block text-sm font-semibold">Transfer To (Counter)</label>
               <select 
                 className="w-full px-3 py-2 bg-input border border-border rounded-lg"
                 value={targetId}
                 onChange={(e) => setTargetId(e.target.value)}
               >
-                <option value="">-- Select Target Counter --</option>
-                {counters.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                <option value="">-- Select Destination Counter --</option>
+                {counters.filter(c => c.id !== sourceId).map(c => (
+                  <option key={c.id} value={c.id} className="bg-card font-medium">{c.name}</option>
                 ))}
               </select>
             </div>
@@ -200,7 +230,7 @@ export function TeamLeadTransferView({ warehouses, counters, inventory, onBack, 
             {!sourceId ? (
               <div className="absolute inset-0 flex items-center justify-center text-muted-foreground flex-col gap-2">
                 <ArrowLeftRight className="w-12 h-12 opacity-20" />
-                <p>Select a source warehouse to view inventory</p>
+                <p>Select a source to view inventory</p>
               </div>
             ) : (
               <DataTable 
@@ -218,7 +248,7 @@ export function TeamLeadTransferView({ warehouses, counters, inventory, onBack, 
                   ), className: 'text-center' },
                   { header: '', accessor: (row) => (
                     <button
-                      onClick={() => addToCart(row)}
+                      onClick={() => handleAddClick(row)}
                       className="px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-bold rounded flex items-center gap-1 transition-colors ml-auto"
                     >
                       <Plus className="w-3 h-3" /> Add
@@ -231,6 +261,49 @@ export function TeamLeadTransferView({ warehouses, counters, inventory, onBack, 
         </div>
 
       </div>
+      
+      {addingItem && (
+        <Modal isOpen={!!addingItem} onClose={() => setAddingItem(null)} title="Add to Cart">
+          <div className="space-y-4">
+            <div className="p-3 bg-muted/20 border border-border rounded-lg">
+              <p className="font-bold">{addingItem.name}</p>
+              <p className="text-xs text-muted-foreground uppercase">{addingItem.vehicle_model}</p>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-semibold flex items-center justify-between">
+                Quantity to Transfer
+                <span className="text-xs text-muted-foreground font-mono">Max Stock: {addingItem.quantity}</span>
+              </label>
+              <input
+                type="number"
+                min="1"
+                max={addingItem.quantity}
+                value={addQuantity}
+                onChange={(e) => setAddQuantity(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && confirmAddToCart()}
+                className="w-full px-3 py-2 bg-input border border-border rounded-lg"
+                autoFocus
+              />
+            </div>
+            
+            <div className="flex justify-end gap-2 pt-4">
+              <button 
+                onClick={() => setAddingItem(null)}
+                className="px-4 py-2 hover:bg-muted text-muted-foreground font-bold rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmAddToCart}
+                className="px-4 py-2 bg-primary text-primary-foreground font-bold rounded-lg transition-colors shadow-sm hover:bg-primary/90"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

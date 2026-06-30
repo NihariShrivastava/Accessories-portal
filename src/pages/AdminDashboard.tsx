@@ -492,17 +492,8 @@ export function AdminDashboard() {
                     value={transferForm.targetCounterId} 
                     onChange={(e) => setTransferForm(prev => ({ ...prev, targetCounterId: e.target.value }))}
                   >
-                    <option value="" className="bg-background text-foreground">-- Choose Target --</option>
-                    {counters.length > 0 && (
-                      <optgroup label="Counters" className="bg-muted text-muted-foreground font-bold">
-                        {counters.filter(c => c.id !== transferringItem?.counter_id).map(c => <option key={c.id} value={c.id} className="bg-background text-foreground font-medium">{c.name}</option>)}
-                      </optgroup>
-                    )}
-                    {warehouses && warehouses.length > 0 && (
-                      <optgroup label="Warehouses" className="bg-muted text-muted-foreground font-bold">
-                        {warehouses.filter(w => w.id !== transferringItem?.counter_id).map(w => <option key={w.id} value={w.id} className="bg-background text-foreground font-medium">{w.name}</option>)}
-                      </optgroup>
-                    )}
+                    <option value="" className="bg-background text-foreground">-- Select Destination Counter --</option>
+                    {counters.filter(c => c.id !== transferringItem?.counter_id).map(c => <option key={c.id} value={c.id} className="bg-background text-foreground font-medium">{c.name}</option>)}
                   </select>
                 </div>
               )}
@@ -575,17 +566,8 @@ export function AdminDashboard() {
                     value={cartTargetCounterId}
                     onChange={(e) => setCartTargetCounterId(e.target.value)}
                   >
-                    <option value="" className="bg-background text-foreground">-- Choose Target --</option>
-                    {counters.length > 0 && (
-                      <optgroup label="Counters" className="bg-muted text-muted-foreground font-bold">
-                        {counters.map(c => <option key={c.id} value={c.id} className="bg-background text-foreground font-medium">{c.name}</option>)}
-                      </optgroup>
-                    )}
-                    {warehouses && warehouses.length > 0 && (
-                      <optgroup label="Warehouses" className="bg-muted text-muted-foreground font-bold">
-                        {warehouses.map(w => <option key={w.id} value={w.id} className="bg-background text-foreground font-medium">{w.name}</option>)}
-                      </optgroup>
-                    )}
+                    <option value="" className="bg-background text-foreground">-- Select Destination Counter --</option>
+                    {counters.map(c => <option key={c.id} value={c.id} className="bg-background text-foreground font-medium">{c.name}</option>)}
                   </select>
                 </div>
 

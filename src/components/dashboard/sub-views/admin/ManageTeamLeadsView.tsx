@@ -124,7 +124,8 @@ export const ManageTeamLeadsView = ({
                   {c.assigned_warehouses && c.assigned_warehouses.length > 0 ? (
                     c.assigned_warehouses.map((id: string) => {
                       const wh = warehouses.find(w => w.id === id);
-                      return <Badge key={id} variant="secondary">{wh ? wh.name : 'Unknown'}</Badge>;
+                      if (!wh) return null;
+                      return <Badge key={id} variant="secondary">{wh.name}</Badge>;
                     })
                   ) : (
                     <span className="text-muted-foreground text-xs">None</span>
