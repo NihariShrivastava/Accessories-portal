@@ -45,9 +45,10 @@ export function useTeamLeadData(user: any) {
       const [countersRes, invRes, billsRes] = await Promise.all([
         supabase.from('profiles').select('id, name').in('id', counterIds),
         supabase.from('accessories').select('*').in('counter_id', counterIds),
-        supabase.from('bills')
+        supabase
+          .from('bills')
           .select(`
-            id, bill_number, created_at, total_amount, payment_method, amount_paid, amount_left, quantity, counter_id, approval_status,
+            *,
             accessories:accessory_id (name, accessory_code, vehicle_model)
           `)
           .in('counter_id', counterIds)
@@ -101,7 +102,14 @@ export function useTeamLeadData(user: any) {
             accessory_name: 'Multiple Items',
             vehicle_model: 'Multiple Models',
             profiles: { name: counterObj?.name || 'Unknown Counter' },
-            items: [item]
+            items: [item],
+            customer_name: item.customer_name,
+            customer_phone: item.customer_phone,
+            customer_id: item.customer_id,
+            customer_address: item.customer_address,
+            base_amount: item.base_amount || 0,
+            cgst_amount: item.cgst_amount || 0,
+            sgst_amount: item.sgst_amount || 0
           });
         } else {
           const group = groupedBills.get(bNo);
@@ -110,6 +118,9 @@ export function useTeamLeadData(user: any) {
           group.amount_paid += item.amount_paid || 0;
           group.amount_left += item.amount_left || 0;
           group.quantity += item.quantity || 0;
+          group.base_amount = (group.base_amount || 0) + (item.base_amount || 0);
+          group.cgst_amount = (group.cgst_amount || 0) + (item.cgst_amount || 0);
+          group.sgst_amount = (group.sgst_amount || 0) + (item.sgst_amount || 0);
           // Status from the first item
           group.approval_status = group.approval_status || item.approval_status;
         }
