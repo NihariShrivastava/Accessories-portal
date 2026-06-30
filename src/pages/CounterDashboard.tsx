@@ -244,9 +244,9 @@ export function CounterDashboard() {
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs">{b.bill_number || '-'}</span>
                     {(!b.approval_status || b.approval_status === 'pending') ? (
-                      <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Pending Approval" />
+                      <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 text-[10px] font-bold uppercase tracking-wider shrink-0">Pending</span>
                     ) : b.approval_status === 'approved' ? (
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Approved" />
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold uppercase tracking-wider shrink-0">Approved</span>
                     ) : null}
                   </div>
                 ), 
