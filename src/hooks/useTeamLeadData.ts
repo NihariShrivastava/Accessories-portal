@@ -144,8 +144,7 @@ export function useTeamLeadData(user: any) {
         total_items: 0,
         total_sales: 0,
         total_collected: 0,
-        outstanding: 0,
-        total_profit: 0
+        outstanding: 0
       });
     });
 
@@ -160,7 +159,6 @@ export function useTeamLeadData(user: any) {
       r.total_sales += b.total_amount || 0;
       r.total_collected += b.amount_paid || 0;
       r.outstanding += b.amount_left || 0;
-      r.total_profit += (Number(b.base_amount) || 0) - (Number(b.total_purchase_price) || 0);
       
       const qty = b.items ? b.items.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0) : b.quantity || 1;
       r.total_items += qty;

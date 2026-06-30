@@ -122,8 +122,7 @@ export const ReportsView = ({
                   { header: 'Counter Name', accessor: 'counter_name', sortAccessor: 'counter_name', className: 'text-left font-semibold' },
                   { header: 'Total Bills', accessor: 'total_bills', sortAccessor: 'total_bills', className: 'text-center' },
                   { header: 'Total Items Sold', accessor: 'total_items', sortAccessor: 'total_items', className: 'text-center font-medium text-primary' },
-                  { header: 'Revenue Generated', accessor: (r) => `₹${r.total_sales.toLocaleString()}`, sortAccessor: 'total_sales', className: 'text-right font-bold text-green-600' },
-                  { header: 'Profit Generated', accessor: (r) => `₹${(r.total_profit || 0).toLocaleString()}`, sortAccessor: 'total_profit', className: 'text-right font-bold text-indigo-500' }
+                  { header: 'Revenue Generated', accessor: (r) => `₹${r.total_sales.toLocaleString()}`, sortAccessor: 'total_sales', className: 'text-right font-bold text-green-600' }
                 ]}
               />
             </div>

@@ -10,7 +10,7 @@ type Props = {
 };
 
 export function CounterApprovalView({ bills, onBack, onViewBill, onDownloadBill }: Props) {
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'reverted'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'reverted' | 'reverted_by_admin'>('pending');
 
   const filteredBills = bills.filter(b => {
     const status = b.approval_status || 'pending';
@@ -27,7 +27,7 @@ export function CounterApprovalView({ bills, onBack, onViewBill, onDownloadBill 
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h2 className="text-2xl font-black uppercase tracking-tight">Team Lead Approval</h2>
+          <h2 className="text-2xl font-black uppercase tracking-tight">Bill Approvals</h2>
           <p className="text-sm text-muted-foreground uppercase tracking-widest font-medium">
             Track the status of your generated bills
           </p>
@@ -69,6 +69,17 @@ export function CounterApprovalView({ bills, onBack, onViewBill, onDownloadBill 
             <RotateCcw className="w-4 h-4" />
             Amount Reverted
           </button>
+          <button
+            onClick={() => setActiveTab('reverted_by_admin')}
+            className={`flex-1 px-4 py-2.5 rounded-md text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+              activeTab === 'reverted_by_admin'
+                ? 'bg-background text-red-800 shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <RotateCcw className="w-4 h-4" />
+            Reverted by Admin
+          </button>
         </div>
       </div>
 
@@ -78,7 +89,7 @@ export function CounterApprovalView({ bills, onBack, onViewBill, onDownloadBill 
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
               {activeTab === 'pending' && <Clock className="w-8 h-8 text-muted-foreground" />}
               {activeTab === 'approved' && <CheckCircle className="w-8 h-8 text-muted-foreground" />}
-              {activeTab === 'reverted' && <RotateCcw className="w-8 h-8 text-muted-foreground" />}
+              {(activeTab === 'reverted' || activeTab === 'reverted_by_admin') && <RotateCcw className="w-8 h-8 text-muted-foreground" />}
             </div>
             <h3 className="text-lg font-bold text-foreground">No {activeTab} bills</h3>
             <p className="text-muted-foreground mt-1">
@@ -90,7 +101,7 @@ export function CounterApprovalView({ bills, onBack, onViewBill, onDownloadBill 
             <div 
               key={bill.id} 
               className={`bg-card border rounded-xl p-5 shadow-sm transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:border-primary/50 ${
-                activeTab === 'reverted' ? 'border-red-200 dark:border-red-900/50 hover:border-red-400' : 'border-border'
+                (activeTab === 'reverted' || activeTab === 'reverted_by_admin') ? 'border-red-200 dark:border-red-900/50 hover:border-red-400' : 'border-border'
               }`}
               onClick={() => onViewBill(bill)}
             >
@@ -105,15 +116,15 @@ export function CounterApprovalView({ bills, onBack, onViewBill, onDownloadBill 
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-lg">{bill.bill_number}</h3>
-                    {activeTab === 'reverted' && (
+                    {(activeTab === 'reverted' || activeTab === 'reverted_by_admin') && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 font-bold uppercase tracking-wider">
-                        Reverted
+                        Reverted {activeTab === 'reverted_by_admin' ? 'by Admin' : ''}
                       </span>
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
                     {bill.items?.length || 1} Item(s) • ₹{(bill.total_amount || 0).toLocaleString('en-IN')}
-                    {activeTab === 'reverted' && <span className="ml-2 font-medium text-foreground">({bill.quantity} Qty Restored)</span>}
+                    {(activeTab === 'reverted' || activeTab === 'reverted_by_admin') && <span className="ml-2 font-medium text-foreground">({bill.quantity} Qty Restored)</span>}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {new Date(bill.created_at).toLocaleString()}

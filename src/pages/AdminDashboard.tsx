@@ -7,6 +7,7 @@ import { useAdminData } from '../hooks/useAdminData';
 import type { InventoryItem, CounterBill, SalesReport } from '../hooks/useAdminData';
 import { Modal } from '../components/dashboard/Modal';
 import { BillDetails } from '../components/dashboard/BillDetails';
+import { BillReceipt } from '../components/dashboard/BillReceipt';
 import { CounterManagementView, AddTeamLeadView, AddCashierView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView, GlobalInventorySliderView, UploadHistoryView, CashierDetailsView } from '../components/dashboard/sub-views/AdminSubViews';
 
 export function AdminDashboard() {
@@ -17,7 +18,8 @@ export function AdminDashboard() {
     updateCounter, deleteCounter, deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories,
     transferCart, addToTransferCart, removeFromTransferCart, clearTransferCart, executeCartTransfer,
     deleteDataByDate, teamLeads, fetchTeamLeads, updateTeamLead, deleteTeamLead,
-    cashiers, fetchCashiers, updateCashier, deleteCashier
+    cashiers, fetchCashiers, updateCashier, deleteCashier,
+    updateBillStatusAdmin
   } = useAdminData();
 
   const [activeView, setActiveView] = useState('dashboard');
@@ -27,6 +29,8 @@ export function AdminDashboard() {
   const [selectedBill, setSelectedBill] = useState<CounterBill | null>(null);
   const [showBillDetails, setShowBillDetails] = useState(false);
   const [selectedCashierReport, setSelectedCashierReport] = useState<any>(null);
+  const [generatedBill, setGeneratedBill] = useState<CounterBill | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
   
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [transferringItem, setTransferringItem] = useState<InventoryItem | null>(null);
@@ -216,7 +220,22 @@ export function AdminDashboard() {
       />
     );
   } else if (activeView === 'counter-bills') {
-    content = <BillsView counterName={selectedCounterName} data={counterBills} onBack={() => { setActiveView('reports'); setSelectedCounterId(''); }} onRowClick={handleBillClick} startDate={startDate} endDate={endDate} setStartDate={setStartDate} setEndDate={setEndDate} />;
+    content = <BillsView 
+      counterName={selectedCounterName} 
+      data={counterBills} 
+      onBack={() => { setActiveView('reports'); setSelectedCounterId(''); }} 
+      onRowClick={handleBillClick} 
+      onViewBillReceipt={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
+      onRevertBill={(b) => {
+        if (confirm(`Are you sure you want to revert bill ${b.bill_number}?`)) {
+          updateBillStatusAdmin(b.id, 'reverted_by_admin', selectedCounterId);
+        }
+      }}
+      startDate={startDate} 
+      endDate={endDate} 
+      setStartDate={setStartDate} 
+      setEndDate={setEndDate} 
+    />;
   } else if (activeView === 'upload-history') {
     content = (
       <UploadHistoryView 
@@ -320,6 +339,14 @@ export function AdminDashboard() {
             />
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (showReceipt && generatedBill) {
+    return (
+      <div className="fixed inset-0 z-[100] bg-white overflow-y-auto">
+        <BillReceipt bill={generatedBill as any} onClose={() => { setShowReceipt(false); setGeneratedBill(null); }} />
       </div>
     );
   }

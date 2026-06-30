@@ -454,7 +454,7 @@ export function CounterDashboard() {
                   rightIcon={LayoutGrid}
                 />
                 <DashboardCard
-                  icon={CheckCircle} label="Team Lead Approval" value={allBills.filter(b => b.approval_status === 'pending').length.toString()} subValue="pending bills"
+                  icon={CheckCircle} label="Bill Approvals" value={allBills.filter(b => b.approval_status === 'pending').length.toString()} subValue="pending bills"
                   onClick={() => setActiveView('approvals')}
                   colorClass="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
                   rightIcon={History}

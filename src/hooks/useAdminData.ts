@@ -9,7 +9,7 @@ export type TeamLead = { id: string; name: string; username?: string; password?:
 export type Cashier = { id: string; name: string; username?: string; password?: string; assigned_counters?: string[]; login_count?: number };
 export type InventoryItem = { id: string; counter_id: string; counter_name: string; vehicle_model: string; name: string; accessory_code?: string; quantity: number; price: number; cgst_percent?: number; sgst_percent?: number; created_at: string };
 export type LoginDetail = { user_id: string; name: string; login_count: number };
-export type SalesReport = { counter_id: string; counter_name: string; total_bills: number; total_items: number; total_sales: number; total_collected: number; outstanding: number; total_profit: number };
+export type SalesReport = { counter_id: string; counter_name: string; total_bills: number; total_items: number; total_sales: number; total_collected: number; outstanding: number };
 export interface CashierReport {
   cashier_id: string;
   cashier_name: string;
@@ -50,7 +50,6 @@ export type CounterBill = {
   cgst_amount?: number;
   sgst_amount?: number;
   total_amount: number; 
-  total_purchase_price?: number;
   payment_method: string; 
   payment_details?: any[];
   amount_paid: number; 
@@ -615,13 +614,11 @@ export function useAdminData() {
         existing.total_sales += Number(bill.total_amount) || 0;
         existing.total_collected += Number(bill.amount_paid) || 0;
         existing.outstanding += Number(bill.amount_left) || 0;
-        existing.total_profit += (Number(bill.base_amount) || 0) - (Number(bill.total_purchase_price) || 0);
       } else {
         map.set(bill.counter_id, {
           counter_id: bill.counter_id, counter_name: bill.profiles?.name || 'Unknown', total_bills: 1,
           total_items: Number(bill.quantity) || 0,
-          total_sales: Number(bill.total_amount) || 0, total_collected: Number(bill.amount_paid) || 0, outstanding: Number(bill.amount_left) || 0,
-          total_profit: (Number(bill.base_amount) || 0) - (Number(bill.total_purchase_price) || 0)
+          total_sales: Number(bill.total_amount) || 0, total_collected: Number(bill.amount_paid) || 0, outstanding: Number(bill.amount_left) || 0
         });
       }
     });
@@ -841,7 +838,6 @@ export function useAdminData() {
         const accessory_code = getVal(['Accessory Code', 'Code', 'Item Code', 'Part Number', 'accessory_code']).toString().trim();
         const quantity = Math.abs(parseInt(getVal(['Quantity', 'Qty', 'quantity', 'qty']) || '0'));
         const price = parseNum(getVal(['Price (₹)', 'Price', 'Cost', 'MRP', 'Rate', 'Amount', 'Unit Price', 'Sale Price', 'price', 'cost', 'mrp']));
-        const purchase_price = parseNum(getVal(['Purchase Price', 'purchase_price', 'Cost Price', 'cost_price', 'Buy Price']));
         const gstRaw = parseNum(getVal(['GST', 'GST %', 'gst', 'Tax', 'tax', 'GST Percentage']));
         const cgst_percent = gstRaw / 2;
         const sgst_percent = gstRaw / 2;
@@ -853,7 +849,6 @@ export function useAdminData() {
         if (existing) { 
           existing.quantity += quantity; 
           existing.price = price > 0 ? price : existing.price; 
-          existing.purchase_price = purchase_price > 0 ? purchase_price : existing.purchase_price;
           if (!existing.accessory_code) existing.accessory_code = accessory_code;
           if (gstRaw > 0) {
             existing.cgst_percent = cgst_percent;
@@ -862,7 +857,7 @@ export function useAdminData() {
         }
         else { 
           const uploadTimestamp = customDate ? `${customDate}T12:00:00Z` : new Date().toISOString();
-          consolidatedData.set(key, { counter_id: counterId, vehicle_model, name, accessory_code, quantity, price, purchase_price, cgst_percent, sgst_percent, created_at: uploadTimestamp }); 
+          consolidatedData.set(key, { counter_id: counterId, vehicle_model, name, accessory_code, quantity, price, cgst_percent, sgst_percent, created_at: uploadTimestamp }); 
         }
       });
 
@@ -934,6 +929,55 @@ export function useAdminData() {
     }
   };
 
+  const updateBillStatusAdmin = async (billId: string, status: 'approved' | 'reverted' | 'reverted_by_admin', counterId: string) => {
+    try {
+      const billToUpdate = allBills.find(b => b.id === billId);
+      if (!billToUpdate) throw new Error('Bill not found');
+      
+      const itemIds = billToUpdate.items ? billToUpdate.items.map((i: any) => i.id) : [billId];
+
+      const { data: updatedBills, error: billError } = await supabase
+        .from('bills')
+        .update({ approval_status: status })
+        .in('id', itemIds)
+        .select();
+
+      if (billError) throw billError;
+
+      if (status === 'reverted' || status === 'reverted_by_admin') {
+        for (const item of (billToUpdate.items || [billToUpdate])) {
+          if (!item.accessories || !item.accessories.name) continue;
+          
+          let query = supabase.from('accessories').select('id, quantity');
+          if (item.accessory_id) {
+             query = query.eq('id', item.accessory_id);
+          } else {
+             query = query.eq('counter_id', counterId)
+                          .eq('vehicle_model', item.accessories.vehicle_model)
+                          .eq('name', item.accessories.name);
+          }
+          
+          const { data: accData } = await query.maybeSingle();
+
+          if (accData) {
+            await supabase
+              .from('accessories')
+              .update({ quantity: accData.quantity + (item.quantity || 1) })
+              .eq('id', accData.id);
+          }
+        }
+        toast.success(`Bill ${billToUpdate.bill_number} reverted and inventory restored.`);
+      } else {
+        toast.success(`Bill ${billToUpdate.bill_number} approved successfully.`);
+      }
+
+      await fetchBills();
+      await fetchInventory();
+    } catch (error: any) {
+      toast.error(error.message || 'Error updating bill status');
+    }
+  };
+
   useEffect(() => {
     fetchStats();
     fetchCounters();
@@ -955,6 +999,7 @@ export function useAdminData() {
     transferCart, addToTransferCart, removeFromTransferCart, clearTransferCart, executeCartTransfer,
     deleteDataByDate,
     teamLeads, fetchTeamLeads, updateTeamLead, deleteTeamLead,
-    cashiers, fetchCashiers, updateCashier, deleteCashier
+    cashiers, fetchCashiers, updateCashier, deleteCashier,
+    updateBillStatusAdmin
   };
 }

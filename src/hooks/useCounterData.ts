@@ -12,7 +12,6 @@ export type Accessory = {
   vehicle_model: string;
   cgst_percent?: number;
   sgst_percent?: number;
-  purchase_price?: number;
 };
 
 export type Bill = {
@@ -29,7 +28,6 @@ export type Bill = {
   cgst_amount?: number;
   sgst_amount?: number;
   total_amount: number;
-  total_purchase_price?: number;
   payment_method: string;
   payment_details?: any[];
   amount_paid: number;
@@ -54,7 +52,6 @@ type RawBill = {
   cgst_amount?: number;
   sgst_amount?: number;
   total_amount: number;
-  total_purchase_price?: number;
   payment_method: string;
   payment_details?: any[];
   amount_paid: number;
@@ -125,7 +122,6 @@ export function useCounterData(user: User | null) {
           cgst_amount: item.cgst_amount || 0,
           sgst_amount: item.sgst_amount || 0,
           total_amount: item.total_amount || 0,
-          total_purchase_price: item.total_purchase_price || 0,
           amount_paid: item.amount_paid || 0,
           amount_left: item.amount_left || 0
         });
@@ -137,7 +133,6 @@ export function useCounterData(user: User | null) {
         existing.cgst_amount = (existing.cgst_amount || 0) + (item.cgst_amount || 0);
         existing.sgst_amount = (existing.sgst_amount || 0) + (item.sgst_amount || 0);
         existing.total_amount += item.total_amount || 0;
-        existing.total_purchase_price = (existing.total_purchase_price || 0) + (item.total_purchase_price || 0);
         existing.amount_paid += item.amount_paid || 0;
         existing.amount_left += item.amount_left || 0;
         existing.approval_status = existing.approval_status || item.approval_status;

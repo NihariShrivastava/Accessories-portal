@@ -7,9 +7,9 @@ import { History, Package, Car, IndianRupee, X } from 'lucide-react';
 import type { CounterBill } from '../../../../hooks/useAdminData';
 
 export const BillsView = ({
-  counterName, data, onBack, onRowClick, startDate, endDate, setStartDate, setEndDate
+  counterName, data, onBack, onRowClick, onViewBillReceipt, onRevertBill, startDate, endDate, setStartDate, setEndDate
 }: {
-  counterName: string, data: CounterBill[], onBack: () => void, onRowClick: (b: CounterBill) => void,
+  counterName: string, data: CounterBill[], onBack: () => void, onRowClick: (b: CounterBill) => void, onViewBillReceipt: (b: CounterBill) => void, onRevertBill: (b: CounterBill) => void,
   startDate: string, endDate: string, setStartDate: (d: string) => void, setEndDate: (d: string) => void
 }) => {
   const [accFilter, setAccFilter] = useState('');
@@ -144,8 +144,41 @@ export const BillsView = ({
             { header: 'Payment', accessor: (b) => <Badge variant="secondary">{b.payment_method}</Badge> },
             { header: 'Total', accessor: (b) => `₹${b.total_amount?.toFixed(2)}`, sortAccessor: 'total_amount', className: 'text-right font-medium' },
             { header: 'Paid', accessor: (b) => `₹${(b.amount_paid ?? b.total_amount)?.toFixed(2)}`, sortAccessor: 'amount_paid', className: 'text-right text-green-600 dark:text-green-400' },
-            { header: 'Balance', accessor: (b) => `₹${(b.amount_left ?? 0)?.toFixed(2)}`, sortAccessor: 'amount_left', className: 'text-right text-destructive font-medium' }
-          ], [])}
+            { header: 'Balance', accessor: (b) => `₹${(b.amount_left ?? 0)?.toFixed(2)}`, sortAccessor: 'amount_left', className: 'text-right text-destructive font-medium' },
+            {
+              header: 'Actions',
+              accessor: (b) => (
+                <div className="flex justify-end items-center gap-2" onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={() => onRowClick(b)}
+                    className="px-2 py-1 bg-secondary text-secondary-foreground text-xs rounded hover:bg-secondary/80 whitespace-nowrap"
+                  >
+                    Details
+                  </button>
+                  <button
+                    onClick={() => onViewBillReceipt(b)}
+                    className="px-2 py-1 bg-primary text-primary-foreground text-xs rounded hover:bg-primary/90 whitespace-nowrap"
+                  >
+                    View Bill
+                  </button>
+                  {b.approval_status !== 'reverted' && b.approval_status !== 'reverted_by_admin' && (
+                    <button
+                      onClick={() => onRevertBill(b)}
+                      className="px-2 py-1 bg-destructive text-destructive-foreground text-xs rounded hover:bg-destructive/90 whitespace-nowrap"
+                    >
+                      Revert
+                    </button>
+                  )}
+                  {(b.approval_status === 'reverted' || b.approval_status === 'reverted_by_admin') && (
+                    <span className="text-xs px-2 py-1 rounded bg-destructive/10 text-destructive font-bold uppercase tracking-wider">
+                      Reverted
+                    </span>
+                  )}
+                </div>
+              ),
+              className: 'text-right pr-4'
+            }
+          ], [onRowClick, onViewBillReceipt, onRevertBill])}
         />
       </div>
     </div>
