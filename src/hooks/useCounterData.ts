@@ -105,8 +105,10 @@ export function useCounterData(user: User | null) {
   const groupBills = useCallback((data: RawBill[]): Bill[] => {
     const map = new Map<string, Bill>();
     data.forEach(item => {
-      // Group by base bill number (strip suffix like -1, -2 if present)
-      const bNo = item.bill_number ? item.bill_number.replace(/-\d+$/, '') : `TEMP-${item.id}`;
+      // Group by base bill number (strip suffix like -1, -2 if present, but preserve INV-XXXX)
+      const bNo = item.bill_number 
+        ? (item.bill_number.split('-').length > 2 ? item.bill_number.substring(0, item.bill_number.lastIndexOf('-')) : item.bill_number) 
+        : `TEMP-${item.id}`;
       
       const existing = map.get(bNo);
       if (!existing) {

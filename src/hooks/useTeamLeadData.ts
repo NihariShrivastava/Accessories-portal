@@ -79,7 +79,9 @@ export function useTeamLeadData(user: any) {
       const standaloneBills: any[] = [];
 
       (billsData || []).forEach(item => {
-        const bNo = item.bill_number ? item.bill_number.replace(/-\d+$/, '') : `TEMP-${item.id}`;
+        const bNo = item.bill_number 
+          ? (item.bill_number.split('-').length > 2 ? item.bill_number.substring(0, item.bill_number.lastIndexOf('-')) : item.bill_number) 
+          : `TEMP-${item.id}`;
         const acc = item.accessories as any;
         const counterObj = countersData.find(c => c.id === item.counter_id);
         

@@ -555,7 +555,9 @@ export function useAdminData() {
   const groupBills = useCallback((data: any[]): CounterBill[] => {
     const map = new Map<string, CounterBill>();
     data.forEach(item => {
-      const bNo = item.bill_number ? item.bill_number.replace(/-\d+$/, '') : `TEMP-${item.id}`;
+      const bNo = item.bill_number 
+        ? (item.bill_number.split('-').length > 2 ? item.bill_number.substring(0, item.bill_number.lastIndexOf('-')) : item.bill_number) 
+        : `TEMP-${item.id}`;
       const existing = map.get(bNo);
       if (!existing) {
         map.set(bNo, { 
