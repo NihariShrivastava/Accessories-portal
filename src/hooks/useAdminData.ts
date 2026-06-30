@@ -936,7 +936,7 @@ export function useAdminData() {
       
       const itemIds = billToUpdate.items ? billToUpdate.items.map((i: any) => i.id) : [billId];
 
-      const { data: updatedBills, error: billError } = await supabase
+      const { error: billError } = await supabase
         .from('bills')
         .update({ approval_status: status })
         .in('id', itemIds)
