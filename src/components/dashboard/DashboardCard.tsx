@@ -28,8 +28,8 @@ export function DashboardCard({
         <Icon className="w-6 h-6" />
       </div>
       <div className="flex-1 text-left">
-        <p className="text-sm text-muted-foreground font-medium">{label}</p>
-        <p className="text-2xl font-bold">{value}</p>
+        <p className={`${value === "" ? "text-base sm:text-lg font-bold text-foreground" : "text-sm text-muted-foreground font-medium"}`}>{label}</p>
+        {value !== "" && <p className="text-2xl font-bold">{value}</p>}
         {subValue && <p className="text-xs text-muted-foreground">{subValue}</p>}
       </div>
       {onClick && <RightIcon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />}

@@ -3,13 +3,14 @@ import { DataTable } from '../../DataTable';
 import { Badge } from '../../Badge';
 import { Modal } from '../../Modal';
 import { ChevronLeft, ChevronRight, History, Store, ArrowLeftRight, ShoppingCart } from 'lucide-react';
-import type { InventoryItem, Counter } from '../../../../hooks/useAdminData';
+import type { InventoryItem, Counter, Warehouse } from '../../../../hooks/useAdminData';
 import type { Column } from '../../DataTable';
 
 
 export const GlobalInventorySliderView = ({
   inventory,
   counters,
+  warehouses = [],
   onEdit,
   onTransfer,
   onDelete,
@@ -22,6 +23,7 @@ export const GlobalInventorySliderView = ({
 }: {
   inventory: InventoryItem[],
   counters: Counter[],
+  warehouses?: Warehouse[],
   onEdit: (item: InventoryItem) => void,
   onTransfer: (item: InventoryItem) => void,
   onDelete: (id: string) => void,
@@ -35,8 +37,8 @@ export const GlobalInventorySliderView = ({
 
 
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [startDate, setStartDate] = useState(initialStartDate || new Date().toLocaleDateString('en-CA'));
-  const [endDate, setEndDate] = useState(initialEndDate || new Date().toLocaleDateString('en-CA'));
+  const [startDate, setStartDate] = useState(initialStartDate || '');
+  const [endDate, setEndDate] = useState(initialEndDate || '');
   const [selectedCounterId, setSelectedCounterId] = useState('');
   const [targetCounterId, setTargetCounterId] = useState('');
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -204,8 +206,17 @@ export const GlobalInventorySliderView = ({
                     value={selectedCounterId}
                     onChange={(e) => setSelectedCounterId(e.target.value)}
                   >
-                    <option value="" className="bg-card">-- Select Counter --</option>
-                    {counters.map(c => <option key={c.id} value={c.id} className="bg-card">{c.name}</option>)}
+                    <option value="" className="bg-card">-- Select Source --</option>
+                    {counters.length > 0 && (
+                      <optgroup label="Counters" className="bg-muted text-muted-foreground font-bold">
+                        {counters.map(c => <option key={c.id} value={c.id} className="bg-card font-medium">{c.name}</option>)}
+                      </optgroup>
+                    )}
+                    {warehouses.length > 0 && (
+                      <optgroup label="Warehouses" className="bg-muted text-muted-foreground font-bold">
+                        {warehouses.map(w => <option key={w.id} value={w.id} className="bg-card font-medium">{w.name}</option>)}
+                      </optgroup>
+                    )}
                   </select>
                 </div>
                 <div className="flex items-center gap-2 bg-card p-1.5 px-3 rounded-lg border border-border shadow-sm flex-wrap">
@@ -256,8 +267,17 @@ export const GlobalInventorySliderView = ({
               value={targetCounterId}
               onChange={(e) => setTargetCounterId(e.target.value)}
             >
-              <option value="" className="bg-card">-- Choose Destination Counter --</option>
-              {counters.filter(c => c.id !== selectedCounterId).map(c => <option key={c.id} value={c.id} className="bg-card">{c.name}</option>)}
+              <option value="" className="bg-card">-- Choose Destination --</option>
+              {counters.length > 0 && (
+                <optgroup label="Counters" className="bg-muted text-muted-foreground font-bold">
+                  {counters.filter(c => c.id !== selectedCounterId).map(c => <option key={c.id} value={c.id} className="bg-card font-medium">{c.name}</option>)}
+                </optgroup>
+              )}
+              {warehouses.length > 0 && (
+                <optgroup label="Warehouses" className="bg-muted text-muted-foreground font-bold">
+                  {warehouses.filter(w => w.id !== selectedCounterId).map(w => <option key={w.id} value={w.id} className="bg-card font-medium">{w.name}</option>)}
+                </optgroup>
+              )}
             </select>
           </div>
 

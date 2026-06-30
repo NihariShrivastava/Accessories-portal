@@ -371,6 +371,7 @@ export function AdminDashboard() {
             <GlobalInventorySliderView 
               inventory={inventory}
               counters={counters}
+              warehouses={warehouses || []}
               onEdit={handleEditClick}
               onTransfer={handleTransferClick}
               onDelete={deleteAccessory}
@@ -491,8 +492,17 @@ export function AdminDashboard() {
                     value={transferForm.targetCounterId} 
                     onChange={(e) => setTransferForm(prev => ({ ...prev, targetCounterId: e.target.value }))}
                   >
-                    <option value="">-- Select Target Counter --</option>
-                    {counters.filter(c => c.id !== transferringItem?.counter_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    <option value="" className="bg-background text-foreground">-- Choose Target --</option>
+                    {counters.length > 0 && (
+                      <optgroup label="Counters" className="bg-muted text-muted-foreground font-bold">
+                        {counters.filter(c => c.id !== transferringItem?.counter_id).map(c => <option key={c.id} value={c.id} className="bg-background text-foreground font-medium">{c.name}</option>)}
+                      </optgroup>
+                    )}
+                    {warehouses && warehouses.length > 0 && (
+                      <optgroup label="Warehouses" className="bg-muted text-muted-foreground font-bold">
+                        {warehouses.filter(w => w.id !== transferringItem?.counter_id).map(w => <option key={w.id} value={w.id} className="bg-background text-foreground font-medium">{w.name}</option>)}
+                      </optgroup>
+                    )}
                   </select>
                 </div>
               )}
@@ -512,7 +522,7 @@ export function AdminDashboard() {
                   onClick={() => {
                     if (transferringItem && transferForm.quantity > 0) {
                       if (transferMode === 'single') {
-                        if (!transferForm.targetCounterId) return alert('Please select a target counter');
+                        if (!transferForm.targetCounterId) return alert('Please select a target destination');
                         transferAccessory(transferringItem, transferForm.targetCounterId, transferForm.quantity);
                       } else {
                         addToTransferCart(transferringItem, transferForm.quantity);
@@ -559,14 +569,23 @@ export function AdminDashboard() {
 
               <div className="pt-4 border-t border-border space-y-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase text-muted-foreground mb-1.5 ml-1">Destination Counter</label>
+                  <label className="block text-xs font-bold uppercase text-muted-foreground mb-1.5 ml-1">Destination Target</label>
                   <select 
                     className="w-full px-4 py-2 bg-input border border-border rounded-lg outline-none focus:ring-2 focus:ring-primary/20"
                     value={cartTargetCounterId}
                     onChange={(e) => setCartTargetCounterId(e.target.value)}
                   >
-                    <option value="">-- Choose Target Counter --</option>
-                    {counters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    <option value="" className="bg-background text-foreground">-- Choose Target --</option>
+                    {counters.length > 0 && (
+                      <optgroup label="Counters" className="bg-muted text-muted-foreground font-bold">
+                        {counters.map(c => <option key={c.id} value={c.id} className="bg-background text-foreground font-medium">{c.name}</option>)}
+                      </optgroup>
+                    )}
+                    {warehouses && warehouses.length > 0 && (
+                      <optgroup label="Warehouses" className="bg-muted text-muted-foreground font-bold">
+                        {warehouses.map(w => <option key={w.id} value={w.id} className="bg-background text-foreground font-medium">{w.name}</option>)}
+                      </optgroup>
+                    )}
                   </select>
                 </div>
 
