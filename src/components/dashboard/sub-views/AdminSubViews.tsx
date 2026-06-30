@@ -16,3 +16,6 @@ export * from './admin/ManageCashiersView';
 export * from './admin/AddCashierView';
 export * from './admin/TeamLeadInventoryView';
 export * from './admin/TeamLeadApprovalView';
+export * from './admin/TeamLeadTransferView';
+export * from './admin/AddWarehouseView';
+export * from './admin/ManageWarehousesView';

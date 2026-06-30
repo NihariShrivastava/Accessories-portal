@@ -4,8 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
-export type Counter = { id: string; name: string; username?: string; password?: string };
-export type TeamLead = { id: string; name: string; username?: string; password?: string; assigned_counters?: string[]; login_count?: number };
+export type Counter = { id: string; name: string; username?: string; password?: string; login_count?: number };
+export type Warehouse = { id: string; name: string; username?: string; password?: string; login_count?: number };
+export type TeamLead = { id: string; name: string; username?: string; password?: string; assigned_counters?: string[]; assigned_warehouses?: string[]; login_count?: number };
 export type Cashier = { id: string; name: string; username?: string; password?: string; assigned_counters?: string[]; login_count?: number };
 export type InventoryItem = { id: string; counter_id: string; counter_name: string; vehicle_model: string; name: string; accessory_code?: string; quantity: number; price: number; cgst_percent?: number; sgst_percent?: number; created_at: string };
 export type LoginDetail = { user_id: string; name: string; login_count: number };
@@ -132,6 +133,7 @@ const syncAuthCredentials = async (
 export function useAdminData() {
   const [stats, setStats] = useState({ uniqueLogins: 0, items: 0, models: 0 });
   const [counters, setCounters] = useState<Counter[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [teamLeads, setTeamLeads] = useState<TeamLead[]>([]);
   const [cashiers, setCashiers] = useState<Cashier[]>([]);
   const [cashierReports, setCashierReports] = useState<CashierReport[]>([]);
@@ -194,6 +196,31 @@ export function useAdminData() {
     setStats(prev => ({ ...prev, uniqueLogins: merged.length }));
   }, []);
 
+  const fetchWarehouses = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').eq('role', 'warehouse');
+      if (error) throw error;
+      
+      const { data: logsData } = await supabase.from('login_logs').select('user_id');
+      const loginMap = new Map<string, number>();
+      (logsData || []).forEach(log => {
+        loginMap.set(log.user_id, (loginMap.get(log.user_id) || 0) + 1);
+      });
+      
+      const formatted = (data || []).map(p => ({
+        id: p.id,
+        name: p.name || p.username || 'Unknown',
+        username: p.username || '',
+        password: p.password || '',
+        login_count: loginMap.get(p.id) || 0
+      }));
+      
+      setWarehouses(formatted);
+    } catch (err) {
+      console.error('Error fetching warehouses:', err);
+    }
+  }, []);
+
   const fetchTeamLeads = useCallback(async () => {
     try {
       const { data, error } = await supabase.from('profiles').select('*').eq('role', 'team_lead');
@@ -211,6 +238,7 @@ export function useAdminData() {
         username: p.username || '',
         password: p.password || '',
         assigned_counters: p.assigned_counters || [],
+        assigned_warehouses: p.assigned_warehouses || [],
         login_count: loginMap.get(p.id) || 0
       }));
       
@@ -933,6 +961,35 @@ export function useAdminData() {
     }
   };
 
+
+  const updateWarehouse = async (id: string, updates: any) => {
+    try {
+      const oldData = warehouses.find(w => w.id === id);
+      if (oldData && oldData.username && oldData.password) {
+        await syncAuthCredentials(oldData.username, oldData.password, updates.username, updates.password, 'counter');
+      }
+      const { error } = await supabase.from('profiles').update(updates).eq('id', id);
+      if (error) throw error;
+      toast.success('Warehouse updated successfully');
+      fetchWarehouses();
+    } catch (error: any) {
+      toast.error(error.message || 'Error updating warehouse');
+    }
+  };
+
+  const deleteWarehouse = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this warehouse?')) return;
+    try {
+      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Warehouse deleted successfully');
+      fetchWarehouses();
+    } catch (error: any) {
+      toast.error('Error deleting warehouse');
+      console.error(error);
+    }
+  };
+
   const updateBillStatusAdmin = async (billId: string, status: 'approved' | 'reverted' | 'reverted_by_admin', counterId: string) => {
     try {
       const billToUpdate = allBills.find(b => b.id === billId);
@@ -985,20 +1042,21 @@ export function useAdminData() {
   useEffect(() => {
     fetchStats();
     fetchCounters();
+    fetchWarehouses();
     fetchTeamLeads();
     fetchCashiers();
     fetchBills();
-  }, [fetchStats, fetchCounters, fetchTeamLeads, fetchCashiers, fetchBills]);
+  }, [fetchStats, fetchCounters, fetchWarehouses, fetchTeamLeads, fetchCashiers, fetchBills]);
 
   useEffect(() => {
     fetchInventory();
   }, [fetchInventory]);
 
   return {
-    stats, counters, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, allBills,
+    stats, counters, warehouses, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, allBills,
     startDate, endDate, setStartDate, setEndDate,
-    fetchLoginDetails, fetchCounters, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
-    updateCounter, deleteCounter,
+    fetchLoginDetails, fetchCounters, fetchWarehouses, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
+    updateCounter, deleteCounter, updateWarehouse, deleteWarehouse,
     deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories, fetchInventory,
     transferCart, addToTransferCart, removeFromTransferCart, clearTransferCart, executeCartTransfer,
     deleteDataByDate,

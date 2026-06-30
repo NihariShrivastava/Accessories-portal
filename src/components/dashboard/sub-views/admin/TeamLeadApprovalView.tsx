@@ -8,7 +8,7 @@ type Props = {
   counters: Counter[];
   bills: CounterBill[];
   onBack: () => void;
-  onUpdateBillStatus: (billId: string, status: 'approved' | 'reverted', items: any[], counterId: string) => Promise<void>;
+  onUpdateBillStatus: (billId: string, status: 'approved' | 'reverted', counterId: string) => Promise<void>;
   onViewBill: (bill: CounterBill) => void;
 };
 
@@ -33,7 +33,7 @@ export function TeamLeadApprovalView({ counters, bills, onBack, onUpdateBillStat
     if (!bill.counter_id) return;
     setProcessingId(bill.id);
     try {
-      await onUpdateBillStatus(bill.id, newStatus, bill.items || [], bill.counter_id);
+      await onUpdateBillStatus(bill.id, newStatus, bill.counter_id);
     } finally {
       setProcessingId(null);
     }

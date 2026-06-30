@@ -2,34 +2,31 @@ import { useState } from 'react';
 import { DataTable } from '../../DataTable';
 import { ViewHeader } from '../../ViewHeader';
 import { Badge } from '../../Badge';
-import { MultiSelectDropdown } from '../../MultiSelectDropdown';
 import { Users, UserPlus, Save, X, Trash2 } from 'lucide-react';
-import type { Cashier, Counter } from '../../../../hooks/useAdminData';
+import type { Warehouse } from '../../../../hooks/useAdminData';
 
-export const ManageCashiersView = ({
+export const ManageWarehousesView = ({
   data,
-  counters,
   onBack,
-  onAddCashier,
+  onAddWarehouse,
   onUpdate,
   onDelete
 }: {
-  data: Cashier[],
-  counters: Counter[],
+  data: (Warehouse & { login_count?: number })[],
   onBack: () => void,
-  onAddCashier: () => void,
+  onAddWarehouse: () => void,
   onUpdate: (id: string, updates: any) => void,
   onDelete: (id: string) => void
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{ username: string, password: string, assigned_counters: string[] }>({ username: '', password: '', assigned_counters: [] });
+  const [editForm, setEditForm] = useState({ name: '', username: '', password: '' });
 
-  const startEdit = (c: Cashier) => {
-    setEditingId(c.id);
+  const startEdit = (warehouse: any) => {
+    setEditingId(warehouse.id);
     setEditForm({
-      username: c.username || '',
-      password: c.password || '',
-      assigned_counters: c.assigned_counters || []
+      name: warehouse.name || '',
+      username: warehouse.username || '',
+      password: warehouse.password || ''
     });
   };
 
@@ -42,21 +39,21 @@ export const ManageCashiersView = ({
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <ViewHeader
-          title="Manage Cashiers"
+          title="Manage Warehouses"
           onBack={onBack}
           icon={Users}
-          description={`${data.length} total cashiers in the system.`}
+          description={`${data.length} total warehouse accounts in the system.`}
         />
         <button
-          onClick={onAddCashier}
+          onClick={onAddWarehouse}
           className="bg-primary text-primary-foreground py-2 px-6 rounded-lg hover:bg-primary/90 transition-all flex items-center justify-center gap-2 font-bold shadow-lg shadow-primary/20 hover:scale-105 active:scale-95"
         >
-          <UserPlus className="w-5 h-5" /> Add New Cashier
+          <UserPlus className="w-5 h-5" /> Add New Warehouse
         </button>
       </div>
 
-      <div className="bg-card rounded-xl border border-border shadow-sm overflow-visible">
-        <DataTable<Cashier>
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <DataTable<(Warehouse & { login_count?: number }) >
           idAccessor="id"
           data={data}
           columns={[
@@ -65,10 +62,10 @@ export const ManageCashiersView = ({
               accessor: (c) => editingId === c.id ? (
                 <input
                   className="w-full px-2 py-1 bg-background border rounded text-sm"
-                  value={editForm.username}
-                  onChange={e => setEditForm({ ...editForm, username: e.target.value })}
+                  value={editForm.name}
+                  onChange={e => setEditForm({ ...editForm, name: e.target.value, username: e.target.value })}
                 />
-              ) : <span className="font-semibold text-primary">{c.username || c.name}</span>,
+              ) : <span className="font-semibold text-primary">{c.name}</span>,
               className: 'min-w-[150px]'
             },
             {
@@ -80,30 +77,6 @@ export const ManageCashiersView = ({
                   onChange={e => setEditForm({ ...editForm, password: e.target.value })}
                 />
               ) : <span className="text-muted-foreground font-mono text-xs">{c.password || <span className="text-destructive font-bold underline">EMPTY</span>}</span>
-            },
-            {
-              header: 'Assigned Counters',
-              accessor: (c) => editingId === c.id ? (
-                <div className="min-w-[200px]">
-                  <MultiSelectDropdown 
-                    options={counters.map(ctr => ({ id: ctr.id, name: ctr.name }))}
-                    selectedIds={editForm.assigned_counters}
-                    onChange={(ids) => setEditForm(prev => ({ ...prev, assigned_counters: ids }))}
-                    placeholder="Assign counters..."
-                  />
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-1 max-w-xs">
-                  {c.assigned_counters && c.assigned_counters.length > 0 ? (
-                    c.assigned_counters.map(id => {
-                      const counter = counters.find(ctr => ctr.id === id);
-                      return <Badge key={id} variant="secondary">{counter ? counter.name : 'Unknown'}</Badge>;
-                    })
-                  ) : (
-                    <span className="text-muted-foreground text-xs">None</span>
-                  )}
-                </div>
-              )
             },
             {
               header: 'Logins',
@@ -140,9 +113,9 @@ export const ManageCashiersView = ({
                         Edit
                       </button>
                       <button
-                        onClick={() => { if (confirm(`Are you sure you want to delete ${c.username}?`)) onDelete(c.id); }}
+                        onClick={() => { if (confirm(`Are you sure you want to delete ${c.name}?`)) onDelete(c.id); }}
                         className="p-1.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-                        title="Delete Cashier"
+                        title="Delete Warehouse"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -153,7 +126,6 @@ export const ManageCashiersView = ({
               className: 'text-right'
             }
           ]}
-          overflowVisible={true}
         />
       </div>
     </div>

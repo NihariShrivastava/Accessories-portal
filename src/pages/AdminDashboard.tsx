@@ -8,15 +8,15 @@ import type { InventoryItem, CounterBill, SalesReport, TeamLeadReport } from '..
 import { Modal } from '../components/dashboard/Modal';
 import { BillDetails } from '../components/dashboard/BillDetails';
 import { BillReceipt } from '../components/dashboard/BillReceipt';
-import { CounterManagementView, AddTeamLeadView, AddCashierView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView, GlobalInventorySliderView, UploadHistoryView, CashierDetailsView } from '../components/dashboard/sub-views/AdminSubViews';
+import { CounterManagementView, AddTeamLeadView, AddCashierView, AddWarehouseView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView, GlobalInventorySliderView, UploadHistoryView, CashierDetailsView } from '../components/dashboard/sub-views/AdminSubViews';
 import { TeamLeadApprovalView } from '../components/dashboard/sub-views/admin/TeamLeadApprovalView';
 
 export function AdminDashboard() {
   const {
-    counters, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, allBills,
+    counters, warehouses, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, allBills,
     startDate, endDate, setStartDate, setEndDate,
-    fetchCounters, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
-    updateCounter, deleteCounter, deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories,
+    fetchCounters, fetchWarehouses, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
+    updateCounter, deleteCounter, updateWarehouse, deleteWarehouse, deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories,
     transferCart, addToTransferCart, removeFromTransferCart, clearTransferCart, executeCartTransfer,
     deleteDataByDate, teamLeads, fetchTeamLeads, updateTeamLead, deleteTeamLead,
     cashiers, fetchCashiers, updateCashier, deleteCashier,
@@ -107,17 +107,21 @@ export function AdminDashboard() {
 
 
   let content;
-  if (activeView === 'logins' || activeView === 'logins-team-leads' || activeView === 'logins-cashiers') {
+  if (activeView === 'logins' || activeView === 'logins-team-leads' || activeView === 'logins-cashiers' || activeView === 'logins-warehouses') {
     content = (
       <CounterManagementView 
-        initialTab={activeView === 'logins-team-leads' ? 'team_leads' : activeView === 'logins-cashiers' ? 'cashiers' : 'counters'}
+        initialTab={activeView === 'logins-team-leads' ? 'team_leads' : activeView === 'logins-cashiers' ? 'cashiers' : activeView === 'logins-warehouses' ? 'warehouses' : 'counters'}
         counters={counters}
+        warehouses={warehouses}
         teamLeads={teamLeads}
         cashiers={cashiers}
         onBack={() => setActiveView('dashboard')} 
         onAddCounter={() => setActiveView('add-counter')}
         onUpdateCounter={updateCounter}
         onDeleteCounter={deleteCounter}
+        onAddWarehouse={() => setActiveView('add-warehouse')}
+        onUpdateWarehouse={updateWarehouse}
+        onDeleteWarehouse={deleteWarehouse}
         onAddTeamLead={() => setActiveView('add-team-lead')}
         onUpdateTeamLead={updateTeamLead}
         onDeleteTeamLead={deleteTeamLead}
@@ -137,10 +141,22 @@ export function AdminDashboard() {
         }} 
       />
     );
+  } else if (activeView === 'add-warehouse') {
+    content = (
+      <AddWarehouseView 
+        onBack={() => { 
+          setTimeout(() => {
+            fetchWarehouses(); 
+            setActiveView('logins-warehouses'); 
+          }, 500);
+        }} 
+      />
+    );
   } else if (activeView === 'add-team-lead') {
     content = (
       <AddTeamLeadView 
         counters={counters}
+        warehouses={warehouses}
         onBack={() => { 
           setTimeout(() => {
             fetchTeamLeads(); 
@@ -234,9 +250,9 @@ export function AdminDashboard() {
         counters={tlCounters}
         bills={tlBills}
         onBack={() => setActiveView('reports')}
-        onUpdateBillStatus={async (billId, status, _items, counterId) => {
+        onUpdateBillStatus={async (billId, status, counterId) => {
           if (!counterId) return;
-          await updateBillStatusAdmin(billId, status, counterId);
+          await updateBillStatusAdmin(billId, status as 'approved' | 'reverted' | 'reverted_by_admin', counterId);
         }}
         onViewBill={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
       />
@@ -294,14 +310,23 @@ export function AdminDashboard() {
 
             <div className="space-y-3 flex-1">
               <div className="space-y-1">
-                <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Target Counter</label>
+                <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Target Counter / Warehouse</label>
                 <select 
-                  className="w-full px-3 py-2 bg-muted/20 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 transition-all outline-none text-sm" 
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary/20 transition-all outline-none text-sm" 
                   value={selectedCounterId} 
                   onChange={(e) => setSelectedCounterId(e.target.value)}
                 >
-                  <option value="">-- Choose Counter --</option>
-                  {counters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  <option value="" className="bg-background text-foreground">-- Choose Target --</option>
+                  {counters.length > 0 && (
+                    <optgroup label="Counters" className="bg-muted text-muted-foreground font-bold">
+                      {counters.map(c => <option key={c.id} value={c.id} className="bg-background text-foreground font-medium">{c.name}</option>)}
+                    </optgroup>
+                  )}
+                  {warehouses && warehouses.length > 0 && (
+                    <optgroup label="Warehouses" className="bg-muted text-muted-foreground font-bold">
+                      {warehouses.map(w => <option key={w.id} value={w.id} className="bg-background text-foreground font-medium">{w.name}</option>)}
+                    </optgroup>
+                  )}
                 </select>
               </div>
 

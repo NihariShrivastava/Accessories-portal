@@ -18,6 +18,7 @@ interface DataTableProps<T> {
   emptyMessage?: string;
   idAccessor: keyof T | ((item: T) => string);
   pageSize?: number;
+  overflowVisible?: boolean;
 }
 
 function DataTableInner<T>({
@@ -27,7 +28,8 @@ function DataTableInner<T>({
   maxHeight,
   emptyMessage = "No records found.",
   idAccessor,
-  pageSize = 0
+  pageSize = 0,
+  overflowVisible = false
 }: DataTableProps<T>) {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [sortConfig, setSortConfig] = React.useState<{ key: string | number | symbol; direction: 'asc' | 'desc' } | null>(null);
@@ -88,7 +90,7 @@ function DataTableInner<T>({
 
   return (
     <div className="flex flex-col">
-      <div className={`overflow-x-auto ${maxHeight ? 'overflow-y-auto' : ''}`} style={maxHeight ? { maxHeight } : {}}>
+      <div className={`${overflowVisible ? '' : 'overflow-x-auto'} ${maxHeight ? 'overflow-y-auto' : ''}`} style={maxHeight ? { maxHeight } : {}}>
         <table className="w-full text-left text-sm">
           <thead className={`bg-muted text-muted-foreground ${maxHeight ? 'sticky top-0 z-10' : ''}`}>
             <tr>

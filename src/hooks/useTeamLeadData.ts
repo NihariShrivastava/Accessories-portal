@@ -6,6 +6,7 @@ import type { InventoryItem, SalesReport, CounterBill, Counter, AmountCollectedR
 export function useTeamLeadData(user: any) {
   const [profile, setProfile] = useState<any>(null);
   const [assignedCounters, setAssignedCounters] = useState<Counter[]>([]);
+  const [assignedWarehouses, setAssignedWarehouses] = useState<Counter[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [bills, setBills] = useState<CounterBill[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,8 +43,11 @@ export function useTeamLeadData(user: any) {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
-      const [countersRes, invRes, billsRes] = await Promise.all([
+      const [countersRes, warehousesRes, invRes, billsRes] = await Promise.all([
         supabase.from('profiles').select('id, name').in('id', counterIds),
+        prof?.assigned_warehouses && prof.assigned_warehouses.length > 0 
+          ? supabase.from('profiles').select('id, name').in('id', prof.assigned_warehouses)
+          : Promise.resolve({ data: [], error: null }),
         supabase.from('accessories').select('*').in('counter_id', counterIds),
         supabase
           .from('bills')
@@ -54,9 +58,11 @@ export function useTeamLeadData(user: any) {
           .in('counter_id', counterIds)
           .gte('created_at', thirtyDaysAgo.toISOString())
           .order('created_at', { ascending: false })
+          .limit(1000) // Added limit to prevent massive payload issues
       ]);
 
       const countersData = countersRes.data || [];
+      const warehousesData = warehousesRes?.data || [];
       const invData = invRes.data || [];
       const billsData = billsRes.data || [];
 
@@ -64,6 +70,7 @@ export function useTeamLeadData(user: any) {
       if (billsRes.error) console.error("Team Lead Bills Fetch Error:", billsRes.error);
 
       setAssignedCounters(countersData);
+      setAssignedWarehouses(warehousesData);
 
       // 3. Enrich inventory with counter names
       const enrichedInv = invData.map(item => {
@@ -259,39 +266,25 @@ export function useTeamLeadData(user: any) {
     return Array.from(map.values());
   }, [bills, assignedCounters]);
 
-  const updateBillStatus = async (billId: string, status: 'approved' | 'reverted', _items: any[], counterId: string) => {
+  const updateBillStatus = async (billId: string, status: 'approved' | 'reverted', counterId: string) => {
     try {
-      // Find all actual bill items from the grouped bill
       const billToUpdate = bills.find(b => b.id === billId);
       if (!billToUpdate) throw new Error('Bill not found');
       
-      const itemIds = billToUpdate.items ? billToUpdate.items.map(i => i.id) : [billId];
+      const itemIds = billToUpdate.items ? billToUpdate.items.map((i: any) => i.id) : [billId];
 
-      const { data: updatedBills, error: billError } = await supabase
+      const { error: billError } = await supabase
         .from('bills')
         .update({ approval_status: status })
         .in('id', itemIds)
         .select();
 
       if (billError) throw billError;
-      if (!updatedBills || updatedBills.length === 0) {
-        throw new Error("Update failed. You may not have permission to update this bill.");
-      }
-
-      // Optimistic update
-      setBills(prev => prev.map(b => {
-        if (b.id === billId || (b.items && b.items.some(i => i.id === billId))) {
-          return { ...b, approval_status: status };
-        }
-        return b;
-      }));
 
       if (status === 'reverted') {
-        // Restore inventory for all items in the bill
         for (const item of (billToUpdate.items || [billToUpdate])) {
           if (!item.accessories || !item.accessories.name) continue;
           
-          // Get current accessory using accessory_id if we have it, else try matching
           let query = supabase.from('accessories').select('id, quantity');
           if (item.accessory_id) {
              query = query.eq('id', item.accessory_id);
@@ -321,16 +314,63 @@ export function useTeamLeadData(user: any) {
     }
   };
 
+  const executeTransfer = async (_sourceWarehouseId: string, targetCounterId: string, items: { id: string, name: string, quantity: number }[]) => {
+    try {
+      if (items.length === 0) throw new Error("No items to transfer");
+
+      for (const item of items) {
+        // 1. Decrement warehouse stock
+        const { data: sourceData, error: sErr } = await supabase.from('accessories').select('quantity, vehicle_model, name, accessory_code, price, cgst_percent, sgst_percent').eq('id', item.id).single();
+        if (sErr || !sourceData) throw new Error(`Could not find accessory ${item.name}`);
+        if (sourceData.quantity < item.quantity) throw new Error(`Insufficient stock for ${item.name}`);
+
+        await supabase.from('accessories').update({ quantity: sourceData.quantity - item.quantity }).eq('id', item.id);
+
+        // 2. Increment/Create target counter stock
+        const { data: targetData } = await supabase.from('accessories')
+          .select('id, quantity')
+          .eq('counter_id', targetCounterId)
+          .eq('vehicle_model', sourceData.vehicle_model)
+          .eq('name', sourceData.name)
+          .maybeSingle();
+
+        if (targetData) {
+          await supabase.from('accessories').update({ quantity: targetData.quantity + item.quantity }).eq('id', targetData.id);
+        } else {
+          await supabase.from('accessories').insert([{
+            counter_id: targetCounterId,
+            vehicle_model: sourceData.vehicle_model,
+            name: sourceData.name,
+            accessory_code: sourceData.accessory_code,
+            price: sourceData.price,
+            cgst_percent: sourceData.cgst_percent,
+            sgst_percent: sourceData.sgst_percent,
+            quantity: item.quantity
+          }]);
+        }
+      }
+
+      toast.success("Transfer completed successfully!");
+      fetchProfileAndData(false);
+      return true;
+    } catch (error: any) {
+      toast.error(error.message || "Failed to complete transfer");
+      return false;
+    }
+  };
+
   return {
     profile,
     assignedCounters,
+    assignedWarehouses,
     inventory,
     bills,
     salesReport,
     inventoryReport,
     amountCollectedReport,
     loading,
-    refreshData: fetchProfileAndData,
-    updateBillStatus
+    updateBillStatus,
+    executeTransfer,
+    fetchProfileAndData
   };
 }

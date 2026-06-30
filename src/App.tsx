@@ -7,6 +7,7 @@ import { CounterDashboard } from './pages/CounterDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { TeamLeadDashboard } from './pages/TeamLeadDashboard';
 import { CashierDashboard } from './pages/CashierDashboard';
+import { WarehouseDashboard } from './pages/WarehouseDashboard';
 import { Toaster } from 'sonner';
 
 // Protected Route Component
@@ -38,6 +39,7 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
       if (profile.role === 'admin') return <Navigate to="/admin" replace />;
       if (profile.role === 'team_lead') return <Navigate to="/teamlead" replace />;
       if (profile.role === 'cashier') return <Navigate to="/cashier" replace />;
+      if (profile.role === 'warehouse') return <Navigate to="/warehouse" replace />;
       return <Navigate to="/counter" replace />;
     }
   }
@@ -84,6 +86,12 @@ function App() {
                   <CashierDashboard />
                 </ProtectedRoute>
               } />
+
+              <Route path="warehouse" element={
+                <ProtectedRoute allowedRoles={['warehouse']}>
+                  <WarehouseDashboard />
+                </ProtectedRoute>
+              } />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -100,6 +108,7 @@ function RedirectToDashboard() {
   if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
   if (profile?.role === 'team_lead') return <Navigate to="/teamlead" replace />;
   if (profile?.role === 'cashier') return <Navigate to="/cashier" replace />;
+  if (profile?.role === 'warehouse') return <Navigate to="/warehouse" replace />;
   return <Navigate to="/counter" replace />;
 }
 

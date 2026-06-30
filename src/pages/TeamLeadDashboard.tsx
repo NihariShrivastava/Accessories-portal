@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useAuth } from '../components/auth-provider';
 import { useTeamLeadData } from '../hooks/useTeamLeadData';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
-import { ReportsView, BillsView, TeamLeadInventoryView, TeamLeadApprovalView } from '../components/dashboard/sub-views/AdminSubViews';
-import { Store, Package, BarChart3, ReceiptText } from 'lucide-react';
+import { ReportsView, BillsView, TeamLeadInventoryView, TeamLeadApprovalView, TeamLeadTransferView } from '../components/dashboard/sub-views/AdminSubViews';
+import { Store, Package, BarChart3, ReceiptText, ArrowLeftRight } from 'lucide-react';
 import type { SalesReport, CounterBill } from '../hooks/useAdminData';
 import { BillReceipt } from '../components/dashboard/BillReceipt';
 
@@ -11,17 +11,19 @@ export function TeamLeadDashboard() {
   const { user, loading: authLoading } = useAuth();
   const { 
     profile, 
-    assignedCounters, 
+    assignedCounters,
+    assignedWarehouses,
     inventory, 
     bills, 
     salesReport, 
     inventoryReport, 
     amountCollectedReport,
     loading,
-    updateBillStatus
+    updateBillStatus,
+    executeTransfer
   } = useTeamLeadData(user);
 
-  const [activeView, setActiveView] = useState<'dashboard' | 'reports' | 'bills' | 'inventory' | 'approvals'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'reports' | 'bills' | 'inventory' | 'approvals' | 'transfer'>('dashboard');
   const [selectedCounterId, setSelectedCounterId] = useState('');
   const [selectedCounterName, setSelectedCounterName] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -88,9 +90,19 @@ export function TeamLeadDashboard() {
         onViewBill={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
       />
     );
+  } else if (activeView === 'transfer') {
+    content = (
+      <TeamLeadTransferView
+        warehouses={assignedWarehouses || []}
+        counters={assignedCounters}
+        inventory={inventory}
+        onBack={() => setActiveView('dashboard')}
+        onExecuteTransfer={executeTransfer}
+      />
+    );
   } else {
     content = (
-      <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="space-y-6">
         <div className="flex flex-col items-center justify-center py-4 space-y-1">
           <div className="flex items-center gap-2 text-primary/60">
             <Store className="w-5 h-5" />
@@ -117,7 +129,7 @@ export function TeamLeadDashboard() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               <DashboardCard 
                 icon={Store} 
                 label="Assigned Counters" 
@@ -144,6 +156,13 @@ export function TeamLeadDashboard() {
                 value={bills.filter(b => b.approval_status === 'pending').length} 
                 onClick={() => setActiveView('approvals')} 
                 colorClass="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" 
+              />
+              <DashboardCard 
+                icon={ArrowLeftRight} 
+                label="Transfer Stock" 
+                value={(assignedWarehouses || []).length} 
+                onClick={() => setActiveView('transfer')} 
+                colorClass="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400" 
               />
             </div>
           </>

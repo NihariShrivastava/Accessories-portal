@@ -4,11 +4,12 @@ import { ViewHeader } from '../../ViewHeader';
 import { Badge } from '../../Badge';
 import { MultiSelectDropdown } from '../../MultiSelectDropdown';
 import { Users, UserPlus, Save, X, Trash2 } from 'lucide-react';
-import type { TeamLead, Counter } from '../../../../hooks/useAdminData';
+import type { TeamLead, Counter, Warehouse } from '../../../../hooks/useAdminData';
 
 export const ManageTeamLeadsView = ({
   data,
   counters,
+  warehouses,
   onBack,
   onAddTeamLead,
   onUpdate,
@@ -16,20 +17,22 @@ export const ManageTeamLeadsView = ({
 }: {
   data: TeamLead[],
   counters: Counter[],
+  warehouses: Warehouse[],
   onBack: () => void,
   onAddTeamLead: () => void,
   onUpdate: (id: string, updates: any) => void,
   onDelete: (id: string) => void
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<{ username: string, password: string, assigned_counters: string[] }>({ username: '', password: '', assigned_counters: [] });
+  const [editForm, setEditForm] = useState<{ username: string, password: string, assigned_counters: string[], assigned_warehouses: string[] }>({ username: '', password: '', assigned_counters: [], assigned_warehouses: [] });
 
   const startEdit = (tl: TeamLead) => {
     setEditingId(tl.id);
     setEditForm({
       username: tl.username || '',
       password: tl.password || '',
-      assigned_counters: tl.assigned_counters || []
+      assigned_counters: tl.assigned_counters || [],
+      assigned_warehouses: tl.assigned_warehouses || []
     });
   };
 
@@ -55,7 +58,7 @@ export const ManageTeamLeadsView = ({
         </button>
       </div>
 
-      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-visible">
         <DataTable<TeamLead>
           idAccessor="id"
           data={data}
@@ -98,6 +101,30 @@ export const ManageTeamLeadsView = ({
                     c.assigned_counters.map(id => {
                       const counter = counters.find(ctr => ctr.id === id);
                       return <Badge key={id} variant="secondary">{counter ? counter.name : 'Unknown'}</Badge>;
+                    })
+                  ) : (
+                    <span className="text-muted-foreground text-xs">None</span>
+                  )}
+                </div>
+              )
+            },
+            {
+              header: 'Assigned Warehouses',
+              accessor: (c) => editingId === c.id ? (
+                <div className="min-w-[200px]">
+                  <MultiSelectDropdown 
+                    options={warehouses.map(w => ({ id: w.id, name: w.name }))}
+                    selectedIds={editForm.assigned_warehouses}
+                    onChange={(ids) => setEditForm(prev => ({ ...prev, assigned_warehouses: ids }))}
+                    placeholder="Assign warehouses..."
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-1 max-w-xs">
+                  {c.assigned_warehouses && c.assigned_warehouses.length > 0 ? (
+                    c.assigned_warehouses.map((id: string) => {
+                      const wh = warehouses.find(w => w.id === id);
+                      return <Badge key={id} variant="secondary">{wh ? wh.name : 'Unknown'}</Badge>;
                     })
                   ) : (
                     <span className="text-muted-foreground text-xs">None</span>
@@ -153,6 +180,7 @@ export const ManageTeamLeadsView = ({
               className: 'text-right'
             }
           ]}
+          overflowVisible={true}
         />
       </div>
     </div>

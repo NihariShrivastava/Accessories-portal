@@ -5,12 +5,13 @@ import { ViewHeader } from '../../ViewHeader';
 import { UserPlus } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { MultiSelectDropdown } from '../../MultiSelectDropdown';
-import type { Counter } from '../../../../hooks/useAdminData';
+import type { Counter, Warehouse } from '../../../../hooks/useAdminData';
 
-export const AddTeamLeadView = ({ counters, onBack }: { counters: Counter[], onBack: () => void }) => {
+export const AddTeamLeadView = ({ counters, warehouses, onBack }: { counters: Counter[], warehouses: Warehouse[], onBack: () => void }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [assignedCounters, setAssignedCounters] = useState<string[]>([]);
+  const [assignedWarehouses, setAssignedWarehouses] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -48,7 +49,8 @@ export const AddTeamLeadView = ({ counters, onBack }: { counters: Counter[], onB
             username,
             password,
             role: 'team_lead',
-            assigned_counters: assignedCounters
+            assigned_counters: assignedCounters,
+            assigned_warehouses: assignedWarehouses
           });
 
         if (profileError) {
@@ -60,6 +62,7 @@ export const AddTeamLeadView = ({ counters, onBack }: { counters: Counter[], onB
       setUsername('');
       setPassword('');
       setAssignedCounters([]);
+      setAssignedWarehouses([]);
       onBack();
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -107,6 +110,16 @@ export const AddTeamLeadView = ({ counters, onBack }: { counters: Counter[], onB
               selectedIds={assignedCounters}
               onChange={setAssignedCounters}
               placeholder="Click to assign counters..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Assign Warehouses</label>
+            <MultiSelectDropdown 
+              options={warehouses.map(w => ({ id: w.id, name: w.name }))}
+              selectedIds={assignedWarehouses}
+              onChange={setAssignedWarehouses}
+              placeholder="Click to assign warehouses..."
             />
           </div>
 
