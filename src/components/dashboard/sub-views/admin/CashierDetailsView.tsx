@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../../lib/supabase';
 import { ViewHeader } from '../../ViewHeader';
-import { ChevronLeft, ChevronRight, Clock, Check, UserCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Check, UserCircle, Download } from 'lucide-react';
 import type { CashierReport } from '../../../../hooks/useAdminData';
+import { exportToExcel } from '../../../../utils/exportToExcel';
+import { toast } from 'sonner';
 
 export const CashierDetailsView = ({
   cashierReport, onBack
@@ -70,6 +72,70 @@ export const CashierDetailsView = ({
   const bankTransfersList = transactions.filter(t => t.transaction_type === 'bank_transfer' && t.status === 'approved');
   const refundsList = transactions.filter(t => t.transaction_type === 'refund' && t.status === 'approved');
 
+  const handleExportTab = () => {
+    let exportData: any[] = [];
+    let filename = '';
+
+    if (tableTab === 'pending') {
+      exportData = pendingHandovers.map(t => ({
+        'Counter Name': t.counter_name,
+        'ID': t.id.split('-')[0],
+        'Type': 'Cashier Transfer',
+        'Amount (₹)': t.amount,
+        'Status': 'PENDING',
+        'Date': new Date(t.created_at).toLocaleString()
+      }));
+      filename = 'Pending_Handovers';
+    } else if (tableTab === 'approved') {
+      exportData = approvedHandovers.map(t => ({
+        'Counter Name': t.counter_name,
+        'ID': t.id.split('-')[0],
+        'Type': 'Cashier Transfer',
+        'Amount (₹)': t.amount,
+        'Status': 'APPROVED',
+        'Date': new Date(t.created_at).toLocaleString()
+      }));
+      filename = 'Approved_Handovers';
+    } else if (tableTab === 'expenses') {
+      exportData = expensesList.map(t => ({
+        'Counter/Desk': t.counter_name || 'Cashier Desk',
+        'ID': t.id.split('-')[0],
+        'Category': t.category || t.details || 'N/A',
+        'Amount (₹)': t.amount,
+        'Status': 'DEDUCTED',
+        'Date': new Date(t.created_at).toLocaleString()
+      }));
+      filename = 'Expenses';
+    } else if (tableTab === 'bank') {
+      exportData = bankTransfersList.map(t => ({
+        'Bank Name': t.bank_name || 'Bank Transfer',
+        'ID': t.id.split('-')[0],
+        'Account Number': t.account_number || 'N/A',
+        'IFSC': t.ifsc_code || 'N/A',
+        'Amount (₹)': t.amount,
+        'Status': 'TRANSFERRED',
+        'Date': new Date(t.created_at).toLocaleString()
+      }));
+      filename = 'Bank_Transfers';
+    } else if (tableTab === 'refunds') {
+      exportData = refundsList.map(t => ({
+        'Counter/Desk': t.counter_name || 'Cashier Desk',
+        'ID': t.id.split('-')[0],
+        'Details': t.details || 'N/A',
+        'Amount (₹)': t.amount,
+        'Status': 'DEDUCTED',
+        'Date': new Date(t.created_at).toLocaleString()
+      }));
+      filename = 'Refunds';
+    }
+
+    if (exportData.length > 0) {
+      exportToExcel(exportData, `Cashier_${cashierReport.cashier_name.replace(/\s+/g, '_')}_${filename}`);
+    } else {
+      toast.error('No data to export');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <ViewHeader 
@@ -86,17 +152,31 @@ export const CashierDetailsView = ({
 
         {/* Tabs Arrow Slider View */}
         <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between bg-muted p-2 rounded-lg border border-border max-w-[400px] mx-auto">
-            <button onClick={handlePrevTab} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-background/50 rounded transition-colors">
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <div className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-primary text-center flex-1">
-              {tabsList.find(t => t.id === tableTab)?.label} {tabsList.find(t => t.id === tableTab)?.count !== undefined && `(${tabsList.find(t => t.id === tableTab)?.count})`}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex-1" /> {/* Spacer */}
+            
+            <div className="flex items-center justify-between bg-muted p-2 rounded-lg border border-border w-full max-w-[400px]">
+              <button onClick={handlePrevTab} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-background/50 rounded transition-colors">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-primary text-center flex-1">
+                {tabsList.find(t => t.id === tableTab)?.label} {tabsList.find(t => t.id === tableTab)?.count !== undefined && `(${tabsList.find(t => t.id === tableTab)?.count})`}
+              </div>
+              <button onClick={handleNextTab} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-background/50 rounded transition-colors">
+                <ChevronRight className="w-5 h-5" />
+              </button>
             </div>
-            <button onClick={handleNextTab} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-background/50 rounded transition-colors">
-              <ChevronRight className="w-5 h-5" />
-            </button>
+            
+            <div className="flex-1 flex justify-end w-full md:w-auto">
+              <button 
+                onClick={handleExportTab} 
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-500 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 hover:text-emerald-800 dark:hover:text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-95 whitespace-nowrap shadow-sm"
+              >
+                <Download className="w-4 h-4" /> Export List
+              </button>
+            </div>
           </div>
+          
           <div className="flex justify-center gap-1.5 mt-3">
             {tabsList.map((tab) => (
               <div 

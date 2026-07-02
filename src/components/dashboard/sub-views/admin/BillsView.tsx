@@ -3,8 +3,9 @@ import { DataTable } from '../../DataTable';
 import { ViewHeader } from '../../ViewHeader';
 import { Badge } from '../../Badge';
 import { DateRangeFilter } from '../../DateRangeFilter';
-import { History, Package, Car, IndianRupee, X } from 'lucide-react';
+import { History, Package, Car, IndianRupee, X, Download } from 'lucide-react';
 import type { CounterBill } from '../../../../hooks/useAdminData';
+import { exportToExcel } from '../../../../utils/exportToExcel';
 
 export const BillsView = ({
   counterName, data, onBack, onRowClick, onViewBillReceipt, onRevertBill, startDate, endDate, setStartDate, setEndDate
@@ -35,7 +36,32 @@ export const BillsView = ({
 
   return (
     <div className="space-y-6">
-      <ViewHeader title={`Bills for: ${counterName}`} onBack={onBack} backLabel="Back to Reports" icon={History} />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <ViewHeader title={`Bills for: ${counterName}`} onBack={onBack} backLabel="Back to Reports" icon={History} />
+        <button 
+          onClick={() => {
+            const exportData = filteredData.map(b => ({
+              'Bill No.': b.bill_number || '-',
+              'Date': new Date(b.created_at).toLocaleDateString(),
+              'Accessories': b.items && b.items.length > 1 ? `${b.items.length} Accessories` : (b.accessory_name || 'Unknown'),
+              'Model': b.vehicle_model || '-',
+              'Total Qty': b.quantity,
+              'Payment Method': b.payment_method || 'Cash',
+              'Total Amount (₹)': b.total_amount,
+              'Paid (₹)': b.amount_paid ?? b.total_amount,
+              'Balance (₹)': b.amount_left ?? 0
+            }));
+            if (exportData.length > 0) {
+              exportToExcel(exportData, `Counter_${counterName.replace(/\s+/g, '_')}_Bills_Report`);
+            } else {
+              alert('No bills to export');
+            }
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-500 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 hover:text-emerald-800 dark:hover:text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-95 whitespace-nowrap shadow-sm w-fit"
+        >
+          <Download className="w-4 h-4" /> Export Report
+        </button>
+      </div>
 
       <div className="bg-card rounded-xl border border-border shadow-sm p-4 space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

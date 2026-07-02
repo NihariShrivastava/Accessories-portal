@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { DataTable } from '../../DataTable';
 import { ViewHeader } from '../../ViewHeader';
 import { Badge } from '../../Badge';
-import { BarChart3, ChevronLeft, ChevronRight, History, IndianRupee, Package, X, Save, Users } from 'lucide-react';
+import { BarChart3, ChevronLeft, ChevronRight, History, IndianRupee, Package, X, Save, Users, Download } from 'lucide-react';
 import type { SalesReport, InventoryItem, InventorySummary, CashierReport, AmountCollectedReport, TeamLeadReport } from '../../../../hooks/useAdminData';
 import { AmountCollectedDialog } from './AmountCollectedDialog';
+import { exportToExcel } from '../../../../utils/exportToExcel';
 
 export const ReportsView = ({
   data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick
@@ -33,21 +34,86 @@ export const ReportsView = ({
   const goNext = () => { setExpandedCounter(null); setCurrentSlide((prev) => (prev + 1) % totalSlides); };
   const goPrev = () => { setExpandedCounter(null); setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides); };
 
+  const handleExportSlide = () => {
+    const currentSlideName = slideNames[currentSlide];
+    
+    if (currentSlideName === 'Ledger') {
+      const exportData = filteredData.map(r => ({
+        'Counter Name': r.counter_name,
+        'Total Bills': r.total_bills,
+        'Receivable Amt (Debit) ₹': r.total_sales,
+        'Paid (Credit) ₹': r.total_collected,
+        'Outstanding (₹)': r.outstanding
+      }));
+      exportToExcel(exportData, 'Ledger_Report');
+    } else if (currentSlideName === 'Revenue Report') {
+      const exportData = filteredData.map(r => ({
+        'Counter Name': r.counter_name,
+        'Total Bills': r.total_bills,
+        'Total Items Sold': r.total_items,
+        'Revenue Generated (₹)': r.total_sales
+      }));
+      exportToExcel(exportData, 'Revenue_Report');
+    } else if (currentSlideName === 'Inventory Report') {
+      const exportData = filteredInventoryReport.map(r => ({
+        'Counter Name': r.counter_name,
+        'Surplus Count': r.surplus_count,
+        'Shortage Count': r.shortage_count
+      }));
+      exportToExcel(exportData, 'Inventory_Summary_Report');
+    } else if (currentSlideName === 'Amount Collected') {
+      const exportData = (selectedCounterFilter === 'all' ? amountCollectedReport : amountCollectedReport.filter(r => r.counter_id === selectedCounterFilter)).map(r => ({
+        'Counter Name': r.counter_name,
+        'Cash Collected (₹)': r.cash_collected,
+        'UPI Collected (₹)': r.upi_collected,
+        'Card Collected (₹)': r.card_collected,
+        'Bank Transfer Collected (₹)': r.bank_transfer_collected
+      }));
+      exportToExcel(exportData, 'Amount_Collected_Report');
+    } else if (currentSlideName === 'Team Lead Report' && teamLeadReports) {
+      const exportData = teamLeadReports.map(r => ({
+        'Team Lead': r.team_lead_name,
+        'Counters Assigned Count': r.assigned_counters_count,
+        'Counters Assigned Names': r.assigned_counters_names.join(', '),
+        'Pending Approvals': r.pending_approvals,
+        'Approved Approvals': r.approved_approvals
+      }));
+      exportToExcel(exportData, 'Team_Lead_Report');
+    } else if (currentSlideName === 'Cashier Report' && cashierReports) {
+      const exportData = cashierReports.map(r => ({
+        'Cashier Name': r.cashier_name,
+        'Total Cash Collected (₹)': r.total_cash_collected,
+        'Pending Handover (₹)': r.pending_handover,
+        'Approved Handover (₹)': r.approved_handover,
+        'Drawer Cash Balance (₹)': r.drawer_balance
+      }));
+      exportToExcel(exportData, 'Cashier_Report');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <ViewHeader title="System Reports" onBack={onBack} icon={BarChart3} />
-        <div className="w-full sm:w-64">
-          <select
-            className="w-full px-4 py-2 bg-card border border-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary text-sm font-medium"
-            value={selectedCounterFilter}
-            onChange={(e) => setSelectedCounterFilter(e.target.value)}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+          <button 
+            onClick={handleExportSlide}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-500 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 hover:text-emerald-800 dark:hover:text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-95 shadow-sm whitespace-nowrap"
           >
-            <option value="all">All Counters</option>
-            {uniqueCounters.map(c => (
-              <option key={c.counter_id} value={c.counter_id}>{c.counter_name}</option>
-            ))}
-          </select>
+            <Download className="w-4 h-4" /> Export Slide
+          </button>
+          <div className="w-full sm:w-64">
+            <select
+              className="w-full px-4 py-2 bg-card border border-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary text-sm font-medium transition-shadow"
+              value={selectedCounterFilter}
+              onChange={(e) => setSelectedCounterFilter(e.target.value)}
+            >
+              <option value="all">All Counters</option>
+              {uniqueCounters.map(c => (
+                <option key={c.counter_id} value={c.counter_id}>{c.counter_name}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -171,7 +237,22 @@ export const ReportsView = ({
 
                       {/* Expanded Content */}
                       <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[800px] border-b border-border bg-muted/20' : 'max-h-0'}`}>
-                        <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-500">
+                        <div className="px-6 pt-4 flex justify-end">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const exportData = [
+                                ...shortage.map(i => ({ 'Accessory Name': i.name, 'Model': i.vehicle_model, 'Quantity': i.quantity, 'Status': 'Shortage' })),
+                                ...surplus.map(i => ({ 'Accessory Name': i.name, 'Model': i.vehicle_model, 'Quantity': i.quantity, 'Status': 'Surplus' }))
+                              ];
+                              if (exportData.length > 0) exportToExcel(exportData, `Counter_${r.counter_name.replace(/\s+/g, '_')}_Stock_Report`);
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-500 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 hover:text-emerald-800 dark:hover:text-emerald-400 text-[10px] font-bold uppercase tracking-wider rounded transition-all active:scale-95 shadow-sm whitespace-nowrap"
+                          >
+                            <Download className="w-3 h-3" /> Export Stock
+                          </button>
+                        </div>
+                        <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-500 pt-2">
                           {/* Shortage Section */}
                           <div className="space-y-3">
                             <h4 className="text-xs font-black uppercase tracking-widest text-destructive flex items-center gap-2">

@@ -2,9 +2,10 @@ import { useMemo } from 'react';
 import { DataTable } from '../../DataTable';
 import { ViewHeader } from '../../ViewHeader';
 import { Badge } from '../../Badge';
-import { Package } from 'lucide-react';
+import { Package, Download } from 'lucide-react';
 import type { InventoryItem } from '../../../../hooks/useAdminData';
 import type { Column } from '../../DataTable';
+import { exportToExcel } from '../../../../utils/exportToExcel';
 
 
 export const CounterInventoryDetailsView = ({
@@ -61,13 +62,30 @@ export const CounterInventoryDetailsView = ({
 
   return (
     <div className="space-y-6">
-      <ViewHeader
-        title={model ? `${model} Accessories` : `Inventory for ${counterName}`}
-        onBack={onBack}
-        backLabel="Back"
-        icon={Package}
-        description={`Viewing stock for ${model || 'all items'} at ${counterName}.`}
-      />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <ViewHeader
+          title={model ? `${model} Accessories` : `Inventory for ${counterName}`}
+          onBack={onBack}
+          backLabel="Back"
+          icon={Package}
+          description={`Viewing stock for ${model || 'all items'} at ${counterName}.`}
+        />
+        <button 
+          onClick={() => {
+            const exportData = data.map(i => ({
+              'Accessory Name': i.name,
+              'Model': i.vehicle_model,
+              'Code': i.accessory_code || '-',
+              'Stock Quantity': i.quantity,
+              'Price (₹)': i.price
+            }));
+            if (exportData.length > 0) exportToExcel(exportData, `${counterName.replace(/\s+/g, '_')}_Inventory`);
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-500 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 hover:text-emerald-800 dark:hover:text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-95 whitespace-nowrap shadow-sm w-fit"
+        >
+          <Download className="w-4 h-4" /> Export Report
+        </button>
+      </div>
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
         <DataTable<InventoryItem> idAccessor="id" data={data} columns={columns} />
       </div>
