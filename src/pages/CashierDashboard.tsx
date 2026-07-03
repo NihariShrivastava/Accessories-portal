@@ -1,10 +1,12 @@
+// src/pages/CashierDashboard.tsx
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../components/auth-provider';
 import { useCashierData } from '../hooks/useCashierData';
 
 import { toast } from 'sonner';
-import { UserCircle, RefreshCw, Check, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { UserCircle, RefreshCw, Check, Clock, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { MultiSelectDropdown } from '../components/dashboard/MultiSelectDropdown';
+import { exportToExcel } from '../utils/exportToExcel';
 
 export function CashierDashboard() {
   const { profile } = useAuth();
@@ -34,10 +36,8 @@ export function CashierDashboard() {
   // Initialize selected counters to all assigned counters when loaded
   useEffect(() => {
     if (assignedCounters.length > 0 && selectedCounters.length === 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedCounters(assignedCounters.map(c => c.id));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignedCounters]);
 
   const selectedCounterNames = useMemo(() => {
@@ -118,6 +118,70 @@ export function CashierDashboard() {
     fetchTransactions();
     fetchBills();
     toast.success('Data refreshed');
+  };
+
+  const handleExportTab = () => {
+    let exportData: any[] = [];
+    let filename = '';
+
+    if (tableTab === 'pending') {
+      exportData = pendingHandovers.map(t => ({
+        'Counter Name': t.counter_name,
+        'ID': t.id.split('-')[0],
+        'Type': 'Cashier Transfer',
+        'Amount (₹)': t.amount,
+        'Status': 'PENDING',
+        'Date': new Date(t.created_at).toLocaleString()
+      }));
+      filename = 'Pending_Handovers';
+    } else if (tableTab === 'approved') {
+      exportData = approvedHandovers.map(t => ({
+        'Counter Name': t.counter_name,
+        'ID': t.id.split('-')[0],
+        'Type': 'Cashier Transfer',
+        'Amount (₹)': t.amount,
+        'Status': 'APPROVED',
+        'Date': new Date(t.created_at).toLocaleString()
+      }));
+      filename = 'Approved_Handovers';
+    } else if (tableTab === 'expenses') {
+      exportData = expensesList.map(t => ({
+        'Counter/Desk': t.counter_name || 'Cashier Desk',
+        'ID': t.id.split('-')[0],
+        'Category': t.category || t.details || 'N/A',
+        'Amount (₹)': t.amount,
+        'Status': 'DEDUCTED',
+        'Date': new Date(t.created_at).toLocaleString()
+      }));
+      filename = 'Expenses';
+    } else if (tableTab === 'bank') {
+      exportData = bankTransfersList.map(t => ({
+        'Bank Name': t.bank_name || 'Bank Transfer',
+        'ID': t.id.split('-')[0],
+        'Account Number': t.account_number || 'N/A',
+        'IFSC': t.ifsc_code || 'N/A',
+        'Amount (₹)': t.amount,
+        'Status': 'TRANSFERRED',
+        'Date': new Date(t.created_at).toLocaleString()
+      }));
+      filename = 'Bank_Transfers';
+    } else if (tableTab === 'refunds') {
+      exportData = refundsList.map(t => ({
+        'Counter/Desk': t.counter_name || 'Cashier Desk',
+        'ID': t.id.split('-')[0],
+        'Details': t.details || 'N/A',
+        'Amount (₹)': t.amount,
+        'Status': 'DEDUCTED',
+        'Date': new Date(t.created_at).toLocaleString()
+      }));
+      filename = 'Refunds';
+    }
+
+    if (exportData.length > 0) {
+      exportToExcel(exportData, `Cashier_${profile?.name.replace(/\s+/g, '_')}_${filename}`);
+    } else {
+      toast.error('No data to export');
+    }
   };
 
   const handlePostDrawerAction = async () => {
@@ -205,7 +269,6 @@ export function CashierDashboard() {
             >
               <RefreshCw className="w-4 h-4" /> Refresh
             </button>
-
           </div>
         </div>
       </div>
@@ -265,26 +328,39 @@ export function CashierDashboard() {
 
             {/* Tabs Arrow Slider View */}
             <div className="p-4 border-b border-border">
-              <div className="flex items-center justify-between bg-muted p-2 rounded-lg border border-border max-w-[400px] mx-auto">
-                <button 
-                  onClick={handlePrevTab} 
-                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-background/50 rounded transition-colors"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <div className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-primary text-center flex-1">
-                  {tableTab === 'pending' && `Pending Handover (${pendingHandovers.length})`}
-                  {tableTab === 'approved' && `Approved Handover (${approvedHandovers.length})`}
-                  {tableTab === 'expenses' && `Expenses (${expensesList.length})`}
-                  {tableTab === 'bank' && `Bank Transfers (${bankTransfersList.length})`}
-                  {tableTab === 'refunds' && `Refunds (${refundsList.length})`}
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex-1" /> {/* Spacer */}
+                
+                <div className="flex items-center justify-between bg-muted p-2 rounded-lg border border-border w-full max-w-[400px]">
+                  <button 
+                    onClick={handlePrevTab} 
+                    className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-background/50 rounded transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <div className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-primary text-center flex-1">
+                    {tableTab === 'pending' && `Pending Handover (${pendingHandovers.length})`}
+                    {tableTab === 'approved' && `Approved Handover (${approvedHandovers.length})`}
+                    {tableTab === 'expenses' && `Expenses (${expensesList.length})`}
+                    {tableTab === 'bank' && `Bank Transfers (${bankTransfersList.length})`}
+                    {tableTab === 'refunds' && `Refunds (${refundsList.length})`}
+                  </div>
+                  <button 
+                    onClick={handleNextTab} 
+                    className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-background/50 rounded transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
                 </div>
-                <button 
-                  onClick={handleNextTab} 
-                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-background/50 rounded transition-colors"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
+                
+                <div className="flex-1 flex justify-end w-full md:w-auto">
+                  <button 
+                    onClick={handleExportTab} 
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-500 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 hover:text-emerald-800 dark:hover:text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-95 whitespace-nowrap shadow-sm"
+                  >
+                    <Download className="w-4 h-4" /> Export List
+                  </button>
+                </div>
               </div>
               
               <div className="flex justify-center gap-1.5 mt-3">
@@ -373,11 +449,7 @@ export function CashierDashboard() {
                           <div className="text-muted-foreground mt-0.5">{new Date(t.created_at).toLocaleString()}</div>
                         </td>
                         <td className="px-4 py-4 text-sm font-bold text-foreground">₹{t.amount.toLocaleString()}</td>
-                        <td className="px-4 py-4">
-                          <span className="px-2 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded text-[10px] font-bold tracking-wider flex items-center gap-1 w-max uppercase">
-                            DEDUCTED
-                          </span>
-                        </td>
+                        <td className="px-4 py-4"><span className="px-2 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded text-[10px] font-bold tracking-wider flex items-center gap-1 w-max uppercase">DEDUCTED</span></td>
                       </tr>
                     ))}
 
@@ -397,11 +469,7 @@ export function CashierDashboard() {
                           <div className="text-muted-foreground mt-0.5">{new Date(t.created_at).toLocaleString()}</div>
                         </td>
                         <td className="px-4 py-4 text-sm font-bold text-foreground">₹{t.amount.toLocaleString()}</td>
-                        <td className="px-4 py-4">
-                          <span className="px-2 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 rounded text-[10px] font-bold tracking-wider flex items-center gap-1 w-max uppercase">
-                            TRANSFERRED
-                          </span>
-                        </td>
+                        <td className="px-4 py-4"><span className="px-2 py-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 rounded text-[10px] font-bold tracking-wider flex items-center gap-1 w-max uppercase">TRANSFERRED</span></td>
                       </tr>
                     ))}
 
@@ -420,11 +488,7 @@ export function CashierDashboard() {
                         <div className="text-muted-foreground mt-0.5">{new Date(t.created_at).toLocaleString()}</div>
                       </td>
                       <td className="px-4 py-4 text-sm font-bold text-foreground">₹{t.amount.toLocaleString()}</td>
-                      <td className="px-4 py-4">
-                        <span className="px-2 py-1 bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded text-[10px] font-bold tracking-wider flex items-center gap-1 w-max uppercase">
-                          DEDUCTED
-                        </span>
-                      </td>
+                      <td className="px-4 py-4"><span className="px-2 py-1 bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded text-[10px] font-bold tracking-wider flex items-center gap-1 w-max uppercase">DEDUCTED</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -555,7 +619,7 @@ export function CashierDashboard() {
               )}
 
               <div>
-                <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 ml-1">Settle Amount (INR)</label>
+                <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider ml-1 mb-1">Settle Amount (INR)</label>
                 <input 
                   type="number" 
                   placeholder="0"

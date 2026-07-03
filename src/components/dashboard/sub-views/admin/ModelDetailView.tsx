@@ -1,9 +1,11 @@
+// src/components/dashboard/sub-views/admin/ModelDetailView.tsx
 import { useMemo } from 'react';
 import { DataTable, type Column } from '../../DataTable';
 import { ViewHeader } from '../../ViewHeader';
 import { Badge } from '../../Badge';
-import { Package } from 'lucide-react';
+import { Package, Download } from 'lucide-react';
 import type { ModelAccessory } from '../../../../hooks/useAdminData';
+import { exportToExcel } from '../../../../utils/exportToExcel';
 
 export const ModelDetailView = ({
   model,
@@ -57,7 +59,24 @@ export const ModelDetailView = ({
 
   return (
     <div className="space-y-6">
-      <ViewHeader title={`Accessories for: ${model}`} onBack={onBack} backLabel="Back to Models" icon={Package} />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <ViewHeader title={`Accessories for: ${model}`} onBack={onBack} backLabel="Back to Models" icon={Package} />
+        <button 
+          onClick={() => {
+            const exportData = data.map(a => ({
+              'Accessory Name': a.name,
+              'Code': a.accessory_code || '-',
+              'Counter': a.counter_name,
+              'Quantity': a.quantity,
+              'Price (₹)': a.price
+            }));
+            if (exportData.length > 0) exportToExcel(exportData, `Model_${model.replace(/\s+/g, '_')}_Inventory`);
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-500 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 hover:text-emerald-800 dark:hover:text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-95 whitespace-nowrap shadow-sm w-fit"
+        >
+          <Download className="w-4 h-4" /> Export Report
+        </button>
+      </div>
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
         <DataTable<ModelAccessory> idAccessor={(a) => `${a.name}-${a.counter_name}`} data={data} columns={columns} />
       </div>

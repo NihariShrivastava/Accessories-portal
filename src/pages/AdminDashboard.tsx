@@ -1,7 +1,7 @@
+// src/pages/AdminDashboard.tsx
 import { useState, useRef, useMemo, useCallback } from 'react';
 import { Upload, Users, Package, FileSpreadsheet, BarChart3, ShoppingCart, ArrowLeftRight, Plus, Trash2, ChevronRight, History } from 'lucide-react';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
-
 
 import { useAdminData } from '../hooks/useAdminData';
 import type { InventoryItem, CounterBill, SalesReport, TeamLeadReport } from '../hooks/useAdminData';
@@ -104,7 +104,6 @@ export function AdminDashboard() {
     setTransferMode('type');
     setTransferForm({ targetCounterId: '', quantity: 0 });
   };
-
 
   let content;
   if (activeView === 'logins' || activeView === 'logins-team-leads' || activeView === 'logins-cashiers' || activeView === 'logins-warehouses') {
@@ -486,14 +485,23 @@ export function AdminDashboard() {
             <div className="space-y-4">
               {transferMode === 'single' && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Target Counter</label>
+                  <label className="block text-sm font-medium mb-1">Target Destination</label>
                   <select 
                     className="w-full px-3 py-2 bg-input border rounded-md" 
                     value={transferForm.targetCounterId} 
                     onChange={(e) => setTransferForm(prev => ({ ...prev, targetCounterId: e.target.value }))}
                   >
-                    <option value="" className="bg-background text-foreground">-- Select Destination Counter --</option>
-                    {counters.filter(c => c.id !== transferringItem?.counter_id).map(c => <option key={c.id} value={c.id} className="bg-background text-foreground font-medium">{c.name}</option>)}
+                    <option value="" className="bg-background text-foreground">-- Select Destination --</option>
+                    {counters.length > 0 && (
+                      <optgroup label="Counters" className="bg-muted text-muted-foreground font-bold">
+                        {counters.filter(c => c.id !== transferringItem?.counter_id).map(c => <option key={c.id} value={c.id} className="bg-background text-foreground font-medium">{c.name}</option>)}
+                      </optgroup>
+                    )}
+                    {warehouses && warehouses.length > 0 && (
+                      <optgroup label="Warehouses" className="bg-muted text-muted-foreground font-bold">
+                        {warehouses.filter(w => w.id !== transferringItem?.counter_id).map(w => <option key={w.id} value={w.id} className="bg-background text-foreground font-medium">{w.name}</option>)}
+                      </optgroup>
+                    )}
                   </select>
                 </div>
               )}
@@ -566,8 +574,17 @@ export function AdminDashboard() {
                     value={cartTargetCounterId}
                     onChange={(e) => setCartTargetCounterId(e.target.value)}
                   >
-                    <option value="" className="bg-background text-foreground">-- Select Destination Counter --</option>
-                    {counters.map(c => <option key={c.id} value={c.id} className="bg-background text-foreground font-medium">{c.name}</option>)}
+                    <option value="" className="bg-background text-foreground">-- Select Destination --</option>
+                    {counters.length > 0 && (
+                      <optgroup label="Counters" className="bg-muted text-muted-foreground font-bold">
+                        {counters.map(c => <option key={c.id} value={c.id} className="bg-background text-foreground font-medium">{c.name}</option>)}
+                      </optgroup>
+                    )}
+                    {warehouses && warehouses.length > 0 && (
+                      <optgroup label="Warehouses" className="bg-muted text-muted-foreground font-bold">
+                        {warehouses.map(w => <option key={w.id} value={w.id} className="bg-background text-foreground font-medium">{w.name}</option>)}
+                      </optgroup>
+                    )}
                   </select>
                 </div>
 
