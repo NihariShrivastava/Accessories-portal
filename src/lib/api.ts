@@ -15,7 +15,8 @@ export const api = {
     let data: any = {};
     try { data = await response.json(); } catch (e) { /* ignore empty body */ }
     
-    if (response.status === 401) {
+    // Fix: Only auto-redirect to /login if the 401 is NOT from the login endpoint itself
+    if (response.status === 401 && !endpoint.includes('/auth/login')) {
       sessionStorage.removeItem('portal_token');
       sessionStorage.removeItem('portal_user');
       window.location.href = '/login';
