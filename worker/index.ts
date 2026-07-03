@@ -40,9 +40,9 @@ app.post('/auth/login', async (c) => {
   const pool = new Pool({ connectionString: c.env.NEON_DATABASE_URL });
 
   try {
-    // Select all assigned counters and warehouses for session populating
+    // Fix: Use LOWER() on both sides to handle uppercase/lowercase usernames
     const { rows } = await pool.query(
-      'SELECT id, name, role, username, password, assigned_counters, assigned_warehouses FROM profiles WHERE username = $1 LIMIT 1', 
+      'SELECT id, name, role, username, password, assigned_counters, assigned_warehouses FROM profiles WHERE LOWER(username) = LOWER($1) LIMIT 1', 
       [username]
     );
     const user = rows[0];
