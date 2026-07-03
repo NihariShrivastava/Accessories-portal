@@ -1,7 +1,6 @@
 // src/hooks/useCashierData.ts
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
-import { useAuth } from '../components/auth-provider';
 import { toast } from 'sonner';
 import type { Bill } from './useCounterData';
 
@@ -21,51 +20,56 @@ export type DrawerTransaction = {
 };
 
 export function useCashierData() {
-  const { profile } = useAuth();
+  const [cashierProfile, setCashierProfile] = useState<any>(null);
   const [assignedCounters, setAssignedCounters] = useState<{id: string, name: string}[]>([]);
   const [transactions, setTransactions] = useState<DrawerTransaction[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchAssignedCounters = useCallback(async () => {
-    if (!profile?.assigned_counters?.length) return;
-    try {
-      const data = await api.fetch('/api/protected/profiles/list', {
-        method: 'POST',
-        body: JSON.stringify({ ids: profile.assigned_counters })
-      });
-      setAssignedCounters(data || []);
-    } catch (error) { console.error('Error fetching assigned counters:', error); }
-  }, [profile]);
-
-  const fetchTransactions = useCallback(async () => {
-    if (!profile?.assigned_counters?.length) return;
+  const fetchProfileAndData = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await api.fetch('/api/protected/drawer_transactions/list', {
-        method: 'POST',
-        body: JSON.stringify({ counter_ids: [...profile.assigned_counters, profile.id] })
-      });
-      setTransactions(data || []);
-    } catch (error) { console.error('Error fetching transactions:', error); } finally { setLoading(false); }
-  }, [profile]);
+      const prof = await api.fetch('/api/protected/profiles/me');
+      setCashierProfile(prof);
+      
+      const counterIds: string[] = prof?.assigned_counters || [];
+      if (counterIds.length === 0) {
+        setAssignedCounters([]);
+        setTransactions([]);
+        setBills([]);
+        return;
+      }
 
-  const fetchBills = useCallback(async () => {
-    if (!profile?.assigned_counters?.length) return;
-    try {
-      const data = await api.fetch('/api/protected/bills/list', {
+      // Fetch counter profile names
+      const countersData = await api.fetch('/api/protected/profiles/list', {
         method: 'POST',
-        body: JSON.stringify({ counter_ids: profile.assigned_counters })
+        body: JSON.stringify({ ids: counterIds })
       });
-      setBills(data || []);
-    } catch (error) { console.error('Error fetching bills:', error); }
-  }, [profile]);
+      setAssignedCounters(countersData || []);
+
+      // Fetch consolidated drawer transactions (counters + cashier self transactions)
+      const transData = await api.fetch('/api/protected/drawer_transactions/list', {
+        method: 'POST',
+        body: JSON.stringify({ counter_ids: [...counterIds, prof.id] })
+      });
+      setTransactions(transData || []);
+
+      // Fetch consolidated bills
+      const billsData = await api.fetch('/api/protected/bills/list', {
+        method: 'POST',
+        body: JSON.stringify({ counter_ids: counterIds })
+      });
+      setBills(billsData || []);
+    } catch (error) {
+      console.error('Error fetching cashier data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchAssignedCounters();
-    fetchTransactions();
-    fetchBills();
-  }, [fetchAssignedCounters, fetchTransactions, fetchBills]);
+    fetchProfileAndData();
+  }, [fetchProfileAndData]);
 
   const updateTransactionStatus = async (id: string, status: 'approved' | 'reverted') => {
     try {
@@ -74,21 +78,22 @@ export function useCashierData() {
         body: JSON.stringify({ status })
       });
       toast.success(`Transaction ${status} successfully`);
-      fetchTransactions();
+      fetchProfileAndData();
     } catch (error: any) { toast.error(error.message || `Error updating transaction`); }
   };
 
   const createDrawerAction = async (actionData: Partial<DrawerTransaction>) => {
+    if (!cashierProfile) return false;
     try {
       await api.fetch('/api/protected/drawer_transactions', {
         method: 'POST',
         body: JSON.stringify({ ...actionData, status: 'approved' })
       });
       toast.success('Drawer action posted successfully');
-      fetchTransactions();
+      fetchProfileAndData();
       return true;
     } catch (error: any) { toast.error(error.message || 'Error posting drawer action'); return false; }
   };
 
-  return { assignedCounters, transactions, bills, loading, updateTransactionStatus, createDrawerAction, fetchTransactions, fetchBills };
+  return { assignedCounters, transactions, bills, loading, updateTransactionStatus, createDrawerAction, fetchTransactions: fetchProfileAndData, fetchBills: fetchProfileAndData };
 }

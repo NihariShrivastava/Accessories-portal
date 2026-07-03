@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "accessories-portal-cf",
+	"name": "accessoriesportal",
 	"main": "worker/index.ts",
 	"compatibility_date": "2026-07-03",
 	"assets": {

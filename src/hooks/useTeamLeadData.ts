@@ -25,47 +25,46 @@ export function useTeamLeadData(user: any) {
       
       const counterIds: string[] = prof?.assigned_counters || [];
       const warehouseIds: string[] = prof?.assigned_warehouses || [];
+      const allSourceIds = [...counterIds, ...warehouseIds];
       
-      if (counterIds.length === 0) {
+      if (allSourceIds.length === 0) {
         setAssignedCounters([]);
+        setAssignedWarehouses([]);
         setInventory([]);
         setBills([]);
         setLoading(false);
         return;
       }
 
-      // Fetch specific counter and warehouse profile names
-      const countersData = await api.fetch('/api/protected/profiles/list', {
-        method: 'POST',
-        body: JSON.stringify({ ids: counterIds })
-      });
+      // Fetch specific counter and warehouse profile names concurrently
+      const [countersData, warehousesData] = await Promise.all([
+        counterIds.length > 0 
+          ? api.fetch('/api/protected/profiles/list', { method: 'POST', body: JSON.stringify({ ids: counterIds }) })
+          : Promise.resolve([]),
+        warehouseIds.length > 0 
+          ? api.fetch('/api/protected/profiles/list', { method: 'POST', body: JSON.stringify({ ids: warehouseIds }) })
+          : Promise.resolve([])
+      ]);
       setAssignedCounters(countersData);
-
-      let warehousesData = [];
-      if (warehouseIds.length > 0) {
-        warehousesData = await api.fetch('/api/protected/profiles/list', {
-          method: 'POST',
-          body: JSON.stringify({ ids: warehouseIds })
-        });
-      }
       setAssignedWarehouses(warehousesData);
 
-      // Fetch accessories and bills for counter IDs
+      // Fetch accessories (for both counters and warehouses) and bills concurrently
       const [invData, billsData] = await Promise.all([
-        Promise.all(counterIds.map(id => api.fetch(`/api/protected/accessories?counter_id=${id}`))).then(res => res.flat()),
-        api.fetch('/api/protected/bills/list', {
-          method: 'POST',
-          body: JSON.stringify({ counter_ids: counterIds, limit: 1000 })
-        })
+        Promise.all(allSourceIds.map(id => api.fetch(`/api/protected/accessories?counter_id=${id}`))).then(res => res.flat()),
+        counterIds.length > 0 
+          ? api.fetch('/api/protected/bills/list', { method: 'POST', body: JSON.stringify({ counter_ids: counterIds, limit: 1000 }) })
+          : Promise.resolve([])
       ]);
 
+      // Merge both counter and warehouse profile lookups to resolve names accurately
+      const allProfilesData = [...countersData, ...warehousesData];
       const enrichedInv = invData.map((item: any) => {
-        const c = countersData.find((ctr: any) => ctr.id === item.counter_id);
-        return { ...item, counter_name: c?.name || 'Unknown' };
+        const p = allProfilesData.find((prof: any) => prof.id === item.counter_id);
+        return { ...item, counter_name: p?.name || 'Unknown' };
       });
       setInventory(enrichedInv);
 
-      // Group bills
+      // Group bills by bill_number
       const groupedBills = new Map<string, any>();
       const standaloneBills: any[] = [];
 
@@ -89,18 +88,18 @@ export function useTeamLeadData(user: any) {
             vehicle_model: 'Multiple Models', profiles: { name: counterObj?.name || 'Unknown Counter' },
             items: [item], customer_name: item.customer_name, customer_phone: item.customer_phone,
             customer_id: item.customer_id, customer_address: item.customer_address,
-            base_amount: item.base_amount || 0, cgst_amount: item.cgst_amount || 0, sgst_amount: item.sgst_amount || 0
+            base_amount: Number(item.base_amount) || 0, cgst_amount: Number(item.cgst_amount) || 0, sgst_amount: Number(item.sgst_amount) || 0
           });
         } else {
           const group = groupedBills.get(bNo);
           group.items.push(item);
-          group.total_amount += item.total_amount || 0;
-          group.amount_paid += item.amount_paid || 0;
-          group.amount_left += item.amount_left || 0;
-          group.quantity += item.quantity || 0;
-          group.base_amount = (group.base_amount || 0) + (item.base_amount || 0);
-          group.cgst_amount = (group.cgst_amount || 0) + (item.cgst_amount || 0);
-          group.sgst_amount = (group.sgst_amount || 0) + (item.sgst_amount || 0);
+          group.total_amount += Number(item.total_amount) || 0;
+          group.amount_paid += Number(item.amount_paid) || 0;
+          group.amount_left += Number(item.amount_left) || 0;
+          group.quantity += Number(item.quantity) || 0;
+          group.base_amount = (group.base_amount || 0) + (Number(item.base_amount) || 0);
+          group.cgst_amount = (group.cgst_amount || 0) + (Number(item.cgst_amount) || 0);
+          group.sgst_amount = (group.sgst_amount || 0) + (Number(item.sgst_amount) || 0);
           group.approval_status = group.approval_status || item.approval_status;
         }
       });
@@ -117,6 +116,7 @@ export function useTeamLeadData(user: any) {
     fetchProfileAndData(true);
   }, [fetchProfileAndData]);
 
+  // Aggregate Sales Report
   const salesReport = useMemo(() => {
     const reportMap = new Map<string, SalesReport>();
     assignedCounters.forEach(c => {
@@ -129,15 +129,19 @@ export function useTeamLeadData(user: any) {
       if (!cId || !reportMap.has(cId)) return;
       const r = reportMap.get(cId)!;
       r.total_bills += 1;
-      r.total_sales += b.total_amount || 0;
-      r.total_collected += b.amount_paid || 0;
-      r.outstanding += b.amount_left || 0;
-      const qty = b.items ? b.items.reduce((sum: number, i: any) => sum + (i.quantity || 1), 0) : b.quantity || 1;
+      
+      // Fix: Strictly enforce numeric type additions to prevent string concatenations
+      r.total_sales += Number(b.total_amount) || 0;
+      r.total_collected += Number(b.amount_paid) || 0;
+      r.outstanding += Number(b.amount_left) || 0;
+      
+      const qty = b.items ? b.items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 1), 0) : Number(b.quantity) || 1;
       r.total_items += qty;
     });
     return Array.from(reportMap.values());
   }, [bills, assignedCounters]);
 
+  // Aggregate Inventory Report
   const inventoryReport = useMemo(() => {
     const reportMap = new Map<string, any>();
     assignedCounters.forEach(c => {
@@ -148,12 +152,13 @@ export function useTeamLeadData(user: any) {
       const cId = i.counter_id;
       if (!cId || !reportMap.has(cId)) return;
       const r = reportMap.get(cId)!;
-      if (i.quantity > 5) r.surplus_count += 1;
-      if (i.quantity <= 5) r.shortage_count += 1;
+      if (Number(i.quantity) > 5) r.surplus_count += 1;
+      if (Number(i.quantity) <= 5) r.shortage_count += 1;
     });
     return Array.from(reportMap.values());
   }, [inventory, assignedCounters]);
 
+  // Amount Collected Report
   const amountCollectedReport = useMemo(() => {
     const map = new Map<string, AmountCollectedReport>();
     const countersMap = new Map(assignedCounters.map(c => [c.id, c.name]));

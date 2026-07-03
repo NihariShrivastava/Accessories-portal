@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { sign, verify } from 'hono/jwt';
 import { Pool, types } from '@neondatabase/serverless';
 
-// Globally force PostgreSQL NUMERIC/DECIMAL (OID 1700) to be parsed as JavaScript floats
+// Globally force PostgreSQL NUMERIC/DECIMAL (OID 1700) to be parsed as JavaScript float numbers
 types.setTypeParser(1700, (val) => parseFloat(val));
 
 type Bindings = {
@@ -58,7 +58,6 @@ app.post('/auth/login', async (c) => {
     c.executionCtx.waitUntil(pool.query('INSERT INTO login_logs (user_id) VALUES ($1)', [user.id]).catch(console.error));
     const token = await sign({ id: user.id, role: user.role, name: user.name }, c.env.JWT_SECRET, 'HS256');
     
-    // Return complete profile to prevent frontend hooks from exiting early
     return c.json({ 
       user: { 
         id: user.id, 
@@ -383,17 +382,46 @@ app.get('/protected/admin/profiles/:role', async (c) => {
   }
 });
 
-// Create profile
+// Create profile securely
 app.post('/protected/admin/profiles', async (c) => {
   const body = await c.req.json();
   const pool = new Pool({ connectionString: c.env.NEON_DATABASE_URL });
+  const client = await pool.connect();
+  
   try {
-    const { rows } = await pool.query(`
-      INSERT INTO profiles (id, name, username, password, role, assigned_counters, assigned_warehouses) 
-      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6) RETURNING id`, 
-      [body.name, body.username, body.password, body.role, body.assigned_counters || [], body.assigned_warehouses || []]);
+    await client.query('BEGIN');
+    
+    // 1. Generate UUID
+    const idRes = await client.query('SELECT gen_random_uuid() as id');
+    const newId = idRes.rows[0].id;
+    
+    // 2. Insert into mock auth.users table first to satisfy foreign key constraints
+    const mockEmail = `${body.username.trim().toLowerCase()}@portal.local`;
+    await client.query('INSERT INTO auth.users (id, email) VALUES ($1, $2)', [newId, mockEmail]);
+    
+    // 3. Insert profile details into profiles table using exact schema casts (jsonb and text[])
+    const { rows } = await client.query(
+      `INSERT INTO profiles (id, name, username, password, role, assigned_counters, assigned_warehouses) 
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::text[]) RETURNING id`, 
+      [
+        newId, 
+        body.name || body.username || '', 
+        body.username, 
+        body.password, 
+        body.role, 
+        JSON.stringify(body.assigned_counters || []),  // jsonb expects JSON string
+        body.assigned_warehouses || []                 // text[] expects native JS array
+      ]
+    );
+    
+    await client.query('COMMIT');
     return c.json({ success: true, id: rows[0].id });
+  } catch (err: any) {
+    await client.query('ROLLBACK');
+    console.error('Create profile error:', err);
+    return c.json({ error: err.message || 'Failed to create profile' }, 500);
   } finally {
+    client.release();
     c.executionCtx.waitUntil(pool.end());
   }
 });
@@ -406,9 +434,16 @@ app.put('/protected/admin/profiles/:id', async (c) => {
   try {
     await pool.query(
       `UPDATE profiles 
-       SET name = $1, username = $2, password = $3, assigned_counters = $4, assigned_warehouses = $5 
+       SET name = $1, username = $2, password = $3, assigned_counters = $4::jsonb, assigned_warehouses = $5::text[] 
        WHERE id = $6`,
-      [body.name || body.username || '', body.username || '', body.password || '', body.assigned_counters || [], body.assigned_warehouses || [], id]
+      [
+        body.name || body.username || '', 
+        body.username || '', 
+        body.password || '', 
+        JSON.stringify(body.assigned_counters || []),  // jsonb expects JSON string
+        body.assigned_warehouses || [],                 // text[] expects native JS array
+        id
+      ]
     );
     return c.json({ success: true });
   } finally {
