@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { ViewHeader } from '../../ViewHeader';
-import { IndianRupee, Clock, CheckCircle2, Check, Download } from 'lucide-react';
+import { IndianRupee, Clock, CheckCircle2, Check } from 'lucide-react';
 import type { Bill } from '../../../../hooks/useCounterData';
-import { exportToExcel } from '../../../../utils/exportToExcel';
 
 import { toast } from 'sonner';
 
@@ -57,35 +56,6 @@ export const CashDrawerView = ({
     return drawerTransactions.filter(t => t.transaction_type === 'cashier_transfer' && t.status === 'approved');
   }, [drawerTransactions]);
 
-  const handleExportTab = () => {
-    let exportData: any[] = [];
-    let filename = '';
-
-    if (activeTab === 'pending') {
-      exportData = pendingHandovers.map(t => ({
-        'Counter': t.counter_name || 'Cashier Desk',
-        'Amount (₹)': t.amount,
-        'Status': 'PENDING',
-        'Date': new Date(t.created_at).toLocaleString()
-      }));
-      filename = 'Pending_Handovers';
-    } else if (activeTab === 'approved') {
-      exportData = approvedHandovers.map(t => ({
-        'Counter': t.counter_name || 'Cashier Desk',
-        'Amount (₹)': t.amount,
-        'Status': 'APPROVED',
-        'Date': new Date(t.created_at).toLocaleString()
-      }));
-      filename = 'Approved_Handovers';
-    }
-
-    if (exportData.length > 0) {
-      exportToExcel(exportData, `Cash_Drawer_${filename}_Report`);
-    } else {
-      toast.error('No data to export');
-    }
-  };
-
   const handleTransfer = async () => {
     if (!transferAmount || transferAmount <= 0) return;
     
@@ -130,26 +100,18 @@ export const CashDrawerView = ({
           <div className="space-y-4 pt-4">
             <h3 className="text-sm font-bold tracking-wider uppercase text-muted-foreground">Reconciled Cash Drawer Settlements</h3>
             
-            <div className="flex gap-4 border-b border-border items-center">
-              <div className="flex gap-4 flex-1">
-                <button 
-                  onClick={() => setActiveTab('pending')}
-                  className={`pb-2 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'pending' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  Pending Handover ({pendingHandovers.length})
-                </button>
-                <button 
-                  onClick={() => setActiveTab('approved')}
-                  className={`pb-2 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'approved' ? 'text-emerald-500 border-b-2 border-emerald-500' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  Approved Handover ({approvedHandovers.length})
-                </button>
-              </div>
+            <div className="flex gap-4 border-b border-border">
               <button 
-                onClick={handleExportTab} 
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-500 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 hover:text-emerald-800 dark:hover:text-emerald-400 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all active:scale-95 whitespace-nowrap shadow-sm mb-2"
+                onClick={() => setActiveTab('pending')}
+                className={`pb-2 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'pending' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                <Download className="w-3.5 h-3.5" /> Export List
+                Pending Handover ({pendingHandovers.length})
+              </button>
+              <button 
+                onClick={() => setActiveTab('approved')}
+                className={`pb-2 text-xs font-bold uppercase tracking-wider transition-colors ${activeTab === 'approved' ? 'text-emerald-500 border-b-2 border-emerald-500' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Approved Handover ({approvedHandovers.length})
               </button>
             </div>
 

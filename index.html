@@ -4,16 +4,10 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>accessories-portal</title>
+    <title>accessories-portal-cf</title>
   </head>
   <body>
     <div id="root"></div>
-    <script>
-      window.addEventListener('error', function(e) {
-        document.body.innerHTML += '<div style="color:red; padding:20px; font-family:monospace; z-index:9999; position:absolute; top:0; left:0; background:white; width:100%;">' + 
-          '<h3>Runtime Error:</h3><p>' + e.message + '</p><pre>' + (e.error ? e.error.stack : '') + '</pre></div>';
-      });
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

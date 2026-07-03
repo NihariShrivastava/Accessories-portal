@@ -1,5 +1,6 @@
+// src/hooks/useCashierData.ts
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import { useAuth } from '../components/auth-provider';
 import { toast } from 'sonner';
 import type { Bill } from './useCounterData';
@@ -29,62 +30,35 @@ export function useCashierData() {
   const fetchAssignedCounters = useCallback(async () => {
     if (!profile?.assigned_counters?.length) return;
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, name')
-        .in('id', profile.assigned_counters);
-      
-      if (error) throw error;
+      const data = await api.fetch('/api/protected/profiles/list', {
+        method: 'POST',
+        body: JSON.stringify({ ids: profile.assigned_counters })
+      });
       setAssignedCounters(data || []);
-    } catch (error) {
-      console.error('Error fetching assigned counters:', error);
-    }
+    } catch (error) { console.error('Error fetching assigned counters:', error); }
   }, [profile]);
 
   const fetchTransactions = useCallback(async () => {
     if (!profile?.assigned_counters?.length) return;
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('drawer_transactions')
-        .select(`*, profiles(name)`)
-        .in('counter_id', [...(profile.assigned_counters || []), profile.id])
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      
-      setTransactions((data || []).map(t => ({
-        ...t,
-        counter_name: t.profiles?.name
-      })));
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-    } finally {
-      setLoading(false);
-    }
+      const data = await api.fetch('/api/protected/drawer_transactions/list', {
+        method: 'POST',
+        body: JSON.stringify({ counter_ids: [...profile.assigned_counters, profile.id] })
+      });
+      setTransactions(data || []);
+    } catch (error) { console.error('Error fetching transactions:', error); } finally { setLoading(false); }
   }, [profile]);
 
   const fetchBills = useCallback(async () => {
     if (!profile?.assigned_counters?.length) return;
     try {
-      const { data, error } = await supabase
-        .from('bills')
-        .select(`
-          *,
-          accessories (*),
-          items:bill_items(
-            quantity,
-            price_at_time,
-            accessories(*)
-          )
-        `)
-        .in('counter_id', profile.assigned_counters);
-
-      if (error) throw error;
+      const data = await api.fetch('/api/protected/bills/list', {
+        method: 'POST',
+        body: JSON.stringify({ counter_ids: profile.assigned_counters })
+      });
       setBills(data || []);
-    } catch (error) {
-      console.error('Error fetching bills:', error);
-    }
+    } catch (error) { console.error('Error fetching bills:', error); }
   }, [profile]);
 
   useEffect(() => {
@@ -95,46 +69,26 @@ export function useCashierData() {
 
   const updateTransactionStatus = async (id: string, status: 'approved' | 'reverted') => {
     try {
-      const { error } = await supabase
-        .from('drawer_transactions')
-        .update({ status })
-        .eq('id', id);
-        
-      if (error) throw error;
+      await api.fetch(`/api/protected/drawer_transactions/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status })
+      });
       toast.success(`Transaction ${status} successfully`);
       fetchTransactions();
-    } catch (error: any) {
-      toast.error(error.message || `Error updating transaction`);
-    }
+    } catch (error: any) { toast.error(error.message || `Error updating transaction`); }
   };
 
   const createDrawerAction = async (actionData: Partial<DrawerTransaction>) => {
     try {
-      const { error } = await supabase
-        .from('drawer_transactions')
-        .insert([{
-          ...actionData,
-          status: 'approved' // Direct actions by cashier are auto-approved
-        }]);
-        
-      if (error) throw error;
+      await api.fetch('/api/protected/drawer_transactions', {
+        method: 'POST',
+        body: JSON.stringify({ ...actionData, status: 'approved' })
+      });
       toast.success('Drawer action posted successfully');
       fetchTransactions();
       return true;
-    } catch (error: any) {
-      toast.error(error.message || 'Error posting drawer action');
-      return false;
-    }
+    } catch (error: any) { toast.error(error.message || 'Error posting drawer action'); return false; }
   };
 
-  return {
-    assignedCounters,
-    transactions,
-    bills,
-    loading,
-    updateTransactionStatus,
-    createDrawerAction,
-    fetchTransactions,
-    fetchBills
-  };
+  return { assignedCounters, transactions, bills, loading, updateTransactionStatus, createDrawerAction, fetchTransactions, fetchBills };
 }

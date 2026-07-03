@@ -1,67 +1,12 @@
+// src/hooks/useCounterData.ts
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import { toast } from 'sonner';
-import type { User } from '@supabase/supabase-js';
 
-export type Accessory = {
-  id: string;
-  name: string;
-  accessory_code?: string;
-  quantity: number;
-  price: number;
-  vehicle_model: string;
-  cgst_percent?: number;
-  sgst_percent?: number;
-};
+export type Accessory = { id: string; name: string; accessory_code?: string; quantity: number; price: number; vehicle_model: string; cgst_percent?: number; sgst_percent?: number; };
+export type Bill = { id: string; bill_number?: string; chassis_number: string; engine_number: string; checklist_number: string; customer_name?: string; customer_phone?: string; customer_id?: string; quantity: number; base_amount?: number; cgst_amount?: number; sgst_amount?: number; total_amount: number; payment_method: string; payment_details?: any[]; amount_paid: number; amount_left: number; created_at: string; accessories: { name: string; accessory_code?: string; vehicle_model: string }; items?: Bill[]; approval_status?: string; };
 
-export type Bill = {
-  id: string;
-  bill_number?: string;
-  chassis_number: string;
-  engine_number: string;
-  checklist_number: string;
-  customer_name?: string;
-  customer_phone?: string;
-  customer_id?: string;
-  quantity: number;
-  base_amount?: number;
-  cgst_amount?: number;
-  sgst_amount?: number;
-  total_amount: number;
-  payment_method: string;
-  payment_details?: any[];
-  amount_paid: number;
-  amount_left: number;
-  created_at: string;
-  accessories: { name: string; accessory_code?: string; vehicle_model: string };
-  items?: Bill[];
-  approval_status?: string;
-};
-
-type RawBill = {
-  id: string;
-  bill_number?: string;
-  chassis_number: string;
-  engine_number: string;
-  checklist_number: string;
-  customer_name?: string;
-  customer_phone?: string;
-  customer_id?: string;
-  quantity: number;
-  base_amount?: number;
-  cgst_amount?: number;
-  sgst_amount?: number;
-  total_amount: number;
-  payment_method: string;
-  payment_details?: any[];
-  amount_paid: number;
-  amount_left: number;
-  created_at: string;
-  accessories: { name: string; accessory_code?: string; vehicle_model: string };
-  approval_status?: string;
-};
-
-export function useCounterData(user: User | null) {
+export function useCounterData(user: any | null) {
   const [models, setModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [accessories, setAccessories] = useState<Accessory[]>([]);
@@ -79,57 +24,30 @@ export function useCounterData(user: User | null) {
   const fetchDashboardStats = useCallback(async () => {
     if (!user) return;
     try {
-      const { count: sCount } = await supabase.from('accessories').select('*', { count: 'exact', head: true }).lte('quantity', 5).eq('counter_id', user.id);
-      setShortageCount(sCount || 0);
-
-      const { count: surCount } = await supabase.from('accessories').select('*', { count: 'exact', head: true }).gt('quantity', 5).eq('counter_id', user.id);
-      setSurplusCount(surCount || 0);
-    } catch (e) {
-      console.error(e);
-    }
+      const data = await api.fetch(`/api/protected/accessories/stats?counter_id=${user.id}`);
+      setShortageCount(data.shortageCount || 0);
+      setSurplusCount(data.surplusCount || 0);
+    } catch (e) { console.error(e); }
   }, [user]);
 
   const fetchModels = useCallback(async () => {
+    if (!user) return;
     try {
-      const { data, error } = await supabase
-        .from('accessories')
-        .select('vehicle_model')
-        .eq('counter_id', user?.id);
-      if (error) throw error;
-      setModels(Array.from(new Set((data || []).map(item => item.vehicle_model))));
-    } catch (error) {
-      console.error('Error fetching models:', error);
-    }
+      const data = await api.fetch(`/api/protected/accessories/models?counter_id=${user.id}`);
+      setModels(data || []);
+    } catch (error) { console.error('Error fetching models:', error); }
   }, [user]);
 
-  const groupBills = useCallback((data: RawBill[]): Bill[] => {
+  const groupBills = useCallback((data: any[]): Bill[] => {
     const map = new Map<string, Bill>();
     data.forEach(item => {
-      // Group by base bill number (strip suffix like -1, -2 if present, but preserve INV-XXXX)
-      const bNo = item.bill_number 
-        ? (item.bill_number.split('-').length > 2 ? item.bill_number.substring(0, item.bill_number.lastIndexOf('-')) : item.bill_number) 
-        : `TEMP-${item.id}`;
-      
+      const bNo = item.bill_number ? (item.bill_number.split('-').length > 2 ? item.bill_number.substring(0, item.bill_number.lastIndexOf('-')) : item.bill_number) : `TEMP-${item.id}`;
       const existing = map.get(bNo);
       if (!existing) {
-        map.set(bNo, { 
-          ...item, 
-          bill_number: bNo, // Show the base number in the list
-          items: [item as any as Bill],
-          customer_name: item.customer_name,
-          customer_phone: item.customer_phone,
-          customer_id: item.customer_id,
-          quantity: item.quantity || 0,
-          base_amount: item.base_amount || 0,
-          cgst_amount: item.cgst_amount || 0,
-          sgst_amount: item.sgst_amount || 0,
-          total_amount: item.total_amount || 0,
-          amount_paid: item.amount_paid || 0,
-          amount_left: item.amount_left || 0
-        });
+        map.set(bNo, { ...item, bill_number: bNo, items: [item as any], customer_name: item.customer_name, customer_phone: item.customer_phone, customer_id: item.customer_id, quantity: item.quantity || 0, base_amount: item.base_amount || 0, cgst_amount: item.cgst_amount || 0, sgst_amount: item.sgst_amount || 0, total_amount: item.total_amount || 0, amount_paid: item.amount_paid || 0, amount_left: item.amount_left || 0 });
       } else {
         if (!existing.items) existing.items = [];
-        existing.items.push(item as any as Bill);
+        existing.items.push(item as any);
         existing.quantity += item.quantity || 0;
         existing.base_amount = (existing.base_amount || 0) + (item.base_amount || 0);
         existing.cgst_amount = (existing.cgst_amount || 0) + (item.cgst_amount || 0);
@@ -143,51 +61,31 @@ export function useCounterData(user: User | null) {
     return Array.from(map.values());
   }, []);
 
-  const fetchRecentBills = useCallback(async () => {
+  const fetchAllBills = useCallback(async () => {
+    if(!user) return;
     try {
-      const { data, error } = await supabase
-        .from('bills')
-        .select('*, approval_status, accessories (name, accessory_code, vehicle_model)')
-        .eq('counter_id', user?.id)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-
-      // Group by bill_number
-      const grouped = groupBills((data as any as RawBill[]) || []);
+      const data = await api.fetch(`/api/protected/bills?counter_id=${user.id}`);
+      const grouped = groupBills(data || []);
+      setAllBills(grouped);
       setRecentBills(grouped.slice(0, 10));
-    } catch (error) {
-      console.error('Error fetching bills:', error);
-    }
+    } catch (error) { console.error('Error fetching all bills:', error); }
   }, [user, groupBills]);
-  
-
 
   const fetchDrawerTransactions = useCallback(async () => {
     if (!user) return;
     try {
-      const { data, error } = await supabase
-        .from('drawer_transactions')
-        .select('*')
-        .eq('counter_id', user.id)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
+      const data = await api.fetch(`/api/protected/drawer_transactions?counter_id=${user.id}`);
       setDrawerTransactions(data || []);
-    } catch (error) {
-      console.error('Error fetching drawer transactions:', error);
-    }
+    } catch (error) { console.error('Error fetching drawer transactions:', error); }
   }, [user]);
 
   const createCashierTransfer = async (amount: number) => {
     if (!user) return false;
     try {
-      const { error } = await supabase.from('drawer_transactions').insert([{
-        counter_id: user.id,
-        transaction_type: 'cashier_transfer',
-        amount,
-        status: 'pending'
-      }]);
-      if (error) throw error;
+      await api.fetch('/api/protected/drawer_transactions', {
+        method: 'POST',
+        body: JSON.stringify({ counter_id: user.id, transaction_type: 'cashier_transfer', amount, status: 'pending' })
+      });
       toast.success('Transfer submitted to cashier successfully');
       fetchDrawerTransactions();
       return true;
@@ -199,63 +97,30 @@ export function useCounterData(user: User | null) {
 
   useEffect(() => {
     if (user) {
+      fetchModels();
+      fetchAllBills();
+      fetchDashboardStats();
       fetchDrawerTransactions();
     }
-  }, [user, fetchDrawerTransactions]);
-  
+  }, [user, fetchModels, fetchAllBills, fetchDashboardStats, fetchDrawerTransactions]);
+
   const filteredBills = useMemo(() => {
     return allBills.filter(bill => {
       if (!startDate && !endDate) return true;
-      
-      const billDate = new Date(bill.created_at);
-      const billDateStr = billDate.toISOString().split('T')[0];
-      
+      const billDateStr = new Date(bill.created_at).toISOString().split('T')[0];
       if (startDate && billDateStr < startDate) return false;
       if (endDate && billDateStr > endDate) return false;
       return true;
     });
   }, [allBills, startDate, endDate]);
 
-  const fetchAllBills = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('bills')
-        .select('*, approval_status, accessories (name, accessory_code, vehicle_model)')
-        .eq('counter_id', user?.id)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setAllBills(groupBills((data as any as RawBill[]) || []));
-    } catch (error) {
-      console.error('Error fetching all bills:', error);
-    }
-  }, [user, groupBills]);
-  useEffect(() => {
-    if (user) {
-      fetchModels();
-      fetchRecentBills();
-      fetchAllBills();
-      fetchDashboardStats();
-      fetchDrawerTransactions();
-    }
-  }, [user, fetchModels, fetchRecentBills, fetchAllBills, fetchDashboardStats, fetchDrawerTransactions]);
-
-
   const fetchAccessories = async (model: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('accessories')
-        .select('*')
-        .eq('counter_id', user?.id)
-        .eq('vehicle_model', model);
-      if (error) throw error;
+      const data = await api.fetch(`/api/protected/accessories?counter_id=${user?.id}&model=${encodeURIComponent(model)}`);
       setAccessories(data || []);
-    } catch (error) {
-      console.error('Error fetching accessories:', error);
-      toast.error('Failed to load accessories');
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { toast.error('Failed to load accessories'); } 
+    finally { setLoading(false); }
   };
 
   const handleModelChange = (model: string) => {
@@ -268,69 +133,39 @@ export function useCounterData(user: User | null) {
     if (!query) { setSearchResults([]); return; }
     setLoading(true);
     try {
-      const { data, error } = await supabase.from('accessories').select('*').eq('counter_id', user?.id)
-        .or(`name.ilike.%${query}%,accessory_code.ilike.%${query}%,vehicle_model.ilike.%${query}%`).limit(20);
-      if (error) throw error;
+      const data = await api.fetch(`/api/protected/accessories/search?counter_id=${user?.id}&q=${encodeURIComponent(query)}`);
       setSearchResults(data || []);
     } catch (error) { console.error(error); } 
     finally { setLoading(false); }
   };
 
   const fetchShortageModels = async () => {
-    const { data } = await supabase.from('accessories').select('vehicle_model').lte('quantity', 5).eq('counter_id', user?.id);
-    return Array.from(new Set((data || []).map(d => d.vehicle_model)));
+    const data = await api.fetch(`/api/protected/accessories?counter_id=${user?.id}`);
+    return Array.from(new Set(data.filter((d:any) => d.quantity <= 5).map((d:any) => d.vehicle_model))) as string[];
   };
 
   const fetchSurplusModels = async () => {
-    const { data } = await supabase.from('accessories').select('vehicle_model').gt('quantity', 5).eq('counter_id', user?.id);
-    return Array.from(new Set((data || []).map(d => d.vehicle_model)));
+    const data = await api.fetch(`/api/protected/accessories?counter_id=${user?.id}`);
+    return Array.from(new Set(data.filter((d:any) => d.quantity > 5).map((d:any) => d.vehicle_model))) as string[];
   };
 
   const fetchShortageAccessories = async (model: string) => {
     setLoading(true);
-    const { data } = await supabase.from('accessories').select('*').lte('quantity', 5).eq('counter_id', user?.id).eq('vehicle_model', model);
-    setAccessories(data || []);
+    const data = await api.fetch(`/api/protected/accessories?counter_id=${user?.id}&model=${encodeURIComponent(model)}`);
+    const filtered = data.filter((d:any) => d.quantity <= 5);
+    setAccessories(filtered);
     setLoading(false);
-    return data || [];
+    return filtered;
   };
 
   const fetchSurplusAccessories = async (model: string) => {
     setLoading(true);
-    const { data } = await supabase.from('accessories').select('*').gt('quantity', 5).eq('counter_id', user?.id).eq('vehicle_model', model);
-    setAccessories(data || []);
+    const data = await api.fetch(`/api/protected/accessories?counter_id=${user?.id}&model=${encodeURIComponent(model)}`);
+    const filtered = data.filter((d:any) => d.quantity > 5);
+    setAccessories(filtered);
     setLoading(false);
-    return data || [];
+    return filtered;
   };
 
-  return {
-    models,
-    selectedModel,
-    setSelectedModel,
-    accessories,
-    recentBills,
-    allBills: filteredBills,
-    rawBills: allBills,
-    loading,
-    startDate,
-    endDate,
-    setStartDate,
-    setEndDate,
-    shortageCount,
-    surplusCount,
-    searchResults,
-    setSearchResults,
-    handleModelChange,
-    fetchAllBills,
-    fetchAccessories,
-    fetchRecentBills,
-    fetchDashboardStats,
-    searchAccessories,
-    fetchShortageModels,
-    fetchSurplusModels,
-    fetchShortageAccessories,
-    fetchSurplusAccessories,
-    drawerTransactions,
-    fetchDrawerTransactions,
-    createCashierTransfer
-  };
+  return { models, selectedModel, setSelectedModel, accessories, recentBills, allBills: filteredBills, rawBills: allBills, loading, startDate, endDate, setStartDate, setEndDate, shortageCount, surplusCount, searchResults, setSearchResults, handleModelChange, fetchAllBills, fetchAccessories, fetchRecentBills: fetchAllBills, fetchDashboardStats, searchAccessories, fetchShortageModels, fetchSurplusModels, fetchShortageAccessories, fetchSurplusAccessories, drawerTransactions, fetchDrawerTransactions, createCashierTransfer };
 }

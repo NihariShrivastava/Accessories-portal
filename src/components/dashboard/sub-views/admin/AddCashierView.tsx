@@ -1,9 +1,9 @@
+// src/components/dashboard/sub-views/admin/AddCashierView.tsx
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { createClient } from '@supabase/supabase-js';
 import { ViewHeader } from '../../ViewHeader';
 import { UserPlus } from 'lucide-react';
-import { supabase } from '../../../../lib/supabase';
+import { api } from '../../../../lib/api';
 import { MultiSelectDropdown } from '../../MultiSelectDropdown';
 import type { Counter } from '../../../../hooks/useAdminData';
 
@@ -18,55 +18,24 @@ export const AddCashierView = ({ counters, onBack }: { counters: Counter[], onBa
     setLoading(true);
 
     try {
-      const tempSupabase = createClient(
-        import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_ANON_KEY,
-        { auth: { persistSession: false, autoRefreshToken: false } }
-      );
-
-      const { data, error } = await tempSupabase.auth.signUp({
-        email: `${username.trim().toLowerCase()}@portal.local`,
-        password,
-        options: {
-          data: {
-            name: username,
-            role: 'cashier',
-            username: username,
-            password: password,
-          },
-        },
+      await api.fetch('/api/protected/admin/profiles', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: username,
+          username,
+          password,
+          role: 'cashier',
+          assigned_counters: assignedCounters
+        })
       });
-
-      if (error) throw error;
-
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: data.user.id,
-            name: username,
-            username,
-            password,
-            role: 'cashier',
-            assigned_counters: assignedCounters
-          });
-
-        if (profileError) {
-          console.warn('Could not update profile with credentials:', profileError);
-        }
-      }
 
       toast.success('Cashier created successfully!');
       setUsername('');
       setPassword('');
       setAssignedCounters([]);
       onBack();
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        toast.error(error.message);
-      } else {
-        toast.error('Error creating cashier');
-      }
+    } catch (error: any) {
+      toast.error(error.message || 'Error creating cashier');
     } finally {
       setLoading(false);
     }
@@ -80,41 +49,18 @@ export const AddCashierView = ({ counters, onBack }: { counters: Counter[], onBa
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Username</label>
-              <input
-                type="text"
-                required
-                className="w-full px-4 py-2 bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
+              <input type="text" required className="w-full px-4 py-2 bg-input border border-border rounded-md" value={username} onChange={e => setUsername(e.target.value)} />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Password</label>
-              <input
-                type="password"
-                required
-                className="w-full px-4 py-2 bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <input type="password" required className="w-full px-4 py-2 bg-input border border-border rounded-md" value={password} onChange={e => setPassword(e.target.value)} />
             </div>
           </div>
-
           <div>
             <label className="block text-sm font-medium mb-2">Assign Counters</label>
-            <MultiSelectDropdown 
-              options={counters.map(c => ({ id: c.id, name: c.name }))}
-              selectedIds={assignedCounters}
-              onChange={setAssignedCounters}
-              placeholder="Click to assign counters..."
-            />
+            <MultiSelectDropdown options={counters.map(c => ({ id: c.id, name: c.name }))} selectedIds={assignedCounters} onChange={setAssignedCounters} placeholder="Click to assign counters..." />
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-primary text-primary-foreground py-3 px-4 rounded-md hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 font-bold shadow-md"
-          >
+          <button type="submit" disabled={loading} className="w-full bg-primary text-primary-foreground py-3 px-4 rounded-md hover:bg-primary/90 font-bold flex items-center justify-center gap-2">
             {loading ? 'Creating...' : <><UserPlus className="w-5 h-5" /> Create Cashier</>}
           </button>
         </form>

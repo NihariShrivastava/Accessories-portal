@@ -1,6 +1,5 @@
-import { X, Download } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { AmountCollectedReport } from '../../../../hooks/useAdminData';
-import { exportToExcel } from '../../../../utils/exportToExcel';
 
 export const AmountCollectedDialog = ({
   report,
@@ -22,33 +21,12 @@ export const AmountCollectedDialog = ({
               Detailed breakdown of amount collected for this counter
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                const exportData = report.bills_data.map(bill => {
-                  const otherPayments = bill.payment_details.filter((p: any) => p.method.toLowerCase() !== 'cash');
-                  const others = otherPayments.map((p: any) => `${p.method}: ₹${Number(p.amount).toFixed(2)}`).join(', ');
-                  return {
-                    'Bill Number': bill.bill_number,
-                    'Cash Amount (₹)': bill.cash_amount,
-                    'Other Payments': others || '-'
-                  };
-                });
-                if (exportData.length > 0) {
-                  exportToExcel(exportData, `${report.counter_name.replace(/\s+/g, '_')}_Amount_Collected_Report`);
-                }
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-500 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 hover:text-emerald-800 dark:hover:text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-95 shadow-sm whitespace-nowrap"
-            >
-              <Download className="w-4 h-4" /> Export Report
-            </button>
-            <button
-              onClick={onClose}
-              className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
         </div>
 
         {/* Content */}

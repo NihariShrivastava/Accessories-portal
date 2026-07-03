@@ -1,6 +1,6 @@
+// src/hooks/useWarehouseData.ts
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import { api } from '../lib/api';
 
 export type Accessory = {
   id: string;
@@ -11,7 +11,7 @@ export type Accessory = {
   vehicle_model: string;
 };
 
-export function useWarehouseData(user: User | null) {
+export function useWarehouseData(user: any | null) {
   const [inventory, setInventory] = useState<Accessory[]>([]);
   const [filteredInventory, setFilteredInventory] = useState<Accessory[]>([]);
   const [totalModels, setTotalModels] = useState(0);
@@ -22,15 +22,10 @@ export function useWarehouseData(user: User | null) {
     if (!user) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('accessories')
-        .select('id, name, accessory_code, quantity, price, vehicle_model')
-        .eq('counter_id', user.id);
-        
-      if (error) throw error;
+      const data = await api.fetch(`/api/protected/accessories?counter_id=${user.id}`);
       setInventory(data || []);
       setFilteredInventory(data || []);
-      setTotalModels(new Set((data || []).map(i => i.vehicle_model)).size);
+      setTotalModels(new Set((data || []).map((i: any) => i.vehicle_model)).size);
     } catch (error) {
       console.error('Error fetching warehouse inventory:', error);
     } finally {
@@ -57,13 +52,5 @@ export function useWarehouseData(user: User | null) {
     setFilteredInventory(filtered);
   }, [inventory]);
 
-  return {
-    inventory: filteredInventory,
-    totalCount: inventory.length,
-    totalModels,
-    loading,
-    searchQuery,
-    handleSearch,
-    fetchInventory
-  };
+  return { inventory: filteredInventory, totalCount: inventory.length, totalModels, loading, searchQuery, handleSearch, fetchInventory };
 }

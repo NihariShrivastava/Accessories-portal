@@ -1,3 +1,4 @@
+// src/App.tsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './components/theme-provider';
 import { AuthProvider, useAuth } from './components/auth-provider';
@@ -10,11 +11,9 @@ import { CashierDashboard } from './pages/CashierDashboard';
 import { WarehouseDashboard } from './pages/WarehouseDashboard';
 import { Toaster } from 'sonner';
 
-// Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode, allowedRoles?: string[] }) => {
-  const { user, profile, loading } = useAuth();
+  const { user, loading } = useAuth();
 
-  // Still loading — show nothing (the Layout shell already shows the navbar)
   if (loading) {
     return (
       <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
@@ -23,29 +22,27 @@ const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode,
     );
   }
 
-  // Not logged in — go to login
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!user) return <Navigate to="/login" replace />;
 
-  // Role check required
-  if (allowedRoles) {
-    // Profile not loaded yet but user exists — might be a slow fetch, just show spinner briefly
-    if (!profile) {
-      return <Navigate to="/login" replace />;
-    }
-
-    if (!allowedRoles.includes(profile.role)) {
-      if (profile.role === 'admin') return <Navigate to="/admin" replace />;
-      if (profile.role === 'team_lead') return <Navigate to="/teamlead" replace />;
-      if (profile.role === 'cashier') return <Navigate to="/cashier" replace />;
-      if (profile.role === 'warehouse') return <Navigate to="/warehouse" replace />;
-      return <Navigate to="/counter" replace />;
-    }
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    if (user.role === 'admin') return <Navigate to="/admin" replace />;
+    if (user.role === 'team_lead') return <Navigate to="/teamlead" replace />;
+    if (user.role === 'cashier') return <Navigate to="/cashier" replace />;
+    if (user.role === 'warehouse') return <Navigate to="/warehouse" replace />;
+    return <Navigate to="/counter" replace />;
   }
 
   return <>{children}</>;
 };
+
+function RedirectToDashboard() {
+  const { user } = useAuth();
+  if (user?.role === 'admin') return <Navigate to="/admin" replace />;
+  if (user?.role === 'team_lead') return <Navigate to="/teamlead" replace />;
+  if (user?.role === 'cashier') return <Navigate to="/cashier" replace />;
+  if (user?.role === 'warehouse') return <Navigate to="/warehouse" replace />;
+  return <Navigate to="/counter" replace />;
+}
 
 function App() {
   return (
@@ -57,41 +54,12 @@ function App() {
             <Route path="/login" element={<Login />} />
             
             <Route path="/" element={<Layout />}>
-              <Route index element={
-                <ProtectedRoute>
-                  <RedirectToDashboard />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="counter" element={
-                <ProtectedRoute allowedRoles={['counter']}>
-                  <CounterDashboard />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="admin" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              } />
-
-              <Route path="teamlead" element={
-                <ProtectedRoute allowedRoles={['team_lead']}>
-                  <TeamLeadDashboard />
-                </ProtectedRoute>
-              } />
-
-              <Route path="cashier" element={
-                <ProtectedRoute allowedRoles={['cashier']}>
-                  <CashierDashboard />
-                </ProtectedRoute>
-              } />
-
-              <Route path="warehouse" element={
-                <ProtectedRoute allowedRoles={['warehouse']}>
-                  <WarehouseDashboard />
-                </ProtectedRoute>
-              } />
+              <Route index element={<ProtectedRoute><RedirectToDashboard /></ProtectedRoute>} />
+              <Route path="counter" element={<ProtectedRoute allowedRoles={['counter']}><CounterDashboard /></ProtectedRoute>} />
+              <Route path="admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+              <Route path="teamlead" element={<ProtectedRoute allowedRoles={['team_lead']}><TeamLeadDashboard /></ProtectedRoute>} />
+              <Route path="cashier" element={<ProtectedRoute allowedRoles={['cashier']}><CashierDashboard /></ProtectedRoute>} />
+              <Route path="warehouse" element={<ProtectedRoute allowedRoles={['warehouse']}><WarehouseDashboard /></ProtectedRoute>} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -100,16 +68,6 @@ function App() {
       </AuthProvider>
     </ThemeProvider>
   );
-}
-
-// Separate component to redirect based on role
-function RedirectToDashboard() {
-  const { profile } = useAuth();
-  if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
-  if (profile?.role === 'team_lead') return <Navigate to="/teamlead" replace />;
-  if (profile?.role === 'cashier') return <Navigate to="/cashier" replace />;
-  if (profile?.role === 'warehouse') return <Navigate to="/warehouse" replace />;
-  return <Navigate to="/counter" replace />;
 }
 
 export default App;

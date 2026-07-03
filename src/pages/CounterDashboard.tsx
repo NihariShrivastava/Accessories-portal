@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '../components/auth-provider';
-import { Search, ShoppingCart, History, ReceiptText, AlertTriangle, PackageCheck, LayoutGrid, Store, Package, Car, IndianRupee, X, CheckCircle, Download } from 'lucide-react';
+import { Search, ShoppingCart, History, ReceiptText, AlertTriangle, PackageCheck, LayoutGrid, Store, Package, Car, IndianRupee, X, CheckCircle } from 'lucide-react';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
-import { exportToExcel } from '../utils/exportToExcel';
 import { DataTable } from '../components/dashboard/DataTable';
 import { ViewHeader } from '../components/dashboard/ViewHeader';
 import { Badge } from '../components/dashboard/Badge';
@@ -147,32 +146,7 @@ export function CounterDashboard() {
   if (activeView === 'bills') {
     content = (
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <ViewHeader title="Previous Bills" onBack={() => setActiveView('dashboard')} icon={History} />
-          <button 
-            onClick={() => {
-              const exportData = filteredBills.map(b => ({
-                'Bill No.': b.bill_number || '-',
-                'Date': new Date(b.created_at).toLocaleDateString(),
-                'Accessories': b.items && b.items.length > 1 ? `${b.items.length} Accessories` : (b.accessories?.name || 'Unknown'),
-                'Model': b.accessories?.vehicle_model || '-',
-                'Total Qty': b.quantity,
-                'Payment Method': b.payment_method || 'Cash',
-                'Total Amount (₹)': b.total_amount,
-                'Paid (₹)': b.amount_paid ?? b.total_amount,
-                'Balance (₹)': b.amount_left ?? 0
-              }));
-              if (exportData.length > 0) {
-                exportToExcel(exportData, 'Counter_Bills_Report');
-              } else {
-                alert('No bills to export');
-              }
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-500 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 hover:text-emerald-800 dark:hover:text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-95 whitespace-nowrap shadow-sm w-fit"
-          >
-            <Download className="w-4 h-4" /> Export Report
-          </button>
-        </div>
+        <ViewHeader title="Previous Bills" onBack={() => setActiveView('dashboard')} icon={History} />
 
         <div className="bg-card rounded-xl border border-border shadow-sm p-4 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -374,7 +348,7 @@ export function CounterDashboard() {
             <span className="text-[10px] font-black uppercase tracking-[0.2em]">Active Session</span>
           </div>
           <h1 className="text-2xl font-black uppercase tracking-tight text-center">
-            COUNTER: <span className="text-primary">"{user?.user_metadata?.name || 'Unknown'}"</span>
+            COUNTER: <span className="text-primary">"{user?.name || 'Unknown'}"</span>
           </h1>
           <div className="w-12 h-1 bg-primary rounded-full mt-2" />
         </div>

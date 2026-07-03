@@ -15,7 +15,7 @@ export function WarehouseDashboard() {
             <span className="text-[10px] font-black uppercase tracking-[0.2em]">Active Session</span>
           </div>
           <h1 className="text-2xl font-black uppercase tracking-tight text-center">
-            WAREHOUSE: <span className="text-primary">"{user?.user_metadata?.name || 'Unknown'}"</span>
+            WAREHOUSE: <span className="text-primary">"{user?.name || 'Unknown'}"</span>
           </h1>
           <div className="w-12 h-1 bg-primary rounded-full mt-2" />
         </div>

@@ -1,24 +1,19 @@
+// src/components/layout.tsx
 import React from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
 import { ThemeToggle } from './theme-toggle';
 import { LogOut, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from './auth-provider';
 
 export function Layout({ children }: { children?: React.ReactNode }) {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
-  const handleLogout = async () => {
-    try {
-      // Clear auth in background
-      await supabase.auth.signOut();
-      toast.success('Logged out successfully');
-      // Navigate immediately for instant feedback
-      navigate('/login', { replace: true });
-    } catch (error) {
-      console.error('Error during logout:', error);
-      toast.error('Failed to log out');
-    }
+  const handleLogout = () => {
+    logout();
+    toast.success('Logged out successfully');
+    navigate('/login', { replace: true });
   };
 
   return (

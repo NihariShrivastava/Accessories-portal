@@ -1,9 +1,9 @@
+// src/components/dashboard/sub-views/admin/AddWarehouseView.tsx
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { createClient } from '@supabase/supabase-js';
 import { ViewHeader } from '../../ViewHeader';
 import { UserPlus } from 'lucide-react';
-import { supabase } from '../../../../lib/supabase';
+import { api } from '../../../../lib/api';
 
 export const AddWarehouseView = ({ onBack }: { onBack: () => void }) => {
   const [username, setUsername] = useState('');
@@ -15,57 +15,17 @@ export const AddWarehouseView = ({ onBack }: { onBack: () => void }) => {
     setLoading(true);
 
     try {
-      // Create a temporary client that doesn't persist the session to prevent auto-login
-      const tempSupabase = createClient(
-        import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_ANON_KEY,
-        { auth: { persistSession: false, autoRefreshToken: false } }
-      );
-
-      const { data, error } = await tempSupabase.auth.signUp({
-        email: `${username}@portal.local`,
-        password,
-        options: {
-          data: {
-            name: username,
-            role: 'warehouse',
-            username: username,
-            password: password,
-          },
-        },
+      await api.fetch('/api/protected/admin/profiles', {
+        method: 'POST',
+        body: JSON.stringify({ name: username, username, password, role: 'warehouse' })
       });
-
-      if (error) throw error;
-
-      // Explicitly update the profiles table if it was created by a trigger, 
-      // or wait for it and then update.
-      if (data.user) {
-        // Use upsert to ensure the profile is created/updated with the correct credentials
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: data.user.id,
-            name: username,
-            username,
-            password,
-            role: 'warehouse'
-          });
-
-        if (profileError) {
-          console.warn('Could not update profile with credentials:', profileError);
-        }
-      }
 
       toast.success('Warehouse created successfully!');
       setUsername('');
       setPassword('');
       onBack();
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        toast.error(error.message);
-      } else {
-        toast.error('Error creating warehouse');
-      }
+    } catch (error: any) {
+      toast.error(error.message || 'Error creating warehouse');
     } finally {
       setLoading(false);
     }
@@ -78,29 +38,13 @@ export const AddWarehouseView = ({ onBack }: { onBack: () => void }) => {
         <form onSubmit={handleCreate} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1">Username (Warehouse Name)</label>
-            <input
-              type="text"
-              required
-              className="w-full px-4 py-2 bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
+            <input type="text" required className="w-full px-4 py-2 bg-input border border-border rounded-md" value={username} onChange={e => setUsername(e.target.value)} />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Password</label>
-            <input
-              type="password"
-              required
-              className="w-full px-4 py-2 bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <input type="password" required className="w-full px-4 py-2 bg-input border border-border rounded-md" value={password} onChange={e => setPassword(e.target.value)} />
           </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-md hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 mt-4"
-          >
+          <button type="submit" disabled={loading} className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-md hover:bg-primary/90 flex items-center justify-center gap-2 mt-4">
             {loading ? 'Creating...' : <><UserPlus className="w-4 h-4" /> Create Warehouse</>}
           </button>
         </form>

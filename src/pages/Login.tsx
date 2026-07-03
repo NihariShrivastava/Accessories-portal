@@ -1,19 +1,19 @@
+// src/pages/Login.tsx
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/auth-provider';
 import { toast } from 'sonner';
 import { LogIn, Car } from 'lucide-react';
 import { ThemeToggle } from '../components/theme-toggle';
+import { api } from '../lib/api';
 
 export function Login() {
   const navigate = useNavigate();
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading, login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // If already logged in, redirect to dashboard
   if (!authLoading && user) {
     if (profile?.role === 'admin') return <Navigate to="/admin" replace />;
     if (profile?.role === 'team_lead') return <Navigate to="/teamlead" replace />;
@@ -27,67 +27,26 @@ export function Login() {
     setLoading(true);
 
     try {
-      let { data, error } = await supabase.auth.signInWithPassword({
-        email: `${username.trim().toLowerCase()}@portal.local`,
-        password,
+      const data = await api.fetch('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          email: `${username.trim().toLowerCase()}@portal.local`, 
+          password 
+        })
       });
 
-      // Fallback for previously created team leads with @teamlead.local
-      if (error && error.message.includes('Invalid login credentials')) {
-        const fallbackResult = await supabase.auth.signInWithPassword({
-          email: `${username.trim().toLowerCase()}@teamlead.local`,
-          password,
-        });
-        
-        if (!fallbackResult.error) {
-          data = fallbackResult.data;
-          error = fallbackResult.error;
-        } else {
-          // Additional fallback for previously created cashiers with @cashier.local
-          const cashierFallbackResult = await supabase.auth.signInWithPassword({
-            email: `${username.trim().toLowerCase()}@cashier.local`,
-            password,
-          });
+      login(data.user, data.token);
 
-          if (!cashierFallbackResult.error) {
-            data = cashierFallbackResult.data;
-            error = cashierFallbackResult.error;
-          }
-        }
-      }
-
-      if (error) throw error;
-
-      // Check if profile exists before redirecting
-      if (data.user) {
-        const isHardcodedAdmin = data.user.email?.startsWith('admin@');
-        let role = isHardcodedAdmin ? 'admin' : 'counter';
-
-        if (!isHardcodedAdmin) {
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', data.user.id)
-            .single();
-
-          if (profileError || !profile) {
-            await supabase.auth.signOut();
-            throw new Error('This account is no longer active or unauthorized.');
-          }
-          role = profile.role || 'counter';
-        }
-
-        // Log the login event (fire-and-forget, don't block login)
-        supabase.from('login_logs').insert([{ user_id: data.user.id }]).then(() => {});
-
-        navigate(role === 'admin' ? '/admin' : role === 'team_lead' ? '/teamlead' : role === 'cashier' ? '/cashier' : role === 'warehouse' ? '/warehouse' : '/counter', { replace: true });
-      }
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        toast.error(error.message);
-      } else {
-        toast.error('Error logging in');
-      }
+      const role = data.user.role;
+      navigate(
+        role === 'admin' ? '/admin' : 
+        role === 'team_lead' ? '/teamlead' : 
+        role === 'cashier' ? '/cashier' : 
+        role === 'warehouse' ? '/warehouse' : '/counter', 
+        { replace: true }
+      );
+    } catch (error: any) {
+      toast.error(error.message || 'Error logging in');
     } finally {
       setLoading(false);
     }

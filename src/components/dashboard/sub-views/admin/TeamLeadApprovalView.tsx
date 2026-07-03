@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, CheckCircle, RotateCcw, Filter, Download } from 'lucide-react';
-import { exportToExcel } from '../../../../utils/exportToExcel';
+import { ArrowLeft, CheckCircle, RotateCcw, Filter } from 'lucide-react';
 import { DataTable } from '../../DataTable';
 import { Badge } from '../../Badge';
 import type { CounterBill, Counter } from '../../../../hooks/useAdminData';
@@ -91,37 +90,18 @@ export function TeamLeadApprovalView({ counters, bills, onBack, onUpdateBillStat
           </button>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-          <button
-            onClick={() => {
-              const exportData = filteredBills.map(b => ({
-                'Bill No.': b.bill_number,
-                'Counter': b.profiles?.name || 'Unknown Counter',
-                'Amount (₹)': b.total_amount || 0,
-                'No. of Accessories': b.items?.length || 1,
-                'Status': b.approval_status || 'pending',
-                'Date': new Date(b.created_at).toLocaleString()
-              }));
-              if (exportData.length > 0) exportToExcel(exportData, `TeamLead_${activeTab}_Bills`);
-            }}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-500 border border-emerald-200 dark:border-emerald-800/50 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 hover:text-emerald-800 dark:hover:text-emerald-400 text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-95 shadow-sm whitespace-nowrap w-full sm:w-auto"
+        <div className="relative w-full md:w-64">
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <select
+            value={selectedCounterId}
+            onChange={(e) => setSelectedCounterId(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none font-medium"
           >
-            <Download className="w-4 h-4" /> Export Report
-          </button>
-
-          <div className="relative w-full md:w-64">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <select
-              value={selectedCounterId}
-              onChange={(e) => setSelectedCounterId(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none font-medium"
-            >
-              <option value="all">All Counters</option>
-              {counters.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
+            <option value="all">All Counters</option>
+            {counters.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
         </div>
       </div>
 

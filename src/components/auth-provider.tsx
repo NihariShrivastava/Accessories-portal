@@ -1,98 +1,57 @@
+// src/components/auth-provider.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import type { Session, User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
 
-type AuthContextType = {
-  session: Session | null;
-  user: User | null;
-  profile: any | null;
-  loading: boolean;
+export type UserProfile = {
+  id: string;
+  role: string;
+  name: string;
+  assigned_counters?: string[];
+  assigned_warehouses?: string[];
 };
 
-const AuthContext = createContext<AuthContextType>({ session: null, user: null, profile: null, loading: true });
+type AuthContextType = {
+  user: UserProfile | null;
+  profile: UserProfile | null; // Kept for backwards compatibility with your hooks
+  loading: boolean;
+  login: (userData: UserProfile, token: string) => void;
+  logout: () => void;
+};
+
+const AuthContext = createContext<AuthContextType>({ 
+  user: null, profile: null, loading: true, login: () => {}, logout: () => {} 
+});
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching profile:', error);
-        // If the user is admin, preserve the preliminary profile (which allows login without a profiles row)
-        setProfile((prev: any) => prev?.role === 'admin' ? prev : null);
-      } else {
-        setProfile(data);
-      }
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      setProfile((prev: any) => prev?.role === 'admin' ? prev : null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    // Only use onAuthStateChange — it fires INITIAL_SESSION on mount,
-    // so we do NOT also need getSession(). This eliminates the race condition.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-      setSession(currentSession);
-      const currentUser = currentSession?.user ?? null;
-      setUser(currentUser);
+    const storedUser = sessionStorage.getItem('portal_user');
+    const storedToken = sessionStorage.getItem('portal_token');
 
-      if (currentUser) {
-        // Set a preliminary profile from metadata so redirects can happen immediately
-        const metadata = currentUser.user_metadata;
-        const isHardcodedAdmin = currentUser.email?.startsWith('admin@');
-        setProfile((prev: any) => ({
-          id: currentUser.id,
-          role: isHardcodedAdmin ? 'admin' : (metadata?.role || 'counter'),
-          name: isHardcodedAdmin ? 'Admin' : (metadata?.name || ''),
-          ...(prev || {}) // Preserve existing data if any
-        }));
-        
-        // Always stop loading once we have a user and basic metadata
-        setLoading(false);
-
-        // Fetch the real profile in the background to ensure consistency
-        fetchProfile(currentUser.id);
-      } else {
-        setProfile(null);
-        setLoading(false);
-      }
-    });
-
-    // Safety timeout — if nothing happens within 5 seconds, stop loading
-    const timeout = setTimeout(() => {
-      setLoading((prev) => {
-        if (prev) {
-          console.warn('Auth loading timed out, forcing load complete.');
-        }
-        return false;
-      });
-    }, 5000);
-
-    return () => {
-      clearTimeout(timeout);
-      subscription.unsubscribe();
-    };
+    if (storedUser && storedToken) {
+      setUser(JSON.parse(storedUser));
+    }
+    setLoading(false);
   }, []);
 
+  const login = (userData: UserProfile, token: string) => {
+    sessionStorage.setItem('portal_token', token);
+    sessionStorage.setItem('portal_user', JSON.stringify(userData));
+    setUser(userData);
+  };
+
+  const logout = () => {
+    sessionStorage.removeItem('portal_token');
+    sessionStorage.removeItem('portal_user');
+    setUser(null);
+  };
+
   return (
-    <AuthContext.Provider value={{ session, user, profile, loading }}>
+    <AuthContext.Provider value={{ user, profile: user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  return useContext(AuthContext);
-};
+export const useAuth = () => useContext(AuthContext);
