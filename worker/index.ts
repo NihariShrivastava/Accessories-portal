@@ -1,7 +1,10 @@
 // worker/index.ts
 import { Hono } from 'hono';
 import { sign, verify } from 'hono/jwt';
-import { Pool } from '@neondatabase/serverless';
+import { Pool, types } from '@neondatabase/serverless';
+
+// Globally force PostgreSQL NUMERIC/DECIMAL (OID 1700) to be parsed as JavaScript floats
+types.setTypeParser(1700, (val) => parseFloat(val));
 
 type Bindings = {
   NEON_DATABASE_URL: string;
@@ -37,20 +40,35 @@ app.post('/auth/login', async (c) => {
   const pool = new Pool({ connectionString: c.env.NEON_DATABASE_URL });
 
   try {
-    const { rows } = await pool.query('SELECT id, name, role, username, password FROM profiles WHERE username = $1 LIMIT 1', [username]);
+    // Select all assigned counters and warehouses for session populating
+    const { rows } = await pool.query(
+      'SELECT id, name, role, username, password, assigned_counters, assigned_warehouses FROM profiles WHERE username = $1 LIMIT 1', 
+      [username]
+    );
     const user = rows[0];
 
     if (!user || user.password !== password) {
       if (email.startsWith('admin@') && password === 'admin1234') {
         const token = await sign({ id: 'admin-id', role: 'admin', name: 'Admin' }, c.env.JWT_SECRET, 'HS256');
-        return c.json({ user: { id: 'admin-id', role: 'admin', name: 'Admin' }, token });
+        return c.json({ user: { id: 'admin-id', role: 'admin', name: 'Admin', assigned_counters: [], assigned_warehouses: [] }, token });
       }
       return c.json({ error: 'Invalid login credentials' }, 401);
     }
 
     c.executionCtx.waitUntil(pool.query('INSERT INTO login_logs (user_id) VALUES ($1)', [user.id]).catch(console.error));
     const token = await sign({ id: user.id, role: user.role, name: user.name }, c.env.JWT_SECRET, 'HS256');
-    return c.json({ user: { id: user.id, role: user.role, name: user.name }, token });
+    
+    // Return complete profile to prevent frontend hooks from exiting early
+    return c.json({ 
+      user: { 
+        id: user.id, 
+        role: user.role, 
+        name: user.name,
+        assigned_counters: user.assigned_counters || [],
+        assigned_warehouses: user.assigned_warehouses || []
+      }, 
+      token 
+    });
   } catch (error) {
     return c.json({ error: 'Internal Server Error' }, 500);
   } finally {
