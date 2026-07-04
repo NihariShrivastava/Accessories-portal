@@ -55,6 +55,10 @@ export function BillReceipt({ bill, onClose }: BillReceiptProps) {
   const totalAmount = bill.total_amount || 0;
   const amountPaid = bill.amount_paid ?? totalAmount;
   const amountLeft = bill.amount_left ?? 0;
+  
+  const excessAdj = bill.excess_adjustment || 0;
+  const discountApp = bill.discount_approved || 0;
+  const netBalance = amountLeft + excessAdj - discountApp;
 
   const payments = bill.payment_details && Array.isArray(bill.payment_details) && bill.payment_details.length > 0 
     ? bill.payment_details 
@@ -205,15 +209,27 @@ export function BillReceipt({ bill, onClose }: BillReceiptProps) {
             <span>Total Received Amount</span>
             <span className="font-bold" style={{ color: '#38a169' }}>₹{amountPaid.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
           </div>
+          {excessAdj > 0 && (
+            <div className="flex justify-between mt-2 pt-2 border-t border-dashed" style={{ borderColor: '#e5e7eb', color: '#c05621' }}>
+              <span className="font-bold">TL/Admin Excess Adjustment</span>
+              <span className="font-bold">+ ₹{excessAdj.toLocaleString('en-IN', {minimumFractionDigits: 0})}</span>
+            </div>
+          )}
+          {discountApp > 0 && (
+            <div className="flex justify-between mt-2 pt-2 border-t border-dashed" style={{ borderColor: '#e5e7eb', color: '#c05621' }}>
+              <span className="font-bold">TL/Admin Approved Discount</span>
+              <span className="font-bold">- ₹{discountApp.toLocaleString('en-IN', {minimumFractionDigits: 0})}</span>
+            </div>
+          )}
         </div>
-
+        
         <div className="border-t mb-3 page-break-avoid" style={{ borderColor: '#e5e7eb' }}></div>
-
+        
         {/* Balance Status */}
         <div className="flex justify-between items-center mb-8 page-break-avoid">
           <span className="text-[14px] font-black uppercase tracking-tight" style={{ color: '#1a202c' }}>NET BALANCE OFF</span>
-          <span className="text-[14px] font-black tracking-widest" style={{ color: amountLeft <= 0 ? '#38a169' : '#e53e3e' }}>
-            ₹{amountLeft.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})} {amountLeft <= 0 ? '(FULLY PAID)' : '(DUE)'}
+          <span className="text-[14px] font-black tracking-widest" style={{ color: netBalance < 0 ? '#e53e3e' : '#3182ce' }}>
+            {netBalance > 0 ? '+' : netBalance < 0 ? '-' : ''}₹{Math.abs(netBalance).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
           </span>
         </div>
 

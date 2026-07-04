@@ -3,7 +3,8 @@ import { ManageCountersView } from './ManageCountersView';
 import { ManageWarehousesView } from './ManageWarehousesView';
 import { ManageTeamLeadsView } from './ManageTeamLeadsView';
 import { ManageCashiersView } from './ManageCashiersView';
-import type { Counter, Warehouse, TeamLead, Cashier } from '../../../../hooks/useAdminData';
+import { ManageAuditorsView } from './ManageAuditorsView';
+import type { Counter, Warehouse, TeamLead, Cashier, Auditor } from '../../../../hooks/useAdminData';
 
 export const CounterManagementView = (props: {
   counters: (Counter & { login_count?: number })[],
@@ -23,9 +24,13 @@ export const CounterManagementView = (props: {
   onAddCashier: () => void,
   onUpdateCashier: (id: string, updates: any) => void,
   onDeleteCashier: (id: string) => void,
-  initialTab?: 'counters' | 'warehouses' | 'team_leads' | 'cashiers'
+  auditors: Auditor[],
+  onAddAuditor: () => void,
+  onUpdateAuditor: (id: string, updates: any) => void,
+  onDeleteAuditor: (id: string) => void,
+  initialTab?: 'counters' | 'warehouses' | 'team_leads' | 'cashiers' | 'auditors'
 }) => {
-  const [activeTab, setActiveTab] = useState<'counters' | 'warehouses' | 'team_leads' | 'cashiers'>(props.initialTab || 'counters');
+  const [activeTab, setActiveTab] = useState<'counters' | 'warehouses' | 'team_leads' | 'cashiers' | 'auditors'>(props.initialTab || 'counters');
 
   useEffect(() => {
     if (props.initialTab) {
@@ -64,6 +69,13 @@ export const CounterManagementView = (props: {
         >
           Manage Cashiers
         </button>
+        <button
+          onClick={() => setActiveTab('auditors')}
+          className={`px-6 py-2 rounded-md font-semibold transition-all ${activeTab === 'auditors' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+        >
+          Manage Auditors
+        </button>
       </div>
 
       {activeTab === 'counters' ? (
@@ -92,7 +104,7 @@ export const CounterManagementView = (props: {
           onUpdate={props.onUpdateTeamLead}
           onDelete={props.onDeleteTeamLead}
         />
-      ) : (
+      ) : activeTab === 'cashiers' ? (
         <ManageCashiersView
           data={props.cashiers}
           counters={props.counters}
@@ -100,6 +112,15 @@ export const CounterManagementView = (props: {
           onAddCashier={props.onAddCashier}
           onUpdate={props.onUpdateCashier}
           onDelete={props.onDeleteCashier}
+        />
+      ) : (
+        <ManageAuditorsView
+          data={props.auditors}
+          teamLeads={props.teamLeads}
+          onBack={props.onBack}
+          onAddAuditor={props.onAddAuditor}
+          onUpdate={props.onUpdateAuditor}
+          onDelete={props.onDeleteAuditor}
         />
       )}
     </div>

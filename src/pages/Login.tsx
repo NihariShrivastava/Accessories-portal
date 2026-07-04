@@ -52,6 +52,17 @@ export function Login() {
           if (!cashierFallbackResult.error) {
             data = cashierFallbackResult.data;
             error = cashierFallbackResult.error;
+          } else {
+            // Additional fallback for auditors with @auditor.local
+            const auditorFallbackResult = await supabase.auth.signInWithPassword({
+              email: `${username.trim().toLowerCase()}@auditor.local`,
+              password,
+            });
+
+            if (!auditorFallbackResult.error) {
+              data = auditorFallbackResult.data;
+              error = auditorFallbackResult.error;
+            }
           }
         }
       }
@@ -80,7 +91,7 @@ export function Login() {
         // Log the login event (fire-and-forget, don't block login)
         supabase.from('login_logs').insert([{ user_id: data.user.id }]).then(() => {});
 
-        navigate(role === 'admin' ? '/admin' : role === 'team_lead' ? '/teamlead' : role === 'cashier' ? '/cashier' : role === 'warehouse' ? '/warehouse' : '/counter', { replace: true });
+        navigate(role === 'admin' ? '/admin' : role === 'team_lead' ? '/teamlead' : role === 'cashier' ? '/cashier' : role === 'warehouse' ? '/warehouse' : role === 'auditor' ? '/auditor' : '/counter', { replace: true });
       }
     } catch (error: unknown) {
       if (error instanceof Error) {

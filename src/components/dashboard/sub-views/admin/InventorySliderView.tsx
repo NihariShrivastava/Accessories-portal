@@ -6,25 +6,29 @@ import type { Counter } from '../../../../hooks/useAdminData';
 export const InventorySliderView = ({
   vehicleModels,
   counters,
+  warehouses = [],
   onBack,
   onModelClick,
   onCounterClick,
+  onWarehouseClick,
   transferCartCount = 0,
   onCartClick
 }: {
   vehicleModels: string[],
   counters: Counter[],
+  warehouses?: any[],
   onBack: () => void,
   onModelClick: (model: string) => void,
   onCounterClick: (counter: Counter) => void,
+  onWarehouseClick?: (warehouse: any) => void,
   transferCartCount?: number,
   onCartClick?: () => void
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const slideNames = ['By Vehicle Model', 'By Counter'];
+  const slideNames = ['By Vehicle Model', 'By Counter', 'By Warehouse'];
 
-  const goNext = () => setCurrentSlide((prev) => (prev + 1) % 2);
-  const goPrev = () => setCurrentSlide((prev) => (prev - 1 + 2) % 2);
+  const goNext = () => setCurrentSlide((prev) => (prev + 1) % 3);
+  const goPrev = () => setCurrentSlide((prev) => (prev - 1 + 3) % 3);
 
   return (
     <div className="space-y-6">
@@ -94,6 +98,21 @@ export const InventorySliderView = ({
                     <div className="flex items-center gap-3">
                       <Store className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
                       <span className="font-medium">{c.name}</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-transform" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Slide 3: Warehouses */}
+            <div className="w-full flex-shrink-0 p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {warehouses.map(w => (
+                  <button key={w.id} onClick={() => onWarehouseClick && onWarehouseClick(w)} className="flex items-center justify-between p-4 bg-card border border-border rounded-lg hover:bg-muted group">
+                    <div className="flex items-center gap-3">
+                      <Store className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
+                      <span className="font-medium">{w.name}</span>
                     </div>
                     <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-transform" />
                   </button>

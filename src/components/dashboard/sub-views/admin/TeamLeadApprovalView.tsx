@@ -1,40 +1,56 @@
-import { useState } from 'react';
-import { ArrowLeft, CheckCircle, RotateCcw, Filter, Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Filter, Download } from 'lucide-react';
 import { exportToExcel } from '../../../../utils/exportToExcel';
-import { DataTable } from '../../DataTable';
-import { Badge } from '../../Badge';
+import { BillApprovalCard } from './BillApprovalCard';
 import type { CounterBill, Counter } from '../../../../hooks/useAdminData';
 
 type Props = {
   counters: Counter[];
   bills: CounterBill[];
   onBack: () => void;
-  onUpdateBillStatus: (billId: string, status: 'approved' | 'reverted', counterId: string) => Promise<void>;
+  onUpdateBillStatus: (billId: string, status: 'approved' | 'reverted', counterId: string, excess?: number, discount?: number, note?: string) => Promise<void>;
   onViewBill: (bill: CounterBill) => void;
 };
 
 export function TeamLeadApprovalView({ counters, bills, onBack, onUpdateBillStatus, onViewBill }: Props) {
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'reverted'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'reverted' | 'reverted_by_auditor'>('pending');
   const [selectedCounterId, setSelectedCounterId] = useState<string>('all');
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  // Filter bills
   const filteredBills = bills.filter(b => {
     // Determine status: if approval_status is undefined or 'pending', it's pending.
     const status = b.approval_status || 'pending';
-    if (activeTab === 'pending' && status !== 'pending') return false;
+    
+    if (activeTab === 'pending') {
+      if (status !== 'pending') return false;
+      if (b.audit_status === 'reverted_to_team_lead') return false;
+    }
     if (activeTab === 'approved' && status !== 'approved') return false;
     if (activeTab === 'reverted' && status !== 'reverted' && status !== 'reverted_by_admin') return false;
+    if (activeTab === 'reverted_by_auditor' && b.audit_status !== 'reverted_to_team_lead') return false;
     
     if (selectedCounterId !== 'all' && b.counter_id !== selectedCounterId) return false;
     return true;
   });
 
-  const handleStatusUpdate = async (bill: CounterBill, newStatus: 'approved' | 'reverted') => {
+  const ITEMS_PER_PAGE = 6;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, selectedCounterId]);
+
+  const totalPages = Math.ceil(filteredBills.length / ITEMS_PER_PAGE);
+  const paginatedBills = filteredBills.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const handleStatusUpdate = async (bill: CounterBill, newStatus: 'approved' | 'reverted', excess = 0, discount = 0, note = '') => {
     if (!bill.counter_id) return;
     setProcessingId(bill.id);
     try {
-      await onUpdateBillStatus(bill.id, newStatus, bill.counter_id);
+      await onUpdateBillStatus(bill.id, newStatus, bill.counter_id, excess, discount, note);
     } finally {
       setProcessingId(null);
     }
@@ -89,6 +105,16 @@ export function TeamLeadApprovalView({ counters, bills, onBack, onUpdateBillStat
           >
             Reverted Bills
           </button>
+          <button
+            onClick={() => setActiveTab('reverted_by_auditor')}
+            className={`flex-1 md:flex-none px-6 py-2 rounded-md text-sm font-bold transition-all ${
+              activeTab === 'reverted_by_auditor'
+                ? 'bg-background text-orange-600 shadow-sm'
+                : 'text-muted-foreground hover:text-orange-600'
+            }`}
+          >
+            Reverted by Auditor
+          </button>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
@@ -125,62 +151,50 @@ export function TeamLeadApprovalView({ counters, bills, onBack, onUpdateBillStat
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-        <DataTable<CounterBill>
-          idAccessor="id"
-          pageSize={50}
-          columns={[
-            { header: 'Bill No.', accessor: (b) => <span className="font-mono font-medium">{b.bill_number}</span>, sortAccessor: 'bill_number', className: 'text-left' },
-            { header: 'Counter Name', accessor: (b) => <Badge variant="secondary">{b.profiles?.name || 'Unknown Counter'}</Badge>, className: 'text-left' },
-            { header: 'Amount', accessor: (b) => `₹${(b.total_amount || 0).toLocaleString('en-IN')}`, sortAccessor: 'total_amount', className: 'text-right font-medium' },
-            { header: 'No. of Accessories', accessor: (b) => b.items?.length || 1, className: 'text-center' },
-            { header: 'Date', accessor: (b) => new Date(b.created_at).toLocaleString(), sortAccessor: 'created_at', className: 'text-left text-muted-foreground text-sm' },
-            {
-              header: 'Actions',
-              accessor: (b) => (
-                <div className="flex justify-end items-center gap-2">
-                  <button
-                    onClick={() => onViewBill(b)}
-                    className="px-2 py-1.5 bg-secondary text-secondary-foreground text-xs rounded hover:bg-secondary/80 whitespace-nowrap font-medium"
-                  >
-                    View Bill
-                  </button>
-                  {activeTab === 'pending' ? (
-                    <>
-                      <button
-                        onClick={() => handleStatusUpdate(b, 'reverted')}
-                        disabled={processingId === b.id}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 font-bold transition-colors disabled:opacity-50 text-xs"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        Revert
-                      </button>
-                      <button
-                        onClick={() => handleStatusUpdate(b, 'approved')}
-                        disabled={processingId === b.id}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded bg-emerald-500 text-white hover:bg-emerald-600 font-bold transition-colors disabled:opacity-50 text-xs"
-                      >
-                        <CheckCircle className="w-3 h-3" />
-                        Approve
-                      </button>
-                    </>
-                  ) : activeTab === 'approved' ? (
-                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-end gap-1 ml-2">
-                      <CheckCircle className="w-3 h-3" /> Approved
-                    </span>
-                  ) : (
-                    <span className="text-xs font-bold text-red-600 dark:text-red-400 flex items-center justify-end gap-1 ml-2 uppercase">
-                      Reverted {b.approval_status === 'reverted_by_admin' ? 'by Admin' : ''}
-                    </span>
-                  )}
-                </div>
-              ),
-              className: 'text-right pr-4'
-            }
-          ]}
-          data={filteredBills}
-          emptyMessage={`There are currently no ${activeTab} bills for the selected filter.`}
-        />
+      <div className="bg-background rounded-xl border-none shadow-none">
+        {filteredBills.length === 0 ? (
+          <div className="text-center py-12 bg-card rounded-xl border border-border shadow-sm">
+            <p className="text-muted-foreground text-sm font-medium">There are currently no {activeTab} bills for the selected filter.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {paginatedBills.map(bill => (
+                <BillApprovalCard
+                  key={bill.id}
+                  bill={bill}
+                  activeTab={activeTab}
+                  isProcessing={processingId === bill.id}
+                  onApprove={(excess, discount, note) => handleStatusUpdate(bill, 'approved', excess, discount, note)}
+                  onRevert={() => handleStatusUpdate(bill, 'reverted')}
+                  onViewBill={() => onViewBill(bill)}
+                />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 pt-4 pb-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-md border border-border bg-card hover:bg-muted text-sm font-medium disabled:opacity-50 transition-colors"
+                >
+                  Previous
+                </button>
+                <span className="text-sm font-medium text-muted-foreground mx-4">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 rounded-md border border-border bg-card hover:bg-muted text-sm font-medium disabled:opacity-50 transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

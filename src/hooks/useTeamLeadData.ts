@@ -266,16 +266,28 @@ export function useTeamLeadData(user: any) {
     return Array.from(map.values());
   }, [bills, assignedCounters]);
 
-  const updateBillStatus = async (billId: string, status: 'approved' | 'reverted', counterId: string) => {
+  const updateBillStatus = async (billId: string, status: 'approved' | 'reverted', counterId: string, excessAdjustment: number = 0, discountApproved: number = 0, approvalNote: string = '') => {
     try {
       const billToUpdate = bills.find(b => b.id === billId);
       if (!billToUpdate) throw new Error('Bill not found');
       
       const itemIds = billToUpdate.items ? billToUpdate.items.map((i: any) => i.id) : [billId];
 
+      const updatePayload: any = { approval_status: status };
+      if (status === 'approved') {
+        updatePayload.excess_adjustment = excessAdjustment;
+        updatePayload.discount_approved = discountApproved;
+        updatePayload.approval_note = approvalNote;
+        if (billToUpdate.audit_status === 'reverted_to_team_lead') {
+          updatePayload.audit_status = 'pending';
+        }
+      } else if (status === 'reverted') {
+        updatePayload.audit_status = null;
+      }
+
       const { error: billError } = await supabase
         .from('bills')
-        .update({ approval_status: status })
+        .update(updatePayload)
         .in('id', itemIds)
         .select();
 

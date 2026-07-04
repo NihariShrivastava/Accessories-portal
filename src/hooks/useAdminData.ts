@@ -8,6 +8,7 @@ export type Counter = { id: string; name: string; username?: string; password?: 
 export type Warehouse = { id: string; name: string; username?: string; password?: string; login_count?: number };
 export type TeamLead = { id: string; name: string; username?: string; password?: string; assigned_counters?: string[]; assigned_warehouses?: string[]; login_count?: number };
 export type Cashier = { id: string; name: string; username?: string; password?: string; assigned_counters?: string[]; login_count?: number };
+export type Auditor = { id: string; name: string; username?: string; password?: string; assigned_team_leads?: string[]; login_count?: number };
 export type InventoryItem = { id: string; counter_id: string; counter_name: string; vehicle_model: string; name: string; accessory_code?: string; quantity: number; price: number; cgst_percent?: number; sgst_percent?: number; created_at: string };
 export type LoginDetail = { user_id: string; name: string; login_count: number };
 export type SalesReport = { counter_id: string; counter_name: string; total_bills: number; total_items: number; total_sales: number; total_collected: number; outstanding: number };
@@ -20,6 +21,15 @@ export interface CashierReport {
   drawer_balance: number;
 }
 
+export interface AuditorReport {
+  auditor_id: string;
+  auditor_name: string;
+  pending_audits: number;
+  approved_audits: number;
+  total_savings_found: number;
+  team_leads: any[];
+}
+
 export interface TeamLeadReport {
   team_lead_id: string;
   team_lead_name: string;
@@ -28,6 +38,8 @@ export interface TeamLeadReport {
   assigned_counters_ids: string[];
   pending_approvals: number;
   approved_approvals: number;
+  total_discount_approved: number;
+  total_excess_approved: number;
 };
 export type InventorySummary = { counter_id: string; counter_name: string; surplus_count: number; shortage_count: number };
 export type AmountCollectedReport = {
@@ -59,10 +71,22 @@ export type CounterBill = {
   chassis_number?: string; 
   engine_number?: string; 
   checklist_number?: string;
+  customer_name?: string;
+  customer_phone?: string;
+  customer_id?: string;
   items?: any[];
   counter_id?: string;
   profiles?: { name: string };
   approval_status?: string;
+  excess_adjustment?: number;
+  discount_approved?: number;
+  approval_note?: string;
+  audit_status?: string;
+  auditor_id?: string;
+  total_savings?: number;
+  dealership_savings?: any;
+  payment_audits?: any;
+  total_gap?: number;
 };
 
 const syncAuthCredentials = async (
@@ -70,7 +94,7 @@ const syncAuthCredentials = async (
   oldPassword: string,
   newUsername?: string,
   newPassword?: string,
-  role?: 'counter' | 'team_lead' | 'cashier'
+  role?: 'counter' | 'team_lead' | 'cashier' | 'auditor'
 ) => {
   if (!oldUsername || !oldPassword) return;
   if ((!newUsername || newUsername === oldUsername) && (!newPassword || newPassword === oldPassword)) return;
@@ -89,6 +113,15 @@ const syncAuthCredentials = async (
 
   if (signInError && role === 'team_lead') {
     emailToTry = `${oldUsername.trim().toLowerCase()}@teamlead.local`;
+    const fallback = await tempSupabase.auth.signInWithPassword({
+      email: emailToTry,
+      password: oldPassword
+    });
+    signInError = fallback.error;
+  }
+  
+  if (signInError && role === 'auditor') {
+    emailToTry = `${oldUsername.trim().toLowerCase()}@auditor.local`;
     const fallback = await tempSupabase.auth.signInWithPassword({
       email: emailToTry,
       password: oldPassword
@@ -136,6 +169,7 @@ export function useAdminData() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [teamLeads, setTeamLeads] = useState<TeamLead[]>([]);
   const [cashiers, setCashiers] = useState<Cashier[]>([]);
+  const [auditors, setAuditors] = useState<Auditor[]>([]);
   const [cashierReports, setCashierReports] = useState<CashierReport[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loginDetails, setLoginDetails] = useState<LoginDetail[]>([]);
@@ -247,6 +281,33 @@ export function useAdminData() {
       console.error('Error fetching team leads:', err);
     }
   }, []);
+
+  const fetchAuditors = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').eq('role', 'auditor');
+      if (error) throw error;
+      
+      const { data: logsData } = await supabase.from('login_logs').select('user_id');
+      const loginMap = new Map<string, number>();
+      (logsData || []).forEach(log => {
+        loginMap.set(log.user_id, (loginMap.get(log.user_id) || 0) + 1);
+      });
+      
+      const formatted = (data || []).map(p => ({
+        id: p.id,
+        name: p.name || p.username || 'Unknown',
+        username: p.username || '',
+        password: p.password || '',
+        assigned_team_leads: p.assigned_team_leads || [],
+        login_count: loginMap.get(p.id) || 0
+      }));
+      
+      setAuditors(formatted);
+    } catch (err) {
+      console.error('Error fetching auditors:', err);
+    }
+  }, []);
+
 
   const fetchCashiers = useCallback(async () => {
     try {
@@ -619,7 +680,7 @@ export function useAdminData() {
   }, []);
 
   const fetchBills = useCallback(async () => {
-    const { data } = await supabase.from('bills').select(`*, profiles!inner(name), accessories (name, accessory_code, vehicle_model)`);
+    const { data } = await supabase.from('bills').select(`*, profiles!counter_id(name), accessories (name, accessory_code, vehicle_model)`);
     setAllBills(groupBills(data || []));
   }, [groupBills]);
 
@@ -738,6 +799,9 @@ export function useAdminData() {
       const pendingCount = tlBills.filter(b => b.approval_status === 'pending').length;
       const approvedCount = tlBills.filter(b => b.approval_status === 'approved').length;
       
+      const totalDiscount = tlBills.reduce((sum, b) => sum + (Number(b.discount_approved) || 0), 0);
+      const totalExcess = tlBills.reduce((sum, b) => sum + (Number(b.excess_adjustment) || 0), 0);
+
       return {
         team_lead_id: tl.id,
         team_lead_name: tl.name,
@@ -745,10 +809,40 @@ export function useAdminData() {
         assigned_counters_names: assignedNames,
         assigned_counters_ids: assignedIds,
         pending_approvals: pendingCount,
-        approved_approvals: approvedCount
+        approved_approvals: approvedCount,
+        total_discount_approved: totalDiscount,
+        total_excess_approved: totalExcess
       };
     });
   }, [teamLeads, counters, filteredBills]);
+
+  const auditorReports = useMemo(() => {
+    if (!auditors || auditors.length === 0) return [];
+    
+    return auditors.map((auditor: Auditor) => {
+      // Find all bills audited by this auditor
+      const auditedBills = allBills.filter(b => b.auditor_id === auditor.id);
+      
+      const pendingCount = allBills.filter(b => b.audit_status !== 'audited' && b.approval_status === 'approved' && (auditor.assigned_team_leads || []).some(tlId => {
+        // Find if this bill belongs to a counter assigned to this TL
+        const tl = teamLeads.find(t => t.id === tlId);
+        return tl && (tl.assigned_counters || []).includes(b.counter_id || '');
+      })).length;
+      
+      const approvedCount = auditedBills.length;
+      
+      const totalSavings = auditedBills.reduce((sum, b) => sum + (Number(b.total_savings) || 0), 0);
+
+      return {
+        auditor_id: auditor.id,
+        auditor_name: auditor.name,
+        pending_audits: pendingCount,
+        approved_audits: approvedCount,
+        total_savings_found: totalSavings,
+        team_leads: auditor.assigned_team_leads || []
+      };
+    });
+  }, [auditors, allBills, teamLeads]);
 
   const fetchLoginDetails = useCallback(async () => {
     const { data: countersData } = await supabase.from('profiles').select('id, name').eq('role', 'counter');
@@ -961,6 +1055,36 @@ export function useAdminData() {
     }
   };
 
+  const updateAuditor = async (id: string, updates: any) => {
+    try {
+      const oldData = auditors.find(a => a.id === id);
+      if (oldData && oldData.username && oldData.password) {
+        await syncAuthCredentials(oldData.username, oldData.password, updates.username, updates.password, 'auditor');
+      }
+      const { error } = await supabase.from('profiles').update(updates).eq('id', id);
+      if (error) throw error;
+      toast.success('Auditor updated');
+      fetchAuditors();
+    } catch (err) {
+      toast.error('Failed to update auditor');
+      console.error(err);
+    }
+  };
+
+  const deleteAuditor = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this auditor?')) return;
+    try {
+      await supabase.from('login_logs').delete().eq('user_id', id);
+      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Auditor deleted');
+      fetchAuditors();
+    } catch (err) {
+      toast.error('Failed to delete auditor');
+      console.error(err);
+    }
+  };
+
 
   const updateWarehouse = async (id: string, updates: any) => {
     try {
@@ -1039,14 +1163,66 @@ export function useAdminData() {
     }
   };
 
+  const updateBillAuditStatus = async (billId: string, status: 'verified' | 'reverted_by_admin') => {
+    try {
+      const billToUpdate = allBills.find(b => b.id === billId);
+      if (!billToUpdate) throw new Error('Bill not found');
+      
+      const itemIds = billToUpdate.items ? billToUpdate.items.map((i: any) => i.id) : [billId];
+
+      const { error: billError } = await supabase
+        .from('bills')
+        .update({ audit_status: status })
+        .in('id', itemIds);
+
+      if (billError) throw billError;
+
+      if (status === 'reverted_by_admin') {
+        toast.success(`Bill ${billToUpdate.bill_number} reverted to Auditor.`);
+      } else {
+        toast.success(`Bill ${billToUpdate.bill_number} verified successfully.`);
+      }
+
+      await fetchBills();
+    } catch (error: any) {
+      toast.error(error.message || 'Error updating audit status');
+    }
+  };
+
+  const updateBillAuditDetails = async (billId: string, savingsData: any, paymentsData: any, totalSavings: number, totalGap: number) => {
+    try {
+      const billToUpdate = allBills.find(b => b.id === billId);
+      if (!billToUpdate) throw new Error('Bill not found');
+      
+      const itemIds = billToUpdate.items ? billToUpdate.items.map((i: any) => i.id) : [billId];
+
+      const { error } = await supabase
+        .from('bills')
+        .update({
+          dealership_savings: savingsData,
+          payment_audits: paymentsData,
+          total_savings: totalSavings,
+          total_gap: totalGap
+        })
+        .in('id', itemIds);
+
+      if (error) throw error;
+      toast.success(`Bill ${billToUpdate.bill_number} audit details updated successfully.`);
+      await fetchBills();
+    } catch (error: any) {
+      toast.error(error.message || 'Error updating audit details');
+    }
+  };
+
   useEffect(() => {
     fetchStats();
     fetchCounters();
     fetchWarehouses();
     fetchTeamLeads();
     fetchCashiers();
+    fetchAuditors();
     fetchBills();
-  }, [fetchStats, fetchCounters, fetchWarehouses, fetchTeamLeads, fetchCashiers, fetchBills]);
+  }, [fetchStats, fetchCounters, fetchWarehouses, fetchTeamLeads, fetchCashiers, fetchAuditors, fetchBills]);
 
   useEffect(() => {
     fetchInventory();
@@ -1054,6 +1230,7 @@ export function useAdminData() {
 
   return {
     stats, counters, warehouses, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, allBills,
+    auditors, auditorReports,
     startDate, endDate, setStartDate, setEndDate,
     fetchLoginDetails, fetchCounters, fetchWarehouses, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter, updateWarehouse, deleteWarehouse,
@@ -1062,6 +1239,7 @@ export function useAdminData() {
     deleteDataByDate,
     teamLeads, fetchTeamLeads, updateTeamLead, deleteTeamLead,
     cashiers, fetchCashiers, updateCashier, deleteCashier,
-    updateBillStatusAdmin
+    fetchAuditors, updateAuditor, deleteAuditor,
+    updateBillStatusAdmin, updateBillAuditStatus, updateBillAuditDetails
   };
 }

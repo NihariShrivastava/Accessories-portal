@@ -8,12 +8,13 @@ import { AmountCollectedDialog } from './AmountCollectedDialog';
 import { exportToExcel } from '../../../../utils/exportToExcel';
 
 export const ReportsView = ({
-  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick
+  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick, auditorReports, onAuditorClick
 }: {
   data: SalesReport[], onBack: () => void, onCounterClick: (r: SalesReport) => void,
   inventory: InventoryItem[], inventoryReport: InventorySummary[], cashierReports?: CashierReport[],
   onCashierClick?: (r: CashierReport) => void, amountCollectedReport?: AmountCollectedReport[],
-  teamLeadReports?: TeamLeadReport[], onTeamLeadClick?: (r: TeamLeadReport) => void
+  teamLeadReports?: TeamLeadReport[], onTeamLeadClick?: (r: TeamLeadReport) => void,
+  auditorReports?: any[], onAuditorClick?: (r: any) => void
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [expandedCounter, setExpandedCounter] = useState<string | null>(null);
@@ -23,6 +24,7 @@ export const ReportsView = ({
   const slideNames = ['Ledger', 'Revenue Report', 'Inventory Report', 'Amount Collected'];
   if (teamLeadReports) slideNames.push('Team Lead Report');
   if (cashierReports && onCashierClick) slideNames.push('Cashier Report');
+  if (auditorReports && onAuditorClick) slideNames.push('Auditor Report');
   const totalSlides = slideNames.length;
 
   const filteredData = selectedCounterFilter === 'all' ? data : data.filter(d => d.counter_id === selectedCounterFilter);
@@ -76,7 +78,9 @@ export const ReportsView = ({
         'Counters Assigned Count': r.assigned_counters_count,
         'Counters Assigned Names': r.assigned_counters_names.join(', '),
         'Pending Approvals': r.pending_approvals,
-        'Approved Approvals': r.approved_approvals
+        'Approved Approvals': r.approved_approvals,
+        'Discount Approved (₹)': r.total_discount_approved,
+        'Excess Approved (₹)': r.total_excess_approved
       }));
       exportToExcel(exportData, 'Team_Lead_Report');
     } else if (currentSlideName === 'Cashier Report' && cashierReports) {
@@ -88,6 +92,14 @@ export const ReportsView = ({
         'Drawer Cash Balance (₹)': r.drawer_balance
       }));
       exportToExcel(exportData, 'Cashier_Report');
+    } else if (currentSlideName === 'Auditor Report' && auditorReports) {
+      const exportData = auditorReports.map(r => ({
+        'Auditor Name': r.auditor_name,
+        'Pending Audits': r.pending_audits,
+        'Approved (Forwarded) Audits': r.approved_audits,
+        'Total Savings Found (₹)': r.total_savings_found
+      }));
+      exportToExcel(exportData, 'Auditor_Report');
     }
   };
 
@@ -360,7 +372,9 @@ export const ReportsView = ({
                       </div>
                     ), sortAccessor: 'assigned_counters_count', className: 'text-left' },
                     { header: 'Pending Approvals', accessor: (r) => <span className="text-amber-500 font-bold">{r.pending_approvals}</span>, sortAccessor: 'pending_approvals', className: 'text-right' },
-                    { header: 'Approved Approvals', accessor: (r) => <span className="text-emerald-600 font-bold">{r.approved_approvals}</span>, sortAccessor: 'approved_approvals', className: 'text-right' }
+                    { header: 'Approved Approvals', accessor: (r) => <span className="text-emerald-600 font-bold">{r.approved_approvals}</span>, sortAccessor: 'approved_approvals', className: 'text-right' },
+                    { header: 'Discount Approved', accessor: (r) => <span className="text-destructive font-medium">₹{r.total_discount_approved.toLocaleString('en-IN')}</span>, sortAccessor: 'total_discount_approved', className: 'text-right' },
+                    { header: 'Excess Approved', accessor: (r) => <span className="text-emerald-500 font-medium">₹{r.total_excess_approved.toLocaleString('en-IN')}</span>, sortAccessor: 'total_excess_approved', className: 'text-right' }
                   ]}
                 />
               </div>
@@ -385,6 +399,29 @@ export const ReportsView = ({
                     { header: 'Pending Handover', accessor: (r) => <span className="text-amber-500 font-medium">₹{r.pending_handover.toLocaleString()}</span>, sortAccessor: 'pending_handover', className: 'text-right' },
                     { header: 'Approved Handover', accessor: (r) => <span className="text-emerald-600 dark:text-emerald-400 font-medium">₹{r.approved_handover.toLocaleString()}</span>, sortAccessor: 'approved_handover', className: 'text-right' },
                     { header: 'Drawer Cash Balance', accessor: (r) => <span className="font-black text-foreground">₹{r.drawer_balance.toLocaleString()}</span>, sortAccessor: 'drawer_balance', className: 'text-right font-bold' }
+                  ]}
+                />
+              </div>
+            )}
+
+            {/* Slide 7: Auditor Report */}
+            {auditorReports && onAuditorClick && (
+              <div className="w-full flex-shrink-0">
+                <div className="px-4 sm:px-6 pt-4 pb-2">
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <History className="w-4 h-4 text-purple-600" />
+                    Overview of auditor metrics and savings found.
+                  </p>
+                </div>
+                <DataTable<any>
+                  idAccessor="auditor_id"
+                  data={auditorReports}
+                  onRowClick={onAuditorClick}
+                  columns={[
+                    { header: 'Auditor Name', accessor: 'auditor_name', sortAccessor: 'auditor_name', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
+                    { header: 'Pending Audits', accessor: (r) => <span className="text-amber-500 font-medium">{r.pending_audits}</span>, sortAccessor: 'pending_audits', className: 'text-right' },
+                    { header: 'Approved (Forwarded)', accessor: (r) => <span className="text-emerald-600 font-medium">{r.approved_audits}</span>, sortAccessor: 'approved_audits', className: 'text-right' },
+                    { header: 'Total Savings Found', accessor: (r) => <span className="font-black text-green-600">₹{r.total_savings_found.toLocaleString()}</span>, sortAccessor: 'total_savings_found', className: 'text-right font-bold' }
                   ]}
                 />
               </div>

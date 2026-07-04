@@ -1,0 +1,161 @@
+import { useState } from 'react';
+import { DataTable } from '../../DataTable';
+import { ViewHeader } from '../../ViewHeader';
+import { Badge } from '../../Badge';
+import { MultiSelectDropdown } from '../../MultiSelectDropdown';
+import { Users, UserPlus, Save, X, Trash2 } from 'lucide-react';
+import type { Auditor, TeamLead } from '../../../../hooks/useAdminData';
+
+export const ManageAuditorsView = ({
+  data,
+  teamLeads,
+  onBack,
+  onAddAuditor,
+  onUpdate,
+  onDelete
+}: {
+  data: Auditor[],
+  teamLeads: TeamLead[],
+  onBack: () => void,
+  onAddAuditor: () => void,
+  onUpdate: (id: string, updates: any) => void,
+  onDelete: (id: string) => void
+}) => {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{ username: string, password: string, assigned_team_leads: string[] }>({ username: '', password: '', assigned_team_leads: [] });
+
+  const startEdit = (auditor: Auditor) => {
+    setEditingId(auditor.id);
+    setEditForm({
+      username: auditor.username || '',
+      password: auditor.password || '',
+      assigned_team_leads: auditor.assigned_team_leads || []
+    });
+  };
+
+  const handleSave = (id: string) => {
+    onUpdate(id, editForm);
+    setEditingId(null);
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <ViewHeader
+          title="Manage Auditors"
+          onBack={onBack}
+          icon={Users}
+          description={`${data.length} total auditors in the system.`}
+        />
+        <button
+          onClick={onAddAuditor}
+          className="bg-primary text-primary-foreground py-2 px-6 rounded-lg hover:bg-primary/90 transition-all flex items-center justify-center gap-2 font-bold shadow-lg shadow-primary/20 hover:scale-105 active:scale-95"
+        >
+          <UserPlus className="w-5 h-5" /> Add New Auditor
+        </button>
+      </div>
+
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-visible">
+        <DataTable<Auditor>
+          idAccessor="id"
+          data={data}
+          columns={[
+            {
+              header: 'Username',
+              accessor: (a) => editingId === a.id ? (
+                <input
+                  className="w-full px-2 py-1 bg-background border rounded text-sm"
+                  value={editForm.username}
+                  onChange={e => setEditForm({ ...editForm, username: e.target.value })}
+                />
+              ) : <span className="font-semibold text-primary">{a.username || a.name}</span>,
+              className: 'min-w-[150px]'
+            },
+            {
+              header: 'Password',
+              accessor: (a) => editingId === a.id ? (
+                <input
+                  className="w-full px-2 py-1 bg-background border rounded text-sm"
+                  value={editForm.password}
+                  onChange={e => setEditForm({ ...editForm, password: e.target.value })}
+                />
+              ) : <span className="text-muted-foreground font-mono text-xs">{a.password || <span className="text-destructive font-bold underline">EMPTY</span>}</span>
+            },
+            {
+              header: 'Assigned Team Leads',
+              accessor: (a) => editingId === a.id ? (
+                <div className="min-w-[200px]">
+                  <MultiSelectDropdown 
+                    options={teamLeads.map(tl => ({ id: tl.id, name: tl.name || tl.username || 'Unknown' }))}
+                    selectedIds={editForm.assigned_team_leads}
+                    onChange={(ids) => setEditForm(prev => ({ ...prev, assigned_team_leads: ids }))}
+                    placeholder="Assign team leads..."
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-1 max-w-xs">
+                  {a.assigned_team_leads && a.assigned_team_leads.length > 0 ? (
+                    a.assigned_team_leads.map(id => {
+                      const tl = teamLeads.find(t => t.id === id);
+                      return <Badge key={id} variant="secondary">{tl ? (tl.name || tl.username) : 'Unknown'}</Badge>;
+                    })
+                  ) : (
+                    <span className="text-muted-foreground text-xs">None</span>
+                  )}
+                </div>
+              )
+            },
+            {
+              header: 'Logins',
+              accessor: (a) => <Badge variant="secondary">{a.login_count || 0}</Badge>,
+              className: 'text-center'
+            },
+            {
+              header: 'Actions',
+              accessor: (a) => (
+                <div className="flex items-center justify-end gap-2">
+                  {editingId === a.id ? (
+                    <>
+                      <button
+                        onClick={() => handleSave(a.id)}
+                        className="p-1.5 bg-green-100 text-green-600 hover:bg-green-200 rounded-lg transition-colors"
+                        title="Save Changes"
+                      >
+                        <Save className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="p-1.5 bg-red-100 text-red-600 hover:bg-red-200 rounded-lg transition-colors"
+                        title="Cancel"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => startEdit(a)}
+                        className="px-3 py-1 bg-muted hover:bg-muted-foreground hover:text-white rounded text-xs font-semibold transition-all"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => { if (confirm(`Are you sure you want to delete ${a.username}?`)) onDelete(a.id); }}
+                        className="p-1.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                        title="Delete Auditor"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              ),
+              className: 'text-right'
+            }
+          ]}
+          overflowVisible={true}
+        />
+      </div>
+    </div>
+  );
+};

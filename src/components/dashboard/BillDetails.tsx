@@ -135,10 +135,39 @@ export function BillDetails({ bill, onClose }: BillDetailsProps) {
           <span className="font-medium text-green-600 dark:text-green-400">₹{bill.amount_paid.toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-lg font-bold border-t border-border pt-2 mt-2">
-          <span className="text-destructive">Balance Left</span>
-          <span className="text-destructive">₹{bill.amount_left.toFixed(2)}</span>
+          <span className={bill.amount_left < 0 ? "text-emerald-600 dark:text-emerald-400" : bill.amount_left > 0 ? "text-amber-600 dark:text-amber-400" : "text-foreground"}>
+            {bill.amount_left < 0 ? 'Excess Paid' : 'Balance Left'}
+          </span>
+          <span className={bill.amount_left < 0 ? "text-emerald-600 dark:text-emerald-400" : bill.amount_left > 0 ? "text-amber-600 dark:text-amber-400" : "text-foreground"}>
+            {bill.amount_left > 0 ? '+' : bill.amount_left < 0 ? '-' : ''}₹{Math.abs(bill.amount_left).toFixed(2)}
+          </span>
         </div>
       </div>
+
+      {/* Adjustments & Approval Note */}
+      {(Number(bill.excess_adjustment) > 0 || Number(bill.discount_approved) > 0 || bill.approval_note) && (
+        <div className="bg-muted/30 border border-border p-4 rounded-xl space-y-3 mt-4">
+          <h4 className="text-xs font-bold uppercase text-muted-foreground border-b border-border pb-2 mb-2">Team Lead Review</h4>
+          {Number(bill.excess_adjustment) > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">Excess Adjusted</span>
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">+₹{Number(bill.excess_adjustment).toFixed(2)}</span>
+            </div>
+          )}
+          {Number(bill.discount_approved) > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="font-bold text-amber-600 dark:text-amber-400">Discount Approved</span>
+              <span className="font-bold text-amber-600 dark:text-amber-400">-₹{Number(bill.discount_approved).toFixed(2)}</span>
+            </div>
+          )}
+          {bill.approval_note && (
+            <div className="mt-2 pt-2 border-t border-border/50">
+              <span className="block text-[10px] font-bold text-muted-foreground uppercase mb-1">Remark:</span>
+              <span className="text-sm italic text-foreground">"{bill.approval_note}"</span>
+            </div>
+          )}
+        </div>
+      )}
 
       <button
         onClick={onClose}

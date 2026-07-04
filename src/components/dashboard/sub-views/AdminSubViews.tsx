@@ -19,3 +19,6 @@ export * from './admin/TeamLeadApprovalView';
 export * from './admin/TeamLeadTransferView';
 export * from './admin/AddWarehouseView';
 export * from './admin/ManageWarehousesView';
+export * from './admin/ManageAuditorsView';
+export * from './admin/AddAuditorView';
+export * from './admin/AuditorDetailsView';

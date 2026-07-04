@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { ArrowLeft, Clock, CheckCircle, RotateCcw, FileText } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Clock, CheckCircle, RotateCcw } from 'lucide-react';
+import { BillApprovalCard } from '../admin/BillApprovalCard';
 import type { Bill } from '../../../../hooks/useCounterData';
 
 type Props = {
@@ -9,13 +10,26 @@ type Props = {
   onDownloadBill: (bill: Bill) => void;
 };
 
-export function CounterApprovalView({ bills, onBack, onViewBill, onDownloadBill }: Props) {
+export function CounterApprovalView({ bills, onBack, onDownloadBill }: Props) {
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'reverted' | 'reverted_by_admin'>('pending');
 
   const filteredBills = bills.filter(b => {
     const status = b.approval_status || 'pending';
     return status === activeTab;
   });
+
+  const ITEMS_PER_PAGE = 6;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
+  const totalPages = Math.ceil(filteredBills.length / ITEMS_PER_PAGE);
+  const paginatedBills = filteredBills.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -97,51 +111,41 @@ export function CounterApprovalView({ bills, onBack, onViewBill, onDownloadBill 
             </p>
           </div>
         ) : (
-          filteredBills.map(bill => (
-            <div 
-              key={bill.id} 
-              className={`bg-card border rounded-xl p-5 shadow-sm transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:border-primary/50 ${
-                (activeTab === 'reverted' || activeTab === 'reverted_by_admin') ? 'border-red-200 dark:border-red-900/50 hover:border-red-400' : 'border-border'
-              }`}
-              onClick={() => onViewBill(bill)}
-            >
-              <div className="flex items-start gap-4">
-                <div className={`p-3 rounded-xl flex-shrink-0 ${
-                  activeTab === 'pending' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' : 
-                  activeTab === 'approved' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                  'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
-                }`}>
-                  <FileText className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-lg">{bill.bill_number}</h3>
-                    {(activeTab === 'reverted' || activeTab === 'reverted_by_admin') && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 font-bold uppercase tracking-wider">
-                        Reverted {activeTab === 'reverted_by_admin' ? 'by Admin' : ''}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {bill.items?.length || 1} Item(s) • ₹{(bill.total_amount || 0).toLocaleString('en-IN')}
-                    {(activeTab === 'reverted' || activeTab === 'reverted_by_admin') && <span className="ml-2 font-medium text-foreground">({bill.quantity} Qty Restored)</span>}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(bill.created_at).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="bg-background rounded-xl border-none shadow-none space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {paginatedBills.map(bill => (
+                <BillApprovalCard
+                  key={bill.id}
+                  bill={bill as any}
+                  activeTab={activeTab === 'reverted_by_admin' ? 'reverted' : activeTab}
+                  isCounterView={true}
+                  onViewBill={() => onDownloadBill(bill)}
+                />
+              ))}
+            </div>
+            
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 pt-4 pb-2">
                 <button
-                  onClick={(e) => { e.stopPropagation(); onDownloadBill(bill); }}
-                  className="w-full md:w-auto px-4 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 font-medium transition-colors"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-md border border-border bg-card hover:bg-muted text-sm font-medium disabled:opacity-50 transition-colors"
                 >
-                  Download / Print
+                  Previous
+                </button>
+                <span className="text-sm font-medium text-muted-foreground mx-4">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 rounded-md border border-border bg-card hover:bg-muted text-sm font-medium disabled:opacity-50 transition-colors"
+                >
+                  Next
                 </button>
               </div>
-            </div>
-          ))
+            )}
+          </div>
         )}
       </div>
     </div>

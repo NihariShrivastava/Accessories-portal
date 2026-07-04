@@ -8,7 +8,7 @@ import type { InventoryItem, CounterBill, SalesReport, TeamLeadReport } from '..
 import { Modal } from '../components/dashboard/Modal';
 import { BillDetails } from '../components/dashboard/BillDetails';
 import { BillReceipt } from '../components/dashboard/BillReceipt';
-import { CounterManagementView, AddTeamLeadView, AddCashierView, AddWarehouseView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView, GlobalInventorySliderView, UploadHistoryView, CashierDetailsView } from '../components/dashboard/sub-views/AdminSubViews';
+import { CounterManagementView, AddTeamLeadView, AddCashierView, AddWarehouseView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView, GlobalInventorySliderView, UploadHistoryView, CashierDetailsView, AddAuditorView, AuditorDetailsView } from '../components/dashboard/sub-views/AdminSubViews';
 import { TeamLeadApprovalView } from '../components/dashboard/sub-views/admin/TeamLeadApprovalView';
 
 export function AdminDashboard() {
@@ -20,7 +20,8 @@ export function AdminDashboard() {
     transferCart, addToTransferCart, removeFromTransferCart, clearTransferCart, executeCartTransfer,
     deleteDataByDate, teamLeads, fetchTeamLeads, updateTeamLead, deleteTeamLead,
     cashiers, fetchCashiers, updateCashier, deleteCashier,
-    updateBillStatusAdmin
+    auditors, fetchAuditors, updateAuditor, deleteAuditor, auditorReports,
+    updateBillStatusAdmin, updateBillAuditStatus, updateBillAuditDetails
   } = useAdminData();
 
   const [activeView, setActiveView] = useState('dashboard');
@@ -31,6 +32,7 @@ export function AdminDashboard() {
   const [showBillDetails, setShowBillDetails] = useState(false);
   const [selectedCashierReport, setSelectedCashierReport] = useState<any>(null);
   const [selectedTeamLeadReport, setSelectedTeamLeadReport] = useState<TeamLeadReport | null>(null);
+  const [selectedAuditorReport, setSelectedAuditorReport] = useState<any>(null);
   const [generatedBill, setGeneratedBill] = useState<CounterBill | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   
@@ -59,10 +61,21 @@ export function AdminDashboard() {
 
   const uploadHistory = useMemo(() => {
     const timestamps = new Set<string>();
+    const countMap = new Map<string, number>();
     inventory.forEach(i => {
-      if (i.created_at) timestamps.add(i.created_at);
+      if (i.created_at) {
+        timestamps.add(i.created_at);
+        countMap.set(i.created_at, (countMap.get(i.created_at) || 0) + 1);
+      }
     });
-    let result = Array.from(timestamps).sort((a, b) => b.localeCompare(a));
+    
+    // Filter to strictly Excel uploads: 
+    // - customDate uploads end in T12:00:00Z
+    // - Batch upserts have exactly the same timestamp (count > 1)
+    let result = Array.from(timestamps)
+      .filter(t => t.includes('T12:00:00') || (countMap.get(t) || 0) > 1)
+      .sort((a, b) => b.localeCompare(a));
+      
     if (historyStartDate || historyEndDate) {
       result = result.filter(t => {
         try {
@@ -106,11 +119,16 @@ export function AdminDashboard() {
   };
 
 
+  const handleAuditorClick = (report: any) => {
+    setSelectedAuditorReport(report);
+    setActiveView('auditor-details');
+  };
+
   let content;
-  if (activeView === 'logins' || activeView === 'logins-team-leads' || activeView === 'logins-cashiers' || activeView === 'logins-warehouses') {
+  if (activeView === 'logins' || activeView === 'logins-team-leads' || activeView === 'logins-cashiers' || activeView === 'logins-warehouses' || activeView === 'logins-auditors') {
     content = (
       <CounterManagementView 
-        initialTab={activeView === 'logins-team-leads' ? 'team_leads' : activeView === 'logins-cashiers' ? 'cashiers' : activeView === 'logins-warehouses' ? 'warehouses' : 'counters'}
+        initialTab={activeView === 'logins-team-leads' ? 'team_leads' : activeView === 'logins-cashiers' ? 'cashiers' : activeView === 'logins-warehouses' ? 'warehouses' : activeView === 'logins-auditors' ? 'auditors' : 'counters'}
         counters={counters}
         warehouses={warehouses}
         teamLeads={teamLeads}
@@ -128,6 +146,10 @@ export function AdminDashboard() {
         onAddCashier={() => setActiveView('add-cashier')}
         onUpdateCashier={updateCashier}
         onDeleteCashier={deleteCashier}
+        auditors={auditors}
+        onAddAuditor={() => setActiveView('add-auditor')}
+        onUpdateAuditor={updateAuditor}
+        onDeleteAuditor={deleteAuditor}
       />
     );
   } else if (activeView === 'add-counter') {
@@ -177,11 +199,24 @@ export function AdminDashboard() {
         }} 
       />
     );
+  } else if (activeView === 'add-auditor') {
+    content = (
+      <AddAuditorView 
+        teamLeads={teamLeads}
+        onBack={() => { 
+          setTimeout(() => {
+            fetchAuditors(); 
+            setActiveView('logins-auditors'); 
+          }, 500);
+        }} 
+      />
+    );
   } else if (activeView === 'inventory-slider') {
     content = (
       <InventorySliderView 
         vehicleModels={vehicleModels}
         counters={counters}
+        warehouses={warehouses}
         onBack={() => setActiveView('dashboard')}
         onModelClick={(model) => {
           setSelectedModel(model);
@@ -191,6 +226,11 @@ export function AdminDashboard() {
         onCounterClick={(counter) => {
           setSelectedCounterId(counter.id);
           setSelectedCounterName(counter.name);
+          setActiveView('counter-inventory-detail');
+        }}
+        onWarehouseClick={(warehouse) => {
+          setSelectedCounterId(warehouse.id);
+          setSelectedCounterName(warehouse.name);
           setActiveView('counter-inventory-detail');
         }}
         transferCartCount={transferCart.length}
@@ -233,6 +273,8 @@ export function AdminDashboard() {
         onCounterClick={handleCounterClick}
         onCashierClick={handleCashierClick}
         onTeamLeadClick={handleTeamLeadClick}
+        auditorReports={auditorReports}
+        onAuditorClick={handleAuditorClick}
       />
     );
   } else if (activeView === 'cashier-details' && selectedCashierReport) {
@@ -240,6 +282,28 @@ export function AdminDashboard() {
       <CashierDetailsView 
         cashierReport={selectedCashierReport} 
         onBack={() => setActiveView('reports')} 
+      />
+    );
+  } else if (activeView === 'auditor-details' && selectedAuditorReport) {
+    const tlIds = selectedAuditorReport.team_leads || [];
+    const tLeads = teamLeads.filter(tl => tlIds.includes(tl.id));
+    const counterIds = tLeads.flatMap(tl => tl.assigned_counters || []);
+    
+    // pending
+    const pendingBills = allBills.filter(b => b.counter_id && counterIds.includes(b.counter_id) && b.approval_status === 'approved' && (!b.audit_status || b.audit_status === 'pending'));
+
+    // audited
+    const auditedBills = allBills.filter(b => b.auditor_id === selectedAuditorReport.auditor_id && b.audit_status === 'audited');
+
+    content = (
+      <AuditorDetailsView 
+        report={selectedAuditorReport}
+        pendingBills={pendingBills}
+        auditedBills={auditedBills}
+        onBack={() => setActiveView('reports')}
+        onViewInvoice={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
+        onUpdateBillAuditStatus={updateBillAuditStatus}
+        onUpdateBillAuditDetails={updateBillAuditDetails}
       />
     );
   } else if (activeView === 'team-lead-approvals' && selectedTeamLeadReport) {

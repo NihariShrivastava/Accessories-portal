@@ -170,7 +170,16 @@ export const BillsView = ({
             { header: 'Payment', accessor: (b) => <Badge variant="secondary">{b.payment_method}</Badge> },
             { header: 'Total', accessor: (b) => `₹${b.total_amount?.toFixed(2)}`, sortAccessor: 'total_amount', className: 'text-right font-medium' },
             { header: 'Paid', accessor: (b) => `₹${(b.amount_paid ?? b.total_amount)?.toFixed(2)}`, sortAccessor: 'amount_paid', className: 'text-right text-green-600 dark:text-green-400' },
-            { header: 'Balance', accessor: (b) => `₹${(b.amount_left ?? 0)?.toFixed(2)}`, sortAccessor: 'amount_left', className: 'text-right text-destructive font-medium' },
+            { 
+              header: 'Balance', 
+              accessor: (b) => {
+                const amt = b.amount_left ?? 0;
+                const sign = amt > 0 ? '+' : amt < 0 ? '-' : '';
+                return <span className={amt < 0 ? 'text-emerald-600 dark:text-emerald-400' : amt > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-foreground font-medium'}>{sign}₹{Math.abs(amt).toFixed(2)}</span>;
+              }, 
+              sortAccessor: 'amount_left', 
+              className: 'text-right' 
+            },
             {
               header: 'Actions',
               accessor: (b) => (
