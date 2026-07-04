@@ -4,7 +4,7 @@ import type { CounterBill } from '../../../../hooks/useAdminData';
 
 type Props = {
   bill: CounterBill;
-  activeTab: 'pending' | 'approved' | 'reverted';
+  activeTab: 'pending' | 'approved' | 'reverted' | 'reverted_by_auditor';
   onApprove?: (excess: number, discount: number, note: string) => void;
   onRevert?: () => void;
   onViewBill: () => void;

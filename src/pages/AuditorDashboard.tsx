@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useAuditorData } from '../hooks/useAuditorData';
 import { useAuth } from '../components/auth-provider';
-import { DashboardCard } from '../components/dashboard/DashboardCard';
-import { ClipboardCheck, FileCheck, ArrowRight, Settings2, Printer, Edit, Check, X } from 'lucide-react';
+import { ClipboardCheck, Printer, Edit, Check, X } from 'lucide-react';
 import { BillReceipt } from '../components/dashboard/BillReceipt';
 import type { CounterBill } from '../hooks/useAdminData';
 import { AuditDetailsDialog } from '../components/dashboard/sub-views/auditor/AuditDetailsDialog';
@@ -18,7 +17,6 @@ export function AuditorDashboard() {
     teamLeads,
     assignedCounters,
     loading,
-    fetchAuditorBills,
     saveAuditDetails,
     revertBillToTeamLead
   } = useAuditorData();
@@ -32,9 +30,9 @@ export function AuditorDashboard() {
   const [showTlDialog, setShowTlDialog] = useState(false);
   const [selectedCounters, setSelectedCounters] = useState<string[]>([]);
 
-  const filteredPending = pendingAudits.filter(b => selectedCounters.length === 0 || selectedCounters.includes(b.counter_id));
-  const filteredForwarded = forwardedAudits.filter(b => selectedCounters.length === 0 || selectedCounters.includes(b.counter_id));
-  const filteredReverted = revertedAudits.filter(b => selectedCounters.length === 0 || selectedCounters.includes(b.counter_id));
+  const filteredPending = pendingAudits.filter(b => selectedCounters.length === 0 || (b.counter_id && selectedCounters.includes(b.counter_id)));
+  const filteredForwarded = forwardedAudits.filter(b => selectedCounters.length === 0 || (b.counter_id && selectedCounters.includes(b.counter_id)));
+  const filteredReverted = revertedAudits.filter(b => selectedCounters.length === 0 || (b.counter_id && selectedCounters.includes(b.counter_id)));
 
   const displayBills = activeTab === 'pending' ? filteredPending : activeTab === 'forwarded' ? filteredForwarded : filteredReverted;
 
