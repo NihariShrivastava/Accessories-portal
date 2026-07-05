@@ -98,7 +98,7 @@ export const GlobalInventorySliderView = ({
     { header: 'Accessory', accessor: 'name' },
     { header: 'Code', accessor: (i) => i.accessory_code || '-', className: 'text-sm text-muted-foreground' },
     { header: 'Qty', accessor: 'quantity', className: 'text-right font-bold' },
-    { header: 'Price', accessor: (i) => `₹${i.price.toFixed(2)}`, className: 'text-right font-medium' },
+    { header: 'Price', accessor: (i) => `₹${Number(i.price).toFixed(2)}`, className: 'text-right font-medium' },
   ];
 
   const columnsTransfer: Column<InventoryItem>[] = [
@@ -107,7 +107,7 @@ export const GlobalInventorySliderView = ({
     { header: 'Code', accessor: (i) => i.accessory_code || '-', className: 'text-sm text-muted-foreground' },
     { header: 'Upload Date', accessor: (i) => new Date(i.created_at).toLocaleDateString(), className: 'text-muted-foreground' },
     { header: 'Stock Quantity', accessor: (i) => <Badge variant={i.quantity > 5 ? 'success' : 'danger'}>{i.quantity} units</Badge>, className: 'text-right font-medium' },
-    { header: 'Price (₹)', accessor: (i) => `₹${i.price.toFixed(2)}`, className: 'text-right font-medium' },
+    { header: 'Price (₹)', accessor: (i) => `₹${Number(i.price).toFixed(2)}`, className: 'text-right font-medium' },
     {
       header: 'Actions',
       accessor: (i) => (

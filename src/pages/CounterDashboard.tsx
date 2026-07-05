@@ -293,9 +293,9 @@ export function CounterDashboard() {
               { header: 'Model', accessor: (b) => b.accessories?.vehicle_model || '-', className: 'text-left text-muted-foreground' },
               { header: 'Total Qty', accessor: (b) => b.quantity, sortAccessor: 'quantity', className: 'text-right' },
               { header: 'Payment', accessor: (b) => <Badge variant="secondary">{b.payment_method || 'Cash'}</Badge> },
-              { header: 'Total', accessor: (b) => `₹${b.total_amount?.toFixed(2)}`, sortAccessor: 'total_amount', className: 'text-right font-medium' },
-              { header: 'Paid', accessor: (b) => `₹${(b.amount_paid ?? b.total_amount)?.toFixed(2)}`, sortAccessor: 'amount_paid', className: 'text-right text-green-600 dark:text-green-400' },
-              { header: 'Balance', accessor: (b) => `₹${(b.amount_left ?? 0)?.toFixed(2)}`, sortAccessor: 'amount_left', className: 'text-right text-destructive font-medium' },
+              { header: 'Total', accessor: (b) => `₹${Number(b.total_amount || 0).toFixed(2)}`, sortAccessor: 'total_amount', className: 'text-right font-medium' },
+              { header: 'Paid', accessor: (b) => `₹${Number(b.amount_paid ?? b.total_amount ?? 0).toFixed(2)}`, sortAccessor: 'amount_paid', className: 'text-right text-green-600 dark:text-green-400' },
+              { header: 'Balance', accessor: (b) => `₹${Number(b.amount_left ?? 0).toFixed(2)}`, sortAccessor: 'amount_left', className: 'text-right text-destructive font-medium' },
               {
                 header: 'Actions',
                 accessor: (b) => (
@@ -423,7 +423,7 @@ export function CounterDashboard() {
                   { header: 'Code', accessor: (i) => i.accessory_code || '-', sortAccessor: 'accessory_code', className: 'text-left text-muted-foreground text-sm' },
                   { header: 'Model', accessor: 'vehicle_model', sortAccessor: 'vehicle_model', className: 'text-left text-muted-foreground' },
                   { header: 'Available Qty', accessor: (i) => <Badge variant={i.quantity > 5 ? 'success' : 'danger'}>{i.quantity} units</Badge>, sortAccessor: 'quantity', className: 'text-right' },
-                  { header: 'Price (1 Unit)', accessor: (i) => `₹${i.price.toFixed(2)}`, sortAccessor: 'price', className: 'text-right pr-4' },
+                  { header: 'Price (1 Unit)', accessor: (i) => `₹${Number(i.price).toFixed(2)}`, sortAccessor: 'price', className: 'text-right pr-4' },
                   {
                     header: 'Action', headerClassName: 'text-center pr-4',
                     accessor: (i) => (
@@ -526,7 +526,7 @@ export function CounterDashboard() {
                       { header: 'Accessory Name', accessor: 'name', sortAccessor: 'name', className: 'text-left font-medium pl-4' },
                       { header: 'Code', accessor: (i) => i.accessory_code || '-', sortAccessor: 'accessory_code', className: 'text-left text-muted-foreground text-sm' },
                       { header: 'Available Qty', accessor: (i) => <Badge variant={i.quantity > 5 ? 'success' : 'danger'}>{i.quantity} units</Badge>, sortAccessor: 'quantity', className: 'text-right' },
-                      { header: 'Price (1 Unit)', accessor: (i) => `₹${i.price.toFixed(2)}`, sortAccessor: 'price', className: 'text-right pr-4' },
+                      { header: 'Price (1 Unit)', accessor: (i) => `₹${Number(i.price).toFixed(2)}`, sortAccessor: 'price', className: 'text-right pr-4' },
                       {
                         header: 'Action', headerClassName: 'text-center pr-4',
                         accessor: (i) => (

@@ -36,7 +36,7 @@ export function QuantityModal({ accessory, onAddToCart, onClose }: QuantityModal
         <p className="text-sm text-muted-foreground">Code: {accessory.accessory_code || 'N/A'}</p>
         <div className="flex justify-between items-center mt-2">
           <span className="text-sm font-medium">Available Stock: {accessory.quantity} units</span>
-          <span className="text-lg font-bold text-primary">₹{accessory.price.toFixed(2)}</span>
+          <span className="text-lg font-bold text-primary">₹{Number(accessory.price).toFixed(2)}</span>
         </div>
       </div>
 

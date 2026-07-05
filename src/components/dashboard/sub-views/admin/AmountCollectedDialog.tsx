@@ -71,7 +71,7 @@ export const AmountCollectedDialog = ({
                       <tr key={index} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3 font-mono font-medium">{bill.bill_number}</td>
                         <td className="px-4 py-3 text-right font-medium text-emerald-600">
-                          ₹{bill.cash_amount.toFixed(2)}
+                          ₹{Number(bill.cash_amount).toFixed(2)}
                         </td>
                         <td className="px-4 py-3 text-right font-medium">
                           {otherPayments.length > 0 ? (

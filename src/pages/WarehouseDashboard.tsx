@@ -75,7 +75,7 @@ export function WarehouseDashboard() {
                 },
                 {
                   header: 'Price (₹)',
-                  accessor: (row) => <span className="font-semibold">{row.price.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                  accessor: (row) => <span className="font-semibold">{Number(row.price).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
                 },
                 {
                   header: 'Stock Quantity',

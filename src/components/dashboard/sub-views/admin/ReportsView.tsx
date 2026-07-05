@@ -168,9 +168,9 @@ export const ReportsView = ({
               <DataTable<SalesReport> idAccessor="counter_id" data={filteredData} onRowClick={onCounterClick} columns={[
                 { header: 'Counter Name', accessor: 'counter_name', sortAccessor: 'counter_name', className: 'text-left font-semibold text-primary group-hover:underline' },
                 { header: 'Total Bills', accessor: 'total_bills', sortAccessor: 'total_bills', className: 'text-center' },
-                { header: 'Receivable Amt (Debit) ₹', accessor: (r) => `₹${r.total_sales.toFixed(2)}`, sortAccessor: 'total_sales', className: 'text-right font-medium' },
-                { header: 'Paid (Credit) ₹', accessor: (r) => <span className="text-green-600 dark:text-green-400 font-medium">₹{r.total_collected.toFixed(2)}</span>, sortAccessor: 'total_collected', className: 'text-right' },
-                { header: 'Outstanding (₹)', accessor: (r) => <span className="text-destructive font-medium">₹{r.outstanding.toFixed(2)}</span>, sortAccessor: 'outstanding', className: 'text-right' }
+                { header: 'Receivable Amt (Debit) ₹', accessor: (r) => `₹${Number(r.total_sales).toFixed(2)}`, sortAccessor: 'total_sales', className: 'text-right font-medium' },
+                { header: 'Paid (Credit) ₹', accessor: (r) => <span className="text-green-600 dark:text-green-400 font-medium">₹{Number(r.total_collected).toFixed(2)}</span>, sortAccessor: 'total_collected', className: 'text-right' },
+                { header: 'Outstanding (₹)', accessor: (r) => <span className="text-destructive font-medium">₹{Number(r.outstanding).toFixed(2)}</span>, sortAccessor: 'outstanding', className: 'text-right' }
               ]} />
             </div>
 

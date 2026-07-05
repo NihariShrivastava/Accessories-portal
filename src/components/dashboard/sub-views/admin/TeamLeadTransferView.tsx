@@ -240,7 +240,7 @@ export function TeamLeadTransferView({ warehouses, counters, inventory, onBack, 
                 columns={[
                   { header: 'Model', accessor: 'vehicle_model', className: 'text-xs uppercase font-bold text-primary w-32' },
                   { header: 'Accessory Name', accessor: 'name' },
-                  { header: 'Price', accessor: (row) => `₹${row.price.toLocaleString('en-IN')}`, className: 'text-right' },
+                  { header: 'Price', accessor: (row) => `₹${Number(row.price).toLocaleString('en-IN')}`, className: 'text-right' },
                   { header: 'Stock', accessor: (row) => (
                     <span className="font-mono bg-secondary px-2 py-1 rounded text-secondary-foreground text-xs font-bold">
                       {row.quantity}

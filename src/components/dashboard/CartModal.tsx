@@ -42,7 +42,7 @@ export function CartModal({ items, onRemove, onUpdateQuantity, onCheckout, onClo
               >
                 <div className="flex-1">
                   <h4 className="font-bold text-sm leading-tight group-hover:text-primary transition-colors">{item.accessory.name}</h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">{item.accessory.vehicle_model} • ₹{item.accessory.price.toFixed(2)}/unit</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{item.accessory.vehicle_model} • ₹{Number(item.accessory.price).toFixed(2)}/unit</p>
                 </div>
                 
                 <div className="flex items-center gap-2 bg-background border border-border rounded-lg p-1">

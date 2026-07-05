@@ -30,7 +30,7 @@ export const CounterInventoryDetailsView = ({
     { header: 'Model', accessor: 'vehicle_model', sortAccessor: 'vehicle_model', className: 'text-muted-foreground' },
     { header: 'Code', accessor: (i) => i.accessory_code || '-', sortAccessor: 'accessory_code', className: 'text-muted-foreground text-sm' },
     { header: 'Stock Quantity', accessor: (i) => <Badge variant={i.quantity > 5 ? 'success' : 'danger'}>{i.quantity} units</Badge>, sortAccessor: 'quantity', className: 'text-right' },
-    { header: 'Price (₹)', accessor: (i) => `₹${i.price.toFixed(2)}`, sortAccessor: 'price', className: 'text-right' },
+    { header: 'Price (₹)', accessor: (i) => `₹${Number(i.price).toFixed(2)}`, sortAccessor: 'price', className: 'text-right' },
     {
       header: 'Actions',
       accessor: (i: any) => (

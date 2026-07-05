@@ -84,17 +84,17 @@ export function BillDetails({ bill, onClose }: BillDetailsProps) {
                 </div>
                 <div className="text-right">
                   <p className="font-bold">x{item.quantity}</p>
-                  <p className="text-xs font-medium">₹{((item.total_amount || 0) / (item.quantity || 1)).toFixed(2)} / unit</p>
+                  <p className="text-xs font-medium">₹{((Number(item.total_amount) || 0) / (item.quantity || 1)).toFixed(2)} / unit</p>
                 </div>
               </div>
               <div className="flex justify-between items-center text-sm pt-1">
                 <span className="text-muted-foreground">Item Total</span>
-                <span className="font-semibold">₹{item.total_amount?.toFixed(2)}</span>
+                <span className="font-semibold">₹{Number(item.total_amount || 0).toFixed(2)}</span>
               </div>
-              {(item.cgst_amount > 0 || item.sgst_amount > 0) && (
+              {(Number(item.cgst_amount) > 0 || Number(item.sgst_amount) > 0) && (
                 <div className="flex justify-between items-center text-[10px] text-muted-foreground">
-                  <span>Base: ₹{(item.base_amount || 0).toFixed(2)}</span>
-                  <span>CGST: ₹{(item.cgst_amount || 0).toFixed(2)} | SGST: ₹{(item.sgst_amount || 0).toFixed(2)}</span>
+                  <span>Base: ₹{Number(item.base_amount || 0).toFixed(2)}</span>
+                  <span>CGST: ₹{Number(item.cgst_amount || 0).toFixed(2)} | SGST: ₹{Number(item.sgst_amount || 0).toFixed(2)}</span>
                 </div>
               )}
             </div>
@@ -120,23 +120,23 @@ export function BillDetails({ bill, onClose }: BillDetailsProps) {
       <div className="bg-muted/50 p-4 rounded-xl space-y-2">
         <div className="flex justify-between text-xs text-muted-foreground mb-1 border-b border-border pb-2">
           <span>Base Amount</span>
-          <span>₹{(bill.base_amount || 0).toFixed(2)}</span>
+          <span>₹{Number(bill.base_amount || 0).toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-xs text-muted-foreground mb-1 border-b border-border pb-2">
           <span>Total CGST + SGST</span>
-          <span>₹{((bill.cgst_amount || 0) + (bill.sgst_amount || 0)).toFixed(2)}</span>
+          <span>₹{(Number(bill.cgst_amount || 0) + Number(bill.sgst_amount || 0)).toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="font-bold text-foreground">Total Amount</span>
-          <span className="font-bold text-foreground">₹{bill.total_amount.toFixed(2)}</span>
+          <span className="font-bold text-foreground">₹{Number(bill.total_amount || 0).toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Amount Paid</span>
-          <span className="font-medium text-green-600 dark:text-green-400">₹{bill.amount_paid.toFixed(2)}</span>
+          <span className="font-medium text-green-600 dark:text-green-400">₹{Number(bill.amount_paid || 0).toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-lg font-bold border-t border-border pt-2 mt-2">
           <span className="text-destructive">Balance Left</span>
-          <span className="text-destructive">₹{bill.amount_left.toFixed(2)}</span>
+          <span className="text-destructive">₹{Number(bill.amount_left || 0).toFixed(2)}</span>
         </div>
       </div>
 

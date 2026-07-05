@@ -28,7 +28,7 @@ export const ModelDetailView = ({
     { header: 'Code', accessor: (a) => a.accessory_code || '-', sortAccessor: 'accessory_code', className: 'text-muted-foreground text-sm' },
     { header: 'Counter', accessor: 'counter_name', sortAccessor: 'counter_name', className: 'text-muted-foreground' },
     { header: 'Quantity', accessor: (a) => <Badge variant={a.quantity > 5 ? 'success' : 'danger'}>{a.quantity}</Badge>, sortAccessor: 'quantity', className: 'text-right' },
-    { header: 'Price (₹)', accessor: (a) => `₹${a.price.toFixed(2)}`, sortAccessor: 'price', className: 'text-right' },
+    { header: 'Price (₹)', accessor: (a) => `₹${Number(a.price).toFixed(2)}`, sortAccessor: 'price', className: 'text-right' },
     {
       header: 'Actions',
       accessor: (a: any) => (

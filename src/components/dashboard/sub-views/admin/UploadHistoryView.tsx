@@ -110,7 +110,7 @@ export const UploadHistoryView = ({
                               <td className="px-4 py-2 text-muted-foreground">{item.vehicle_model}</td>
                               <td className="px-4 py-2">{item.name}</td>
                               <td className="px-4 py-2 text-right font-bold text-primary">{item.quantity}</td>
-                              <td className="px-4 py-2 text-right">₹{item.price.toFixed(2)}</td>
+                              <td className="px-4 py-2 text-right">₹{Number(item.price).toFixed(2)}</td>
                             </tr>
                           ))}
                         </tbody>

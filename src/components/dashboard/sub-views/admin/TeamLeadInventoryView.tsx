@@ -177,7 +177,7 @@ export function TeamLeadInventoryView({ counters, inventory, onBack }: TeamLeadI
                     <span className="font-mono font-bold bg-muted px-2 py-1 rounded-md">{item.quantity}</span>
                   </td>
                   <td className="px-6 py-4 font-bold">
-                    ₹{item.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    ₹{Number(item.price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
                   <td className="px-6 py-4 text-right">
                     {item.quantity <= 5 ? (

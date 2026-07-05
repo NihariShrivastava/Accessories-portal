@@ -57,7 +57,7 @@ export function CollapsibleModelRow({ model, accessories, loading, onExpand, onA
                 { header: 'Accessory Name', accessor: 'name', className: 'font-medium pl-4' },
                 { header: 'Code', accessor: (i) => i.accessory_code || '-', className: 'text-muted-foreground text-sm' },
                 { header: 'Qty', accessor: (i) => <Badge variant={i.quantity > 5 ? 'success' : 'danger'}>{i.quantity}</Badge>, className: 'text-center' },
-                { header: 'Price', accessor: (i) => `₹${i.price.toFixed(2)}`, className: 'text-right pr-4' },
+                { header: 'Price', accessor: (i) => `₹${Number(i.price).toFixed(2)}`, className: 'text-right pr-4' },
                 {
                   header: 'Action', headerClassName: 'text-center pr-4',
                   accessor: (i) => (
