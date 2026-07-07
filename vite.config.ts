@@ -7,15 +7,12 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('react')) return 'vendor';
-            if (id.includes('xlsx')) return 'xlsx';
-            if (id.includes('html2pdf')) return 'pdf';
-            if (id.includes('lucide') || id.includes('framer-motion') || id.includes('tailwind')) return 'ui';
-            if (id.includes('@supabase')) return 'supabase';
-            return 'deps';
-          }
+        manualChunks: {
+          'vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui': ['lucide-react', 'framer-motion', 'clsx', 'tailwind-merge', 'sonner'],
+          'supabase': ['@supabase/supabase-js'],
+          'pdf': ['html2pdf.js'],
+          'xlsx': ['xlsx']
         }
       }
     },
