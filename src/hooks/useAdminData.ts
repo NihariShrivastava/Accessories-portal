@@ -1285,8 +1285,9 @@ export function useAdminData() {
     fetchTeamLeads();
     fetchCashiers();
     fetchAuditors();
+    fetchBillingCounters();
     fetchBills();
-  }, [fetchStats, fetchCounters, fetchWarehouses, fetchTeamLeads, fetchCashiers, fetchAuditors, fetchBills]);
+  }, [fetchStats, fetchCounters, fetchWarehouses, fetchTeamLeads, fetchCashiers, fetchAuditors, fetchBillingCounters, fetchBills]);
 
   useEffect(() => {
     fetchInventory();
