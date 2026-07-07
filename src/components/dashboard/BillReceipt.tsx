@@ -186,9 +186,16 @@ export function BillReceipt({ bill, onClose }: BillReceiptProps) {
         <div className="border rounded-xl p-3 mb-4 page-break-avoid" style={{ backgroundColor: '#f9fafb', borderColor: '#e5e7eb' }}>
           <div className="space-y-1.5">
             {payments.map((p: any, idx: number) => (
-              <div key={idx} className="flex justify-between text-[11px] font-semibold" style={{ color: '#4a5568' }}>
-                <span>Payment Via {p.method} {p.utr ? `— Ref/UTR: ${p.utr}` : ''}</span>
-                <span className="font-bold" style={{ color: '#1a202c' }}>₹{Number(p.amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+              <div key={idx} className="flex flex-col text-[11px] font-semibold" style={{ color: '#4a5568' }}>
+                <div className="flex justify-between">
+                  <span>Payment Via {p.method} {p.utr ? `— Ref/UTR: ${p.utr}` : ''}</span>
+                  <span className="font-bold" style={{ color: '#1a202c' }}>₹{Number(p.amount).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                </div>
+                {p.excellon_receipt_number && (
+                  <div className="text-[10px] mt-0.5" style={{ color: '#718096' }}>
+                    Excellon Ref: <span style={{ color: '#4a5568' }}>{p.excellon_receipt_number}</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>

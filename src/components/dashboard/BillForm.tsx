@@ -24,8 +24,8 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerId, setCustomerId] = useState('');
-  const [payments, setPayments] = useState<{ method: string; amount: number | ''; utr: string }[]>([
-    { method: 'Cash', amount: '', utr: '' }
+  const [payments, setPayments] = useState<{ method: string; amount: number | ''; utr: string; excellon_receipt_number: string }[]>([
+    { method: 'Cash', amount: '', utr: '', excellon_receipt_number: '' }
   ]);
 
   const totals = items.reduce((acc, item) => {
@@ -56,6 +56,7 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
     const totalAmountPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
     const totalAmountLeft = Math.max(0, totalBillAmount - totalAmountPaid);
     const primaryMethod = payments.length > 1 ? 'Split Payment' : payments[0].method;
+    const combinedExcellon = payments.map(p => p.excellon_receipt_number).filter(Boolean).join(', ');
 
     setLoading(true);
     try {
@@ -113,6 +114,7 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
             total_amount: total,
             payment_method: primaryMethod,
             payment_details: payments,
+            excellon_receipt_number: combinedExcellon,
             // Store total paid and left ONLY in the first row to avoid overcounting in sums
             amount_paid: index === 0 ? totalAmountPaid : 0,
             amount_left: index === 0 ? totalAmountLeft : 0
@@ -166,6 +168,7 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
         payment_details: payments,
         amount_paid: totalAmountPaid,
         amount_left: totalAmountLeft,
+        excellon_receipt_number: combinedExcellon,
         created_at: new Date().toISOString(),
         accessories: items[0].accessory, // Base accessory info for top level
         items: items.map(item => ({
@@ -237,15 +240,17 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
           </div>
         </div>
 
-        <div>
-          <label className="block font-medium mb-1">Chassis Number</label>
-          <input type="text" required className="w-full px-3 py-2 bg-input border border-border rounded-md focus:ring-2 focus:ring-primary" value={chassisNo} onChange={e => setChassisNo(e.target.value)} />
-        </div>
         <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block font-medium mb-1">Chassis Number</label>
+            <input type="text" required className="w-full px-3 py-2 bg-input border border-border rounded-md focus:ring-2 focus:ring-primary" value={chassisNo} onChange={e => setChassisNo(e.target.value)} />
+          </div>
           <div>
             <label className="block font-medium mb-1">Engine Number</label>
             <input type="text" required className="w-full px-3 py-2 bg-input border border-border rounded-md focus:ring-2 focus:ring-primary" value={engineNo} onChange={e => setEngineNo(e.target.value)} />
           </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block font-medium mb-1">Checklist No.</label>
             <input type="text" required className="w-full px-3 py-2 bg-input border border-border rounded-md focus:ring-2 focus:ring-primary" value={checklistNo} onChange={e => setChecklistNo(e.target.value)} />
@@ -272,7 +277,7 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
             <h4 className="font-bold text-sm">Payment Methods</h4>
             <button 
               type="button" 
-              onClick={() => setPayments([...payments, { method: 'Cash', amount: '', utr: '' }])}
+              onClick={() => setPayments([...payments, { method: 'Cash', amount: '', utr: '', excellon_receipt_number: '' }])}
               className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded hover:bg-secondary/80"
             >
               + Add Payment Method
@@ -338,6 +343,19 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
                   />
                 </div>
               )}
+              <div>
+                <label className="block text-xs font-medium mb-1">Excellon Receipt No.</label>
+                <input 
+                  type="text" required placeholder="e.g. EXC-12345" 
+                  className="w-full px-3 py-1.5 bg-input border border-border rounded-md focus:ring-2 focus:ring-primary text-sm" 
+                  value={payment.excellon_receipt_number || ''} 
+                  onChange={e => {
+                    const newP = [...payments];
+                    newP[index].excellon_receipt_number = e.target.value;
+                    setPayments(newP);
+                  }} 
+                />
+              </div>
             </div>
           ))}
         </div>

@@ -1,0 +1,124 @@
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { createClient } from '@supabase/supabase-js';
+import { ViewHeader } from '../../ViewHeader';
+import { UserPlus } from 'lucide-react';
+import { supabase } from '../../../../lib/supabase';
+import { MultiSelectDropdown } from '../../MultiSelectDropdown';
+import type { TeamLead } from '../../../../hooks/useAdminData';
+
+export const AddBillingCounterView = ({ teamLeads, onBack }: { teamLeads: TeamLead[], onBack: () => void }) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [assignedTeamLeads, setAssignedTeamLeads] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const tempSupabase = createClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_ANON_KEY,
+        { auth: { persistSession: false, autoRefreshToken: false } }
+      );
+
+      const { data, error } = await tempSupabase.auth.signUp({
+        email: `${username.trim().toLowerCase()}@portal.local`,
+        password,
+        options: {
+          data: {
+            name: username,
+            role: 'billing_counter',
+            username: username,
+            password: password,
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            name: username,
+            username,
+            password,
+            role: 'billing_counter',
+            assigned_team_leads: assignedTeamLeads
+          });
+
+        if (profileError) {
+          console.warn('Could not update profile with credentials:', profileError);
+        }
+      }
+
+      toast.success('Billing Counter created successfully!');
+      setUsername('');
+      setPassword('');
+      setAssignedTeamLeads([]);
+      onBack();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('Error creating billing counter');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <ViewHeader title="Create New Billing Counter" onBack={onBack} icon={UserPlus} description="Add a new Billing Counter and assign team leads." />
+      <div className="bg-card p-6 rounded-xl border border-border shadow-sm max-w-2xl mx-auto">
+        <form onSubmit={handleCreate} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Username</label>
+              <input
+                type="text"
+                required
+                className="w-full px-4 py-2 bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Password</label>
+              <input
+                type="password"
+                required
+                className="w-full px-4 py-2 bg-input border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Assign Team Leads</label>
+            <MultiSelectDropdown 
+              options={teamLeads.map(tl => ({ id: tl.id, name: tl.name }))}
+              selectedIds={assignedTeamLeads}
+              onChange={setAssignedTeamLeads}
+              placeholder="Click to assign team leads..."
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-primary text-primary-foreground py-3 px-4 rounded-md hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 font-bold shadow-md"
+          >
+            {loading ? 'Creating...' : <><UserPlus className="w-5 h-5" /> Create Billing Counter</>}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};

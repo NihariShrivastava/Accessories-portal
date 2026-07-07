@@ -25,7 +25,7 @@ export function TeamLeadApprovalView({ counters, bills, onBack, onUpdateBillStat
       if (status !== 'pending') return false;
       if (b.audit_status === 'reverted_to_team_lead') return false;
     }
-    if (activeTab === 'approved' && status !== 'approved') return false;
+    if (activeTab === 'approved' && status !== 'approved' && status !== 'closed') return false;
     if (activeTab === 'reverted' && status !== 'reverted' && status !== 'reverted_by_admin') return false;
     if (activeTab === 'reverted_by_auditor' && b.audit_status !== 'reverted_to_team_lead') return false;
     

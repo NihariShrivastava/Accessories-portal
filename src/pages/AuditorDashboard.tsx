@@ -6,6 +6,7 @@ import { BillReceipt } from '../components/dashboard/BillReceipt';
 import type { CounterBill } from '../hooks/useAdminData';
 import { AuditDetailsDialog } from '../components/dashboard/sub-views/auditor/AuditDetailsDialog';
 import { AuditedBillCard } from '../components/dashboard/sub-views/auditor/AuditedBillCard';
+import { EditBillModal } from '../components/dashboard/sub-views/auditor/EditBillModal';
 
 export function AuditorDashboard() {
   const { profile } = useAuth();
@@ -18,11 +19,13 @@ export function AuditorDashboard() {
     assignedCounters,
     loading,
     saveAuditDetails,
-    revertBillToTeamLead
+    revertBillToTeamLead,
+    updateBillMetadata
   } = useAuditorData();
 
   const [activeTab, setActiveTab] = useState<'pending' | 'forwarded' | 'reverted'>('pending');
   const [selectedBillForAudit, setSelectedBillForAudit] = useState<CounterBill | null>(null);
+  const [selectedBillForEdit, setSelectedBillForEdit] = useState<CounterBill | null>(null);
   const [generatedBill, setGeneratedBill] = useState<CounterBill | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   
@@ -255,7 +258,14 @@ export function AuditorDashboard() {
                         onClick={() => setSelectedBillForAudit(bill)} 
                         className={`${activeTab === 'reverted' ? 'flex-1' : 'flex-[2]'} py-1.5 bg-primary/10 border border-primary/20 text-primary hover:bg-primary/20 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5`}
                       >
-                        <Edit className="w-3.5 h-3.5" /> AUDIT
+                        <Check className="w-3.5 h-3.5" /> AUDIT
+                      </button>
+                      <button 
+                        onClick={() => setSelectedBillForEdit(bill)} 
+                        className="flex-1 py-1.5 bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-500 dark:hover:bg-amber-900/60 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-1.5"
+                        title="Edit Details"
+                      >
+                        <Edit className="w-3.5 h-3.5" /> EDIT
                       </button>
                       {activeTab === 'reverted' && (
                         <button 
@@ -292,6 +302,14 @@ export function AuditorDashboard() {
           bill={selectedBillForAudit} 
           onClose={() => setSelectedBillForAudit(null)} 
           onSave={saveAuditDetails} 
+        />
+      )}
+
+      {selectedBillForEdit && (
+        <EditBillModal
+          bill={selectedBillForEdit}
+          onClose={() => setSelectedBillForEdit(null)}
+          onSave={updateBillMetadata}
         />
       )}
 

@@ -3,20 +3,29 @@ import { DataTable } from '../../DataTable';
 import { ViewHeader } from '../../ViewHeader';
 import { Badge } from '../../Badge';
 import { BarChart3, ChevronLeft, ChevronRight, History, IndianRupee, Package, X, Save, Users, Download } from 'lucide-react';
-import type { SalesReport, InventoryItem, InventorySummary, CashierReport, AmountCollectedReport, TeamLeadReport } from '../../../../hooks/useAdminData';
+import type { SalesReport, InventoryItem, InventorySummary, CashierReport, AmountCollectedReport, TeamLeadReport, CounterBill } from '../../../../hooks/useAdminData';
 import { AmountCollectedDialog } from './AmountCollectedDialog';
 import { exportToExcel } from '../../../../utils/exportToExcel';
 
 export const ReportsView = ({
-  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick, auditorReports, onAuditorClick
+  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick, auditorReports, onAuditorClick, unpaidBillsReport, onViewUnpaidBill, currentSlide, onSlideChange
 }: {
   data: SalesReport[], onBack: () => void, onCounterClick: (r: SalesReport) => void,
   inventory: InventoryItem[], inventoryReport: InventorySummary[], cashierReports?: CashierReport[],
   onCashierClick?: (r: CashierReport) => void, amountCollectedReport?: AmountCollectedReport[],
   teamLeadReports?: TeamLeadReport[], onTeamLeadClick?: (r: TeamLeadReport) => void,
-  auditorReports?: any[], onAuditorClick?: (r: any) => void
+  auditorReports?: any[], onAuditorClick?: (r: any) => void,
+  unpaidBillsReport?: CounterBill[], onViewUnpaidBill?: (b: CounterBill) => void,
+  currentSlide?: number, onSlideChange?: (slide: number) => void
 }) => {
-  const [currentSlide, setCurrentSlide] = useState(0);
+  // Use local state if props are not provided, else use props
+  const [localSlide, setLocalSlide] = useState(0);
+  const activeSlide = currentSlide !== undefined ? currentSlide : localSlide;
+  const handleSlideChange = (newSlide: number) => {
+    if (onSlideChange) onSlideChange(newSlide);
+    else setLocalSlide(newSlide);
+  };
+
   const [expandedCounter, setExpandedCounter] = useState<string | null>(null);
   const [selectedCounterFilter, setSelectedCounterFilter] = useState<string>('all');
   const [selectedAmountReport, setSelectedAmountReport] = useState<AmountCollectedReport | null>(null);
@@ -25,6 +34,7 @@ export const ReportsView = ({
   if (teamLeadReports) slideNames.push('Team Lead Report');
   if (cashierReports && onCashierClick) slideNames.push('Cashier Report');
   if (auditorReports && onAuditorClick) slideNames.push('Auditor Report');
+  if (unpaidBillsReport && onViewUnpaidBill) slideNames.push('Unpaid Bills Report');
   const totalSlides = slideNames.length;
 
   const filteredData = selectedCounterFilter === 'all' ? data : data.filter(d => d.counter_id === selectedCounterFilter);
@@ -33,11 +43,11 @@ export const ReportsView = ({
 
   const uniqueCounters = Array.from(new Map(data.map(d => [d.counter_id, d])).values());
 
-  const goNext = () => { setExpandedCounter(null); setCurrentSlide((prev) => (prev + 1) % totalSlides); };
-  const goPrev = () => { setExpandedCounter(null); setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides); };
+  const goNext = () => { setExpandedCounter(null); handleSlideChange((activeSlide + 1) % totalSlides); };
+  const goPrev = () => { setExpandedCounter(null); handleSlideChange((activeSlide - 1 + totalSlides) % totalSlides); };
 
   const handleExportSlide = () => {
-    const currentSlideName = slideNames[currentSlide];
+    const currentSlideName = slideNames[activeSlide];
     
     if (currentSlideName === 'Ledger') {
       const exportData = filteredData.map(r => ({
@@ -100,6 +110,15 @@ export const ReportsView = ({
         'Total Savings Found (₹)': r.total_savings_found
       }));
       exportToExcel(exportData, 'Auditor_Report');
+    } else if (currentSlideName === 'Unpaid Bills Report' && unpaidBillsReport) {
+      const exportData = (selectedCounterFilter === 'all' ? unpaidBillsReport : unpaidBillsReport.filter(b => b.counter_id === selectedCounterFilter)).map(b => ({
+        'Bill Number': b.bill_number,
+        'Counter Name': b.profiles?.name || 'Unknown',
+        'Customer Name': b.customer_name || 'N/A',
+        'Billed Amount (₹)': b.total_amount,
+        'Balance Left (₹)': b.amount_left
+      }));
+      exportToExcel(exportData, 'Unpaid_Bills_Report');
     }
   };
 
@@ -141,13 +160,13 @@ export const ReportsView = ({
             <ChevronLeft className="w-6 h-6" />
           </button>
           <div className="text-center flex-1">
-            <h2 className="text-xl font-bold uppercase tracking-wider text-primary">{slideNames[currentSlide]}</h2>
+            <h2 className="text-xl font-bold uppercase tracking-wider text-primary">{slideNames[activeSlide]}</h2>
             <div className="flex items-center justify-center gap-2 mt-2">
               {slideNames.map((_, i) => (
                 <button
                   key={i}
-                  onClick={() => setCurrentSlide(i)}
-                  className={`h-2 rounded-full transition-all duration-300 ${i === currentSlide ? 'w-8 bg-primary' : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'}`}
+                  onClick={() => handleSlideChange(i)}
+                  className={`h-2 rounded-full transition-all duration-300 ${i === activeSlide ? 'w-8 bg-primary' : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'}`}
                   aria-label={`Go to ${slideNames[i]}`}
                 />
               ))}
@@ -166,7 +185,7 @@ export const ReportsView = ({
         <div className="overflow-hidden">
           <div
             className="flex transition-transform duration-500 ease-in-out"
-            style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+            style={{ transform: `translateX(-${activeSlide * 100}%)` }}
           >
             {/* Slide 1: Ledger */}
             <div className="w-full flex-shrink-0">
@@ -422,6 +441,42 @@ export const ReportsView = ({
                     { header: 'Pending Audits', accessor: (r) => <span className="text-amber-500 font-medium">{r.pending_audits}</span>, sortAccessor: 'pending_audits', className: 'text-right' },
                     { header: 'Approved (Forwarded)', accessor: (r) => <span className="text-emerald-600 font-medium">{r.approved_audits}</span>, sortAccessor: 'approved_audits', className: 'text-right' },
                     { header: 'Total Savings Found', accessor: (r) => <span className="font-black text-green-600">₹{r.total_savings_found.toLocaleString()}</span>, sortAccessor: 'total_savings_found', className: 'text-right font-bold' }
+                  ]}
+                />
+              </div>
+            )}
+
+            {/* Slide 8: Unpaid Bills Report */}
+            {unpaidBillsReport && onViewUnpaidBill && (
+              <div className="w-full flex-shrink-0">
+                <div className="px-4 sm:px-6 pt-4 pb-2">
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <History className="w-4 h-4 text-rose-600" />
+                    Overview of audited bills with a pending balance.
+                  </p>
+                </div>
+                <DataTable<CounterBill>
+                  idAccessor="id"
+                  data={selectedCounterFilter === 'all' ? unpaidBillsReport : unpaidBillsReport.filter(b => b.counter_id === selectedCounterFilter)}
+                  columns={[
+                    { header: 'Bill Number', accessor: 'bill_number', sortAccessor: 'bill_number', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
+                    { header: 'Counter Name', accessor: (r) => r.profiles?.name || 'Unknown', sortAccessor: 'counter_id', className: 'text-left' },
+                    { header: 'Customer', accessor: (r) => r.customer_name || 'N/A', sortAccessor: 'customer_name', className: 'text-left' },
+                    { header: 'Total Amount', accessor: (r) => <span className="font-medium text-foreground">₹{r.total_amount.toLocaleString()}</span>, sortAccessor: 'total_amount', className: 'text-right' },
+                    { header: 'Net Balance Off', accessor: (r) => {
+                        const net = (Number(r.amount_left) || 0) + (Number(r.excess_adjustment) || 0) - (Number(r.discount_approved) || 0);
+                        return <span className={`font-black ${net > 0 ? 'text-rose-600' : 'text-blue-600'}`}>{net > 0 ? '+' : net < 0 ? '-' : ''}₹{Math.abs(net).toLocaleString()}</span>;
+                      }, 
+                      sortAccessor: 'amount_left', className: 'text-right' 
+                    },
+                    { header: 'Action', accessor: (r) => (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onViewUnpaidBill(r); }}
+                        className="px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-md font-bold text-[10px] uppercase tracking-wider transition-colors inline-block"
+                      >
+                        VIEW BILL
+                      </button>
+                    ), className: 'text-center' }
                   ]}
                 />
               </div>

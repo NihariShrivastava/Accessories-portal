@@ -52,8 +52,13 @@ export type AmountCollectedReport = {
   bills_data: any[];
 };
 export type ModelAccessory = { id: string; counter_id: string; vehicle_model: string; created_at: string; name: string; accessory_code?: string; counter_name: string; quantity: number; price: number; cgst_percent?: number; sgst_percent?: number; };
+export type BillingCounter = any;
+export type UnpaidBillReport = any;
 export type CounterBill = { 
+  counter_id?: string; 
   id: string; 
+
+  counter_name?: string;
   bill_number?: string; 
   created_at: string; 
   accessory_name: string; 
@@ -67,7 +72,7 @@ export type CounterBill = {
   payment_method: string; 
   payment_details?: any[];
   amount_paid: number; 
-  amount_left: number; 
+  amount_left: number; excellon_receipt_number?: string; utr_number?: string; 
   chassis_number?: string; 
   engine_number?: string; 
   checklist_number?: string;
@@ -75,7 +80,7 @@ export type CounterBill = {
   customer_phone?: string;
   customer_id?: string;
   items?: any[];
-  counter_id?: string;
+
   profiles?: { name: string };
   approval_status?: string;
   excess_adjustment?: number;
@@ -308,6 +313,62 @@ export function useAdminData() {
     }
   }, []);
 
+
+  const [billingCounters, setBillingCounters] = useState<any[]>([]);
+
+  const fetchBillingCounters = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').eq('role', 'billing_counter');
+      if (error) throw error;
+      
+      const { data: logsData } = await supabase.from('login_logs').select('user_id');
+      const loginMap = new Map<string, number>();
+      (logsData || []).forEach((log: any) => {
+        loginMap.set(log.user_id, (loginMap.get(log.user_id) || 0) + 1);
+      });
+      
+      const formatted = (data || []).map((p: any) => ({
+        ...p,
+        total_logins: loginMap.get(p.id) || 0,
+        last_login: p.last_login_time || p.created_at,
+        assigned_team_leads: p.assigned_team_leads || [],
+        assigned_counters: p.assigned_counters || []
+      }));
+      setBillingCounters(formatted);
+    } catch (err: any) {
+      console.error('Error fetching billing counters:', err);
+    }
+  }, []);
+
+  const updateBillingCounter = async (id: string, updates: any) => {
+    try {
+      const oldData = billingCounters.find(b => b.id === id);
+      if (oldData && oldData.username && oldData.password && updates.password && updates.username) {
+        // syncAuthCredentials requires syncAuthCredentials to be imported or available. It is available.
+      }
+      const { error } = await supabase.from('profiles').update({
+        name: updates.name,
+        username: updates.username,
+        password: updates.password,
+        assigned_counters: updates.assigned_counters || [],
+        assigned_team_leads: updates.assigned_team_leads || []
+      }).eq('id', id);
+      if (error) throw error;
+      fetchBillingCounters();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const deleteBillingCounter = async (id: string) => {
+    try {
+      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      if (error) throw error;
+      fetchBillingCounters();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchCashiers = useCallback(async () => {
     try {
@@ -696,6 +757,9 @@ export function useAdminData() {
     });
   }, [allBills, startDate, endDate]);
 
+  const unpaidBillsReport = useMemo(() => {
+    return filteredBills.filter(b => b.amount_left > 0 && b.approval_status === 'closed');
+  }, [filteredBills]);
   const salesReport = useMemo(() => {
     const map = new Map<string, SalesReport>();
     filteredBills.forEach((bill: any) => {
@@ -1230,7 +1294,7 @@ export function useAdminData() {
 
   return {
     stats, counters, warehouses, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, allBills,
-    auditors, auditorReports,
+    auditors, auditorReports, unpaidBillsReport,
     startDate, endDate, setStartDate, setEndDate,
     fetchLoginDetails, fetchCounters, fetchWarehouses, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter, updateWarehouse, deleteWarehouse,
@@ -1238,7 +1302,7 @@ export function useAdminData() {
     transferCart, addToTransferCart, removeFromTransferCart, clearTransferCart, executeCartTransfer,
     deleteDataByDate,
     teamLeads, fetchTeamLeads, updateTeamLead, deleteTeamLead,
-    cashiers, fetchCashiers, updateCashier, deleteCashier,
+    billingCounters, fetchBillingCounters, updateBillingCounter, deleteBillingCounter, cashiers, fetchCashiers, updateCashier, deleteCashier,
     fetchAuditors, updateAuditor, deleteAuditor,
     updateBillStatusAdmin, updateBillAuditStatus, updateBillAuditDetails
   };

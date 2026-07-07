@@ -8,12 +8,12 @@ import type { InventoryItem, CounterBill, SalesReport, TeamLeadReport } from '..
 import { Modal } from '../components/dashboard/Modal';
 import { BillDetails } from '../components/dashboard/BillDetails';
 import { BillReceipt } from '../components/dashboard/BillReceipt';
-import { CounterManagementView, AddTeamLeadView, AddCashierView, AddWarehouseView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView, GlobalInventorySliderView, UploadHistoryView, CashierDetailsView, AddAuditorView, AuditorDetailsView } from '../components/dashboard/sub-views/AdminSubViews';
+import { CounterManagementView, AddTeamLeadView, AddCashierView, AddWarehouseView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView, GlobalInventorySliderView, UploadHistoryView, CashierDetailsView, AddAuditorView, AuditorDetailsView, AddBillingCounterView } from '../components/dashboard/sub-views/AdminSubViews';
 import { TeamLeadApprovalView } from '../components/dashboard/sub-views/admin/TeamLeadApprovalView';
 
 export function AdminDashboard() {
   const {
-    counters, warehouses, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, allBills,
+    counters, warehouses, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, allBills, unpaidBillsReport,
     startDate, endDate, setStartDate, setEndDate,
     fetchCounters, fetchWarehouses, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter, updateWarehouse, deleteWarehouse, deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories,
@@ -21,6 +21,7 @@ export function AdminDashboard() {
     deleteDataByDate, teamLeads, fetchTeamLeads, updateTeamLead, deleteTeamLead,
     cashiers, fetchCashiers, updateCashier, deleteCashier,
     auditors, fetchAuditors, updateAuditor, deleteAuditor, auditorReports,
+    billingCounters, fetchBillingCounters, updateBillingCounter, deleteBillingCounter,
     updateBillStatusAdmin, updateBillAuditStatus, updateBillAuditDetails
   } = useAdminData();
 
@@ -48,6 +49,8 @@ export function AdminDashboard() {
   const [historyEndDate, setHistoryEndDate] = useState('');
   const [expandedUpload, setExpandedUpload] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [reportSlide, setReportSlide] = useState(0);
 
   const counterBills = useMemo(() => {
     if (!selectedCounterId) return [];
@@ -125,10 +128,10 @@ export function AdminDashboard() {
   };
 
   let content;
-  if (activeView === 'logins' || activeView === 'logins-team-leads' || activeView === 'logins-cashiers' || activeView === 'logins-warehouses' || activeView === 'logins-auditors') {
+  if (activeView === 'logins' || activeView === 'logins-team-leads' || activeView === 'logins-cashiers' || activeView === 'logins-warehouses' || activeView === 'logins-auditors' || activeView === 'logins-billing-counters') {
     content = (
       <CounterManagementView 
-        initialTab={activeView === 'logins-team-leads' ? 'team_leads' : activeView === 'logins-cashiers' ? 'cashiers' : activeView === 'logins-warehouses' ? 'warehouses' : activeView === 'logins-auditors' ? 'auditors' : 'counters'}
+        initialTab={activeView === 'logins-team-leads' ? 'team_leads' : activeView === 'logins-cashiers' ? 'cashiers' : activeView === 'logins-warehouses' ? 'warehouses' : activeView === 'logins-auditors' ? 'auditors' : activeView === 'logins-billing-counters' ? 'billing_counters' : 'counters'}
         counters={counters}
         warehouses={warehouses}
         teamLeads={teamLeads}
@@ -150,6 +153,10 @@ export function AdminDashboard() {
         onAddAuditor={() => setActiveView('add-auditor')}
         onUpdateAuditor={updateAuditor}
         onDeleteAuditor={deleteAuditor}
+        billingCounters={billingCounters}
+        onAddBillingCounter={() => setActiveView('add-billing-counter')}
+        onUpdateBillingCounter={updateBillingCounter}
+        onDeleteBillingCounter={deleteBillingCounter}
       />
     );
   } else if (activeView === 'add-counter') {
@@ -207,6 +214,18 @@ export function AdminDashboard() {
           setTimeout(() => {
             fetchAuditors(); 
             setActiveView('logins-auditors'); 
+          }, 500);
+        }} 
+      />
+    );
+  } else if (activeView === 'add-billing-counter') {
+    content = (
+      <AddBillingCounterView 
+        teamLeads={teamLeads}
+        onBack={() => { 
+          setTimeout(() => {
+            fetchBillingCounters(); 
+            setActiveView('logins-billing-counters'); 
           }, 500);
         }} 
       />
@@ -275,6 +294,10 @@ export function AdminDashboard() {
         onTeamLeadClick={handleTeamLeadClick}
         auditorReports={auditorReports}
         onAuditorClick={handleAuditorClick}
+        unpaidBillsReport={unpaidBillsReport}
+        onViewUnpaidBill={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
+        currentSlide={reportSlide}
+        onSlideChange={setReportSlide}
       />
     );
   } else if (activeView === 'cashier-details' && selectedCashierReport) {

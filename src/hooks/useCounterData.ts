@@ -39,6 +39,7 @@ export type Bill = {
   excess_adjustment?: number;
   discount_approved?: number;
   approval_note?: string;
+  excellon_receipt_number?: string;
 };
 
 type RawBill = {
@@ -65,6 +66,7 @@ type RawBill = {
   excess_adjustment?: number;
   discount_approved?: number;
   approval_note?: string;
+  excellon_receipt_number?: string;
 };
 
 export function useCounterData(user: User | null) {
@@ -130,8 +132,8 @@ export function useCounterData(user: User | null) {
           cgst_amount: item.cgst_amount || 0,
           sgst_amount: item.sgst_amount || 0,
           total_amount: item.total_amount || 0,
-          amount_paid: item.amount_paid || 0,
-          amount_left: item.amount_left || 0
+          amount_left: item.amount_left || 0,
+          excellon_receipt_number: item.excellon_receipt_number
         });
       } else {
         if (!existing.items) existing.items = [];
@@ -147,6 +149,7 @@ export function useCounterData(user: User | null) {
         existing.excess_adjustment = existing.excess_adjustment || item.excess_adjustment;
         existing.discount_approved = existing.discount_approved || item.discount_approved;
         existing.approval_note = existing.approval_note || item.approval_note;
+        existing.excellon_receipt_number = existing.excellon_receipt_number || item.excellon_receipt_number;
       }
     });
     return Array.from(map.values());

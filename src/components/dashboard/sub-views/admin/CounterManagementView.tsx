@@ -4,7 +4,8 @@ import { ManageWarehousesView } from './ManageWarehousesView';
 import { ManageTeamLeadsView } from './ManageTeamLeadsView';
 import { ManageCashiersView } from './ManageCashiersView';
 import { ManageAuditorsView } from './ManageAuditorsView';
-import type { Counter, Warehouse, TeamLead, Cashier, Auditor } from '../../../../hooks/useAdminData';
+import { ManageBillingCountersView } from './ManageBillingCountersView';
+import type { Counter, Warehouse, TeamLead, Cashier, Auditor, BillingCounter } from '../../../../hooks/useAdminData';
 
 export const CounterManagementView = (props: {
   counters: (Counter & { login_count?: number })[],
@@ -28,9 +29,13 @@ export const CounterManagementView = (props: {
   onAddAuditor: () => void,
   onUpdateAuditor: (id: string, updates: any) => void,
   onDeleteAuditor: (id: string) => void,
-  initialTab?: 'counters' | 'warehouses' | 'team_leads' | 'cashiers' | 'auditors'
+  billingCounters: BillingCounter[],
+  onAddBillingCounter: () => void,
+  onUpdateBillingCounter: (id: string, updates: any) => void,
+  onDeleteBillingCounter: (id: string) => void,
+  initialTab?: 'counters' | 'warehouses' | 'team_leads' | 'cashiers' | 'auditors' | 'billing_counters'
 }) => {
-  const [activeTab, setActiveTab] = useState<'counters' | 'warehouses' | 'team_leads' | 'cashiers' | 'auditors'>(props.initialTab || 'counters');
+  const [activeTab, setActiveTab] = useState<'counters' | 'warehouses' | 'team_leads' | 'cashiers' | 'auditors' | 'billing_counters'>(props.initialTab || 'counters');
 
   useEffect(() => {
     if (props.initialTab) {
@@ -76,6 +81,13 @@ export const CounterManagementView = (props: {
         >
           Manage Auditors
         </button>
+        <button
+          onClick={() => setActiveTab('billing_counters')}
+          className={`px-6 py-2 rounded-md font-semibold transition-all ${activeTab === 'billing_counters' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+        >
+          Billing Counters
+        </button>
       </div>
 
       {activeTab === 'counters' ? (
@@ -113,7 +125,7 @@ export const CounterManagementView = (props: {
           onUpdate={props.onUpdateCashier}
           onDelete={props.onDeleteCashier}
         />
-      ) : (
+      ) : activeTab === 'auditors' ? (
         <ManageAuditorsView
           data={props.auditors}
           teamLeads={props.teamLeads}
@@ -121,6 +133,15 @@ export const CounterManagementView = (props: {
           onAddAuditor={props.onAddAuditor}
           onUpdate={props.onUpdateAuditor}
           onDelete={props.onDeleteAuditor}
+        />
+      ) : (
+        <ManageBillingCountersView
+          data={props.billingCounters}
+          teamLeads={props.teamLeads}
+          onBack={props.onBack}
+          onAddBillingCounter={props.onAddBillingCounter}
+          onUpdate={props.onUpdateBillingCounter}
+          onDelete={props.onDeleteBillingCounter}
         />
       )}
     </div>
