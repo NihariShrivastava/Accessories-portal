@@ -41,31 +41,7 @@ export function AdminDashboard() {
   const [revertingIdx, setRevertingIdx] = useState<number | null>(null);
   const [revertRemark, setRevertRemark] = useState('');
 
-  useEffect(() => {
-    if (allBills.length > 0) {
-      const fixData = async () => {
-        const billsToFix = allBills.filter(b => b.bill_number === 'INV-0035' || b.bill_number === 'INV-0036');
-        for (const billToFix of billsToFix) {
-          if (billToFix && Array.isArray(billToFix.payment_audits)) {
-            const hasResolved = billToFix.payment_audits.some(a => a.resolved_duplicate);
-            if (hasResolved) {
-              const cleanAudits = billToFix.payment_audits.filter(a => !a.resolved_duplicate);
-              import('../lib/supabase').then(({ supabase }) => {
-                supabase.from('bills').update({ 
-                  payment_audits: cleanAudits,
-                  approval_status: 'approved',
-                  approval_note: 'Admin Revert: Auto-cleared by system'
-                }).eq('id', billToFix.id).then(() => {
-                  console.log('Force cleaned', billToFix.bill_number);
-                });
-              });
-            }
-          }
-        }
-      };
-      fixData();
-    }
-  }, [allBills]);
+
   useEffect(() => {
     if (allBills.length > 0) {
       const patchDuplicates = async () => {
