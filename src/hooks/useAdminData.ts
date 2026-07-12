@@ -908,6 +908,106 @@ export function useAdminData() {
     });
   }, [auditors, allBills, teamLeads]);
 
+    const duplicacyReport = useMemo(() => {
+    const reportMap = new Map<string, any>();
+    
+    const paymentItems = allBills.flatMap(b => {
+      let details = b.payment_details;
+      if (!details || !Array.isArray(details) || details.length === 0) {
+        if (b.payment_method && b.payment_method.toLowerCase() !== 'cash') {
+          details = [{ method: b.payment_method, amount: b.amount_paid, excellonReceipt: b.excellon_receipt_number, utrNumber: b.payment_method === 'Finance' ? '' : (b as any).utr_number }];
+        } else return [];
+      }
+      return details.map((d: any) => {
+        let utr = (b as any).utr_number || '';
+        if ('utrNumber' in d) utr = d.utrNumber;
+        else if ('utr' in d) utr = d.utr;
+        let excellon = b.excellon_receipt_number || '';
+        if ('excellonReceipt' in d) excellon = d.excellonReceipt;
+        else if ('excellon_receipt_number' in d) excellon = d.excellon_receipt_number;
+        
+        return {
+          billId: b.id,
+          counterId: b.counter_id,
+          counterName: b.counter_name || b.profiles?.name || 'Unknown',
+          excellonReceipt: (excellon || '').trim(),
+          utrNumber: (utr || '').trim(),
+        };
+      });
+    });
+
+    const excMap = new Map<string, any[]>();
+    const utrMap = new Map<string, any[]>();
+    
+    paymentItems.forEach(item => {
+      if (item.excellonReceipt) {
+        const arr = excMap.get(item.excellonReceipt) || [];
+        arr.push(item);
+        excMap.set(item.excellonReceipt, arr);
+      }
+      if (item.utrNumber) {
+        const arr = utrMap.get(item.utrNumber) || [];
+        arr.push(item);
+        utrMap.set(item.utrNumber, arr);
+      }
+    });
+
+    const duplicateExcellons = Array.from(excMap.entries()).filter(([_, items]) => items.length > 1);
+    const duplicateUTRs = Array.from(utrMap.entries()).filter(([_, items]) => items.length > 1);
+
+    counters.forEach(c => {
+      reportMap.set(c.id, {
+        counter_id: c.id,
+        counter_name: c.name,
+        registered_count: 0,
+        resolved_count: 0,
+        edited_entries: []
+      });
+    });
+
+    const countRegistered = (duplicates: [string, any[]][]) => {
+      duplicates.forEach(([_, items]) => {
+        items.forEach(item => {
+          if (item.counterId) {
+            const entry = reportMap.get(item.counterId);
+            if (entry) {
+              entry.registered_count++;
+            }
+          }
+        });
+      });
+    };
+    countRegistered(duplicateExcellons);
+    countRegistered(duplicateUTRs);
+
+    allBills.forEach(b => {
+      if (b.payment_audits && Array.isArray(b.payment_audits)) {
+        b.payment_audits.forEach((audit: any) => {
+          if (audit.resolved_duplicate && b.counter_id) {
+            const entry = reportMap.get(b.counter_id);
+            if (entry) {
+              entry.resolved_count++;
+              entry.edited_entries.push({
+                bill_id: b.id,
+                bill_number: b.bill_number,
+                resolved_at: audit.resolved_at,
+                resolved_by_counter: audit.resolved_by_counter,
+                customer_name: audit.customer_name,
+                old_excellon_receipt: audit.old_excellon_receipt,
+                new_excellon_receipt: audit.new_excellon_receipt,
+                old_utr: audit.old_utr,
+                new_utr: audit.new_utr,
+                audit_details: audit
+              });
+            }
+          }
+        });
+      }
+    });
+
+    return Array.from(reportMap.values());
+  }, [allBills, counters]);
+
   const fetchLoginDetails = useCallback(async () => {
     const { data: countersData } = await supabase.from('profiles').select('id, name').eq('role', 'counter');
     const { data: logsData } = await supabase.from('login_logs').select('user_id');
@@ -1295,7 +1395,8 @@ export function useAdminData() {
 
   return {
     stats, counters, warehouses, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, allBills,
-    auditors, auditorReports, unpaidBillsReport,
+    auditors, auditorReports,
+    duplicacyReport, unpaidBillsReport,
     startDate, endDate, setStartDate, setEndDate,
     fetchLoginDetails, fetchCounters, fetchWarehouses, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter, updateWarehouse, deleteWarehouse,

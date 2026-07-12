@@ -7,6 +7,7 @@ import type { CounterBill } from './useAdminData';
 export function useBillingCounterData() {
   const { profile } = useAuth();
   const [bills, setBills] = useState<CounterBill[]>([]);
+  const [allGlobalBills, setAllGlobalBills] = useState<CounterBill[]>([]);
   const [loading, setLoading] = useState(false);
   const [teamLeads, setTeamLeads] = useState<{id: string, name: string}[]>([]);
   const [assignedCounters, setAssignedCounters] = useState<{id: string, name: string}[]>([]);
@@ -110,6 +111,9 @@ export function useBillingCounterData() {
       console.log("[DEBUG] Allowed Counter IDs:", allowedCounterIds);
       console.log("[DEBUG] Filtered bills:", filteredData);
 
+      const groupedGlobal = groupBills(data || []);
+      setAllGlobalBills(groupedGlobal);
+
       const grouped = groupBills(filteredData);
       console.log("[DEBUG] Grouped bills:", grouped);
       setBills(grouped);
@@ -147,19 +151,29 @@ export function useBillingCounterData() {
     }
   };
 
-  const updateBillReferences = async (billId: string, customerId: string, paymentDetails: any, excellonReceiptNumber: string) => {
+  const updateBillReferences = async (billId: string, customerId: string, paymentDetails: any, excellonReceiptNumber: string, resolutionLog?: any) => {
     try {
-      const billToUpdate = bills.find(b => b.id === billId);
+      const billToUpdate = bills.find(b => b.id === billId) || allGlobalBills.find(b => b.id === billId);
       if (!billToUpdate) throw new Error("Bill not found");
-      const itemIds = billToUpdate.items?.map(i => i.id) || [billId];
+      const itemIds = billToUpdate.items?.map((i: any) => i.id) || [billId];
+
+      const updateData: any = {
+        customer_id: customerId,
+        payment_details: paymentDetails,
+        excellon_receipt_number: excellonReceiptNumber
+      };
+
+      if (resolutionLog) {
+        const existingAudits = Array.isArray(billToUpdate.payment_audits) ? billToUpdate.payment_audits : [];
+        updateData.payment_audits = [...existingAudits, { ...resolutionLog, resolved_at: new Date().toISOString() }];
+        
+        // When resolving a duplicate, move it back to the workstation so the cashier can re-verify and close it.
+        updateData.approval_status = 'approved';
+      }
 
       const { error } = await supabase
         .from('bills')
-        .update({
-          customer_id: customerId,
-          payment_details: paymentDetails,
-          excellon_receipt_number: excellonReceiptNumber
-        })
+        .update(updateData)
         .in('id', itemIds);
 
       if (error) throw error;
@@ -173,6 +187,7 @@ export function useBillingCounterData() {
 
   return {
     bills,
+    allGlobalBills,
     loading,
     teamLeads,
     assignedCounters,

@@ -25,7 +25,7 @@ import { SearchableDropdown } from '../components/dashboard/SearchableDropdown';
 export function CounterDashboard() {
   const { user } = useAuth();
   const {
-    models, selectedModel, setSelectedModel, accessories, recentBills, allBills, loading,
+    models, selectedModel, setSelectedModel, accessories, recentBills, allBills, rawBills, loading,
     startDate, endDate, setStartDate, setEndDate,
     shortageCount, surplusCount, searchResults, setSearchResults,
     handleModelChange, fetchAllBills, fetchAccessories, fetchRecentBills,
@@ -49,6 +49,7 @@ export function CounterDashboard() {
   const [billPaymentFilter, setBillPaymentFilter] = useState('');
   const [generatedBill, setGeneratedBill] = useState<Bill | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+
 
   const [cart, setCart] = useState<{ accessory: Accessory; quantity: number }[]>([]);
   const [accSearch, setAccSearch] = useState('');
@@ -81,6 +82,9 @@ export function CounterDashboard() {
       return accMatch && modelMatch && paymentMatch;
     });
   }, [allBills, billAccessoryFilter, billModelFilter, billPaymentFilter]);
+
+  const outstandingBills = filteredBills.filter(b => (b.amount_left || 0) > 0);
+  const outstandingAmount = outstandingBills.reduce((sum, b) => sum + (b.amount_left || 0), 0);
 
   const handleExpandModel = async (model: string) => {
     setExpandedLoading(prev => ({ ...prev, [model]: true }));
@@ -474,10 +478,16 @@ export function CounterDashboard() {
                   rightIcon={IndianRupee}
                 />
                 <DashboardCard
-                  icon={ReceiptText} label="Previous Bills" value={`${recentBills.length}+`} subValue="view all transactions"
+                  icon={ReceiptText} label="Previous Bills" value={filteredBills.length.toString()} subValue="view all transactions"
                   onClick={() => { fetchAllBills(); setActiveView('bills'); }}
                   colorClass="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
                   rightIcon={History}
+                />
+                <DashboardCard
+                  icon={AlertTriangle} label="Outstanding Bills" value={outstandingBills.length.toString()} subValue={`₹${outstandingAmount.toLocaleString()} pending`}
+                  onClick={() => { fetchAllBills(); setActiveView('bills'); }}
+                  colorClass="bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
+                  rightIcon={IndianRupee}
                 />
                 <DashboardCard
                   icon={AlertTriangle} label="Shortage" value={shortageCount.toString()} subValue="items running low (≤ 5)"

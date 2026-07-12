@@ -1,19 +1,21 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../components/auth-provider';
 import { useBillingCounterData } from '../hooks/useBillingCounterData';
-import { FileText, CheckCircle2, ShieldCheck, Printer, FileCheck, Search, Download, Store } from 'lucide-react';
+import { FileText, CheckCircle2, ShieldCheck, Printer, FileCheck, Search, Download, Store, AlertTriangle, Edit } from 'lucide-react';
 import type { CounterBill } from '../hooks/useAdminData';
 import { BillReceipt } from '../components/dashboard/BillReceipt';
 import { exportToExcel } from '../utils/exportToExcel';
 
 export function BillingCounterDashboard() {
   const { profile } = useAuth();
-  const { bills, loading, assignedCounters, updateBillToClosed, updateBillReferences } = useBillingCounterData();
+  const { bills, allGlobalBills, loading, assignedCounters, updateBillToClosed, updateBillReferences } = useBillingCounterData();
   
-  const [activeTab, setActiveTab] = useState<'workstation' | 'closed' | 'registry'>('workstation');
+  const [activeTab, setActiveTab] = useState<'workstation' | 'closed' | 'registry' | 'duplicacy'>('workstation');
+  const [duplicacyFilter, setDuplicacyFilter] = useState<'excellon' | 'utr'>('excellon');
   const [generatedBill, setGeneratedBill] = useState<CounterBill | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [editingBill, setEditingBill] = useState<CounterBill | null>(null);
+  const [billToClose, setBillToClose] = useState<CounterBill | null>(null);
   
   const [editForm, setEditForm] = useState({
     customerId: '',
@@ -22,8 +24,55 @@ export function BillingCounterDashboard() {
   });
 
   const [selectedCounters, setSelectedCounters] = useState<string[]>([]);
-  const [registryModeFilter, setRegistryModeFilter] = useState('All');
+    const [registryModeFilter, setRegistryModeFilter] = useState('All');
+
+  const { duplicateExcellons, duplicateUTRs } = useMemo(() => {
+    const excMap = new Map<string, CounterBill[]>();
+    const utrMap = new Map<string, CounterBill[]>();
+
+    (allGlobalBills || []).forEach(b => {
+      let details = b.payment_details;
+      if (!details || !Array.isArray(details) || details.length === 0) {
+        details = [{ method: b.payment_method, amount: b.amount_paid }];
+      }
+      
+      let excellonFound = false;
+      let utrFound = false;
+      
+      for (const d of details) {
+        let excellonReceipt = b.excellon_receipt_number || '';
+        if ('excellonReceipt' in d) excellonReceipt = d.excellonReceipt;
+        else if ('excellon_receipt_number' in d) excellonReceipt = d.excellon_receipt_number;
+
+        if (excellonReceipt && excellonReceipt.trim() !== '') {
+          excellonReceipt = excellonReceipt.trim();
+          if (!excMap.has(excellonReceipt)) excMap.set(excellonReceipt, []);
+          if (!excellonFound) { excMap.get(excellonReceipt)!.push(b); excellonFound = true; }
+        }
+        
+        let utr = (b as any).utr_number || '';
+        if ('utrNumber' in d) utr = d.utrNumber;
+        else if ('utr' in d) utr = d.utr;
+        
+        if (utr && utr.trim() !== '') {
+          utr = utr.trim();
+          if (!utrMap.has(utr)) utrMap.set(utr, []);
+          if (!utrFound) { utrMap.get(utr)!.push(b); utrFound = true; }
+        }
+      }
+    });
+
+    return { 
+      duplicateExcellons: Array.from(excMap.entries()).filter(([_, v]) => v.length > 1),
+      duplicateUTRs: Array.from(utrMap.entries()).filter(([_, v]) => v.length > 1)
+    };
+  }, [allGlobalBills]);
+  
+  const totalDuplicates = duplicateExcellons.length + duplicateUTRs.length;
+  console.log('Total Duplicates:', totalDuplicates);
+
   const [registryStatusFilter, setRegistryStatusFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Auto-select all counters initially if empty, or just handle empty as all
@@ -81,11 +130,21 @@ export function BillingCounterDashboard() {
     }
     
     // Normalize properties from legacy JSON shapes (utr -> utrNumber, excellon_receipt_number -> excellonReceipt)
-    const normalizedDetails = details.map((d: any) => ({
-      ...d,
-      utrNumber: d.utrNumber || d.utr || (bill as any).utr_number || '',
-      excellonReceipt: d.excellonReceipt || d.excellon_receipt_number || bill.excellon_receipt_number || ''
-    }));
+    const normalizedDetails = details.map((d: any) => {
+      let utr = (bill as any).utr_number || '';
+      if ('utrNumber' in d) utr = d.utrNumber;
+      else if ('utr' in d) utr = d.utr;
+
+      let excellon = bill.excellon_receipt_number || '';
+      if ('excellonReceipt' in d) excellon = d.excellonReceipt;
+      else if ('excellon_receipt_number' in d) excellon = d.excellon_receipt_number;
+
+      return {
+        ...d,
+        utrNumber: utr,
+        excellonReceipt: excellon
+      };
+    });
 
     setEditForm({
       customerId: bill.customer_id || '',
@@ -97,7 +156,36 @@ export function BillingCounterDashboard() {
   const handleSaveEdit = async () => {
     if (!editingBill) return;
     try {
-      await updateBillReferences(editingBill.id, editForm.customerId, editForm.paymentDetails, editForm.excellonReceiptNumber);
+      const isDuplicacyResolution = activeTab === 'duplicacy';
+      let resolutionLog: any = undefined;
+      
+      if (isDuplicacyResolution) {
+        if (duplicacyFilter === 'utr') {
+          // Find old UTR and new UTR
+          const oldUtr = (editingBill as any).utr_number || (editingBill.payment_details?.[0] as any)?.utrNumber || '';
+          const newUtr = editForm.paymentDetails[0]?.utrNumber || '';
+          
+          resolutionLog = {
+            resolved_duplicate: true,
+            resolved_by_counter: profile?.name,
+            customer_name: editingBill.customer_name,
+            old_utr: oldUtr,
+            new_utr: newUtr,
+            new_payment_details: editForm.paymentDetails,
+          };
+        } else {
+          resolutionLog = {
+            resolved_duplicate: true,
+            resolved_by_counter: profile?.name,
+            customer_name: editingBill.customer_name,
+            old_excellon_receipt: editingBill.excellon_receipt_number,
+            new_excellon_receipt: editForm.excellonReceiptNumber,
+            new_payment_details: editForm.paymentDetails,
+          };
+        }
+      }
+
+      await updateBillReferences(editingBill.id, editForm.customerId, editForm.paymentDetails, editForm.excellonReceiptNumber, resolutionLog);
       setEditingBill(null);
     } catch (e) {
       // error handled in hook
@@ -186,6 +274,49 @@ export function BillingCounterDashboard() {
     }
   };
 
+  const isBillFullyFilled = (bill: CounterBill) => {
+    if (!bill.customer_id || bill.customer_id.trim() === '') return false;
+    
+    let details = bill.payment_details;
+    if (!details || !Array.isArray(details) || details.length === 0) {
+      details = [{ method: bill.payment_method, amount: bill.amount_paid }];
+    }
+    
+    for (const d of details) {
+      let excellonReceipt = bill.excellon_receipt_number || '';
+      if ('excellonReceipt' in d) excellonReceipt = d.excellonReceipt;
+      else if ('excellon_receipt_number' in d) excellonReceipt = d.excellon_receipt_number;
+
+      if (!excellonReceipt || excellonReceipt.trim() === '') return false;
+      
+      if (d.method && d.method.toLowerCase() !== 'cash') {
+        let utr = (bill as any).utr_number || '';
+        if ('utrNumber' in d) utr = d.utrNumber;
+        else if ('utr' in d) utr = d.utr;
+        
+        if (!utr || utr.trim() === '') return false;
+      }
+    }
+    
+    return true;
+  };
+
+  const handleCloseBillClick = (b: CounterBill) => {
+    if (!isBillFullyFilled(b)) {
+      import('sonner').then(({ toast }) => {
+        toast.error("Cannot close bill. Please fully fill Customer ID, Excellon Receipt, and UTRs via ADD REF / CID.", {
+          duration: 4000
+        });
+      });
+      return;
+    }
+    setBillToClose(b);
+  };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
   if (loading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
@@ -195,6 +326,9 @@ export function BillingCounterDashboard() {
   }
 
   const activeBills = activeTab === 'workstation' ? approvedBills : closedBills;
+  const itemsPerPage = 6;
+  const totalPages = Math.ceil(activeBills.length / itemsPerPage);
+  const paginatedBills = activeBills.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="animate-in fade-in duration-500  text-foreground p-6 space-y-6">
@@ -235,6 +369,12 @@ export function BillingCounterDashboard() {
           className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'registry' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
         >
           <ShieldCheck className="w-4 h-4" /> Digital & Finance Registry ({filteredRegistry.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('duplicacy')}
+          className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'duplicacy' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <AlertTriangle className="w-4 h-4" /> Duplicacy Registry ({totalDuplicates})
         </button>
       </div>
 
@@ -277,6 +417,100 @@ export function BillingCounterDashboard() {
         {/* Right Content Area */}
         <div className="flex-1 min-w-0">
           
+          
+        {activeTab === 'duplicacy' && (
+          <div className="space-y-4">
+            <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm flex flex-col h-[calc(100vh-200px)]">
+              <div className="p-4 border-b border-border bg-muted/20 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-lg text-foreground">Duplicacy Resolution</h2>
+                    <p className="text-xs text-muted-foreground">Resolve duplicate entries across all counters globally.</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <label htmlFor="duplicacyFilter" className="text-sm font-bold text-muted-foreground">Filter By:</label>
+                  <select 
+                    id="duplicacyFilter"
+                    value={duplicacyFilter}
+                    onChange={(e) => setDuplicacyFilter(e.target.value as 'excellon' | 'utr')}
+                    className="bg-background border border-border text-sm font-bold rounded-lg px-3 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  >
+                    <option value="excellon">Excellon Duplicates ({duplicateExcellons.length})</option>
+                    <option value="utr">UTR Duplicates ({duplicateUTRs.length})</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="flex-1 overflow-auto p-4 space-y-6">
+                {(duplicacyFilter === 'excellon' ? duplicateExcellons : duplicateUTRs).map(([val, confBills]: [string, any]) => (
+                  <div key={val} className="border border-destructive/30 bg-destructive/5 rounded-xl p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-destructive">Duplicate {duplicacyFilter === 'excellon' ? 'Excellon ID' : 'UTR Number'}:</span>
+                        <code className="bg-background px-2 py-1 rounded text-sm font-mono border border-border">{val}</code>
+                      </div>
+                      <span className="text-xs font-bold text-destructive px-2 py-1 bg-destructive/10 rounded-full">
+                        {confBills.length} Conflicts Found
+                      </span>
+                    </div>
+                    
+                    <div className="bg-background border border-border rounded-lg overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-muted/50 border-b border-border">
+                            <th className="px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-1/4">Counter</th>
+                            <th className="px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-1/4">Bill No</th>
+                            <th className="px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest w-1/3">Customer Info</th>
+                            <th className="px-4 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {confBills.map((b: any) => (
+                            <tr key={b.id} className="hover:bg-muted/30">
+                              <td className="px-4 py-3 text-xs font-bold text-muted-foreground">{b.counter_name}</td>
+                              <td className="px-4 py-3 text-xs font-mono font-bold text-primary">{b.bill_number}</td>
+                              <td className="px-4 py-3 text-sm font-semibold">{b.customer_name || b.accessories?.name || 'Unknown'}</td>
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <button 
+                                    onClick={() => { setGeneratedBill(b); setShowReceipt(true); }}
+                                    className="p-1.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
+                                    title="View Bill"
+                                  >
+                                    <Printer className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => startEdit(b)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors whitespace-nowrap"
+                                  >
+                                    <Edit className="w-3 h-3" /> Edit & Resolve
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+                
+                {(duplicacyFilter === 'excellon' ? duplicateExcellons : duplicateUTRs).length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-12">
+                    <CheckCircle2 className="w-12 h-12 mb-4 text-emerald-500/50" />
+                    <p className="font-medium">No {duplicacyFilter === 'excellon' ? 'Excellon' : 'UTR'} duplicates found across the system.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
           {activeTab === 'registry' ? (
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
               <div className="p-6 border-b border-border bg-muted/50/50">
@@ -397,7 +631,7 @@ export function BillingCounterDashboard() {
                 </div>
               </div>
             </div>
-          ) : (
+          ) : activeTab !== 'duplicacy' ? (
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
               <div className="p-5 border-b border-border bg-muted/50/50">
                 <h2 className="font-bold text-lg text-foreground flex items-center gap-2">
@@ -419,14 +653,19 @@ export function BillingCounterDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800">
-                    {activeBills.map((b, idx) => (
+                    {paginatedBills.map((b, idx) => (
                       <tr key={b.id} className="hover:bg-muted/50/50 transition-colors">
-                        <td className="px-4 py-4 text-sm text-center text-muted-foreground">{idx + 1}</td>
+                        <td className="px-4 py-4 text-sm text-center text-muted-foreground">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
                         <td className="px-4 py-4 text-sm font-mono font-bold text-primary">{b.bill_number}</td>
                         <td className="px-4 py-4 text-sm text-foreground">
                           <div className="flex flex-col gap-0.5">
                             <span className="font-semibold">{b.customer_name || '-'}</span>
                             <span className="text-xs text-muted-foreground">{b.customer_phone || '-'}</span>
+                            {b.approval_note && (
+                              <div className="mt-1 px-2 py-1 bg-destructive/10 border border-destructive/20 rounded text-[10px] text-destructive leading-tight">
+                                <span className="font-bold uppercase">Remark:</span> {b.approval_note}
+                              </div>
+                            )}
                           </div>
                         </td>
                                                   <td className="px-4 py-4 text-sm text-foreground">{b.items?.map(i => i.accessories?.name || i.accessory_name).filter(Boolean).join(', ') || b.accessory_name || '-'}</td>
@@ -447,7 +686,7 @@ export function BillingCounterDashboard() {
                               ADD REF / CID
                             </button>
                             {activeTab === 'workstation' && b.approval_status === 'approved' && (
-                              <button onClick={() => { if(confirm(`Close bill ${b.bill_number}?`)) updateBillToClosed(b.id); }} className="px-3 py-1.5 text-[10px] font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded transition-colors shadow-sm whitespace-nowrap">
+                              <button onClick={() => handleCloseBillClick(b)} className="px-3 py-1.5 text-[10px] font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded transition-colors shadow-sm whitespace-nowrap">
                                 CLOSE BILL
                               </button>
                             )}
@@ -465,8 +704,30 @@ export function BillingCounterDashboard() {
                   </tbody>
                 </table>
               </div>
+
+              <div className="p-4 border-t border-border flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Showing <span className="font-bold text-foreground">{activeBills.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-foreground">{Math.min(currentPage * itemsPerPage, activeBills.length)}</span> of <span className="font-bold text-foreground">{activeBills.length}</span> entries
+                </div>
+                <div className="flex gap-1">
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 rounded border border-border text-sm font-semibold disabled:opacity-50 hover:bg-muted"
+                  >
+                    Prev
+                  </button>
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages || totalPages === 0}
+                    className="px-3 py-1 rounded border border-border text-sm font-semibold disabled:opacity-50 hover:bg-muted"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
-          )}
+          ) : null}
           
         </div>
       </div>
@@ -474,6 +735,31 @@ export function BillingCounterDashboard() {
       {showReceipt && generatedBill && (
         <div className="fixed inset-0 z-[100] bg-white overflow-y-auto">
           <BillReceipt bill={generatedBill as any} onClose={() => { setShowReceipt(false); setGeneratedBill(null); }} />
+        </div>
+      )}
+
+      {billToClose && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-card border border-border shadow-2xl rounded-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 p-6">
+            <h3 className="text-lg font-bold text-foreground text-center mb-6">Do you want to forward to the auditor?</h3>
+            <div className="flex gap-3 justify-center">
+              <button 
+                onClick={() => setBillToClose(null)} 
+                className="px-6 py-2 font-bold text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors"
+              >
+                No
+              </button>
+              <button 
+                onClick={() => {
+                  updateBillToClosed(billToClose.id);
+                  setBillToClose(null);
+                }} 
+                className="px-6 py-2 font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-sm transition-all active:scale-95"
+              >
+                Yes
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
