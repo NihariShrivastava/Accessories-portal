@@ -25,7 +25,7 @@ import { SearchableDropdown } from '../components/dashboard/SearchableDropdown';
 export function CounterDashboard() {
   const { user } = useAuth();
   const {
-    models, selectedModel, setSelectedModel, accessories, recentBills, allBills, rawBills, loading,
+    models, selectedModel, setSelectedModel, accessories, allBills, loading,
     startDate, endDate, setStartDate, setEndDate,
     shortageCount, surplusCount, searchResults, setSearchResults,
     handleModelChange, fetchAllBills, fetchAccessories, fetchRecentBills,
