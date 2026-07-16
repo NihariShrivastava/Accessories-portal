@@ -47,9 +47,11 @@ export function BillApprovalCard({ bill, activeTab, onApprove, onRevert, onViewB
               {activeTab === 'pending' ? 'Awaiting Approval' : activeTab === 'approved' ? 'Approved' : 'Reverted'}
             </div>
             <h3 className="text-lg md:text-xl font-black text-foreground uppercase tracking-tight leading-tight">
-              {bill.accessory_name === 'Multiple Items' ? 'Multiple Accessories' : bill.accessory_name}
+              {bill.items && bill.items.length > 1 ? 'Multiple Accessories' : bill.accessory_name}
             </h3>
-            <p className="text-muted-foreground text-xs mt-1">{bill.vehicle_model}</p>
+            <p className="text-muted-foreground text-xs mt-1">
+              {bill.items && bill.items.length > 1 ? 'Multiple Models' : bill.vehicle_model}
+            </p>
           </div>
           <div className="text-right">
             <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Total Amount</p>

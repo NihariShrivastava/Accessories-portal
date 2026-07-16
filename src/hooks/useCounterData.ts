@@ -117,10 +117,11 @@ export function useCounterData(user: User | null) {
       const bNo = item.bill_number 
         ? (/^\d+-\d+$/.test(item.bill_number) ? item.bill_number.split('-')[0] : (item.bill_number.split('-').length > 2 ? item.bill_number.substring(0, item.bill_number.lastIndexOf('-')) : item.bill_number)) 
         : `TEMP-${item.id}`;
+      const groupKey = `${item.counter_id || 'unknown'}_${bNo}_${(item.created_at || '').substring(0, 16)}`;
       
-      const existing = map.get(bNo);
+      const existing = map.get(groupKey);
       if (!existing) {
-        map.set(bNo, { 
+        map.set(groupKey, { 
           ...item, 
           bill_number: bNo, // Show the base number in the list
           items: [item as any as Bill],

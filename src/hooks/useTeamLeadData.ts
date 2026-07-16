@@ -89,6 +89,7 @@ export function useTeamLeadData(user: any) {
         const bNo = item.bill_number 
           ? (/^\d+-\d+$/.test(item.bill_number) ? item.bill_number.split('-')[0] : (item.bill_number.split('-').length > 2 ? item.bill_number.substring(0, item.bill_number.lastIndexOf('-')) : item.bill_number)) 
           : `TEMP-${item.id}`;
+        const groupKey = `${item.counter_id || 'unknown'}_${bNo}_${(item.created_at || '').substring(0, 16)}`;
         const acc = item.accessories as any;
         const counterObj = countersData.find(c => c.id === item.counter_id);
         
@@ -104,12 +105,12 @@ export function useTeamLeadData(user: any) {
           return;
         }
 
-        if (!groupedBills.has(bNo)) {
-          groupedBills.set(bNo, { 
+        if (!groupedBills.has(groupKey)) {
+          groupedBills.set(groupKey, { 
             ...item, 
             bill_number: bNo,
-            accessory_name: 'Multiple Items',
-            vehicle_model: 'Multiple Models',
+            accessory_name: acc?.name || 'Unknown',
+            vehicle_model: acc?.vehicle_model || 'Unknown',
             profiles: { name: counterObj?.name || 'Unknown Counter' },
             items: [item],
             customer_name: item.customer_name,
@@ -121,8 +122,10 @@ export function useTeamLeadData(user: any) {
             sgst_amount: item.sgst_amount || 0
           });
         } else {
-          const group = groupedBills.get(bNo);
+          const group = groupedBills.get(groupKey);
           group.items.push(item);
+          group.accessory_name = 'Multiple Items';
+          group.vehicle_model = 'Multiple Models';
           group.total_amount += item.total_amount || 0;
           group.amount_paid += item.amount_paid || 0;
           group.amount_left += item.amount_left || 0;
