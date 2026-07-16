@@ -600,6 +600,7 @@ export function CounterDashboard() {
         <BillForm
           items={cart}
           userId={user?.id || ''}
+          userName={user?.user_metadata?.name || ''}
           onSuccess={handleBillSuccess}
           loading={formLoading}
           setLoading={setFormLoading}

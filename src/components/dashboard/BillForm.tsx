@@ -12,12 +12,13 @@ interface CartItem {
 interface BillFormProps {
   items: CartItem[];
   userId: string;
+  userName?: string;
   onSuccess: (bill: any) => void;
   loading: boolean;
   setLoading: (loading: boolean) => void;
 }
 
-export function BillForm({ items, userId, onSuccess, loading, setLoading }: BillFormProps) {
+export function BillForm({ items, userId, userName, onSuccess, loading, setLoading }: BillFormProps) {
   const [chassisNo, setChassisNo] = useState('');
   const [engineNo, setEngineNo] = useState('');
   const [checklistNo, setChecklistNo] = useState('');
@@ -60,19 +61,44 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
 
     setLoading(true);
     try {
+      let prefix = 'INV';
+      let nameToUse = userName;
+      
+      if (!nameToUse && userId) {
+        const { data: profile } = await supabase.from('profiles').select('name').eq('id', userId).single();
+        if (profile && profile.name) nameToUse = profile.name;
+      }
+
+      if (nameToUse) {
+        const words = nameToUse.trim().split(/[-_ ]+/);
+        let initials = '';
+        if (words.length >= 2 && words[0] && words[1]) {
+          initials = (words[0][0] + words[1][0]).toUpperCase();
+        } else if (nameToUse.length >= 2) {
+          initials = nameToUse.substring(0, 2).toUpperCase();
+        } else {
+          initials = nameToUse.toUpperCase();
+        }
+        const userHash = userId ? userId.substring(0, 3).toUpperCase() : '';
+        prefix = `${initials}${userHash}`;
+      } else if (userId) {
+        // Ultimate fallback to ensure uniqueness even if name is missing
+        prefix = `C${userId.substring(0, 4).toUpperCase()}`;
+      }
+
       // Find the highest current number using like to ignore TEMP- strings and ordering by created_at
       const { data: allBills } = await supabase
         .from('bills')
         .select('bill_number')
-        .like('bill_number', 'INV-%')
+        .like('bill_number', `${prefix}-%`)
         .order('created_at', { ascending: false })
         .limit(100);
 
       let maxNum = 0;
       if (allBills && allBills.length > 0) {
+        const regex = new RegExp(`^${prefix}-(\\d+)`);
         allBills.forEach(b => {
-          // Match the numeric part INV-XXXX
-          const match = b.bill_number?.match(/INV-(\d+)/);
+          const match = b.bill_number?.match(regex);
           if (match) {
             const num = parseInt(match[1], 10);
             if (num > maxNum) maxNum = num;
@@ -86,7 +112,7 @@ export function BillForm({ items, userId, onSuccess, loading, setLoading }: Bill
 
       while (!inserted && retryCount < 5) {
         const nextNum = maxNum + 1 + retryCount;
-        const billNumber = `INV-${String(nextNum).padStart(4, '0')}`;
+        const billNumber = `${prefix}-${String(nextNum).padStart(4, '0')}`;
         finalBillNumber = billNumber;
 
         // Insert multiple rows for the same bill
