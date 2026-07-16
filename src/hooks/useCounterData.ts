@@ -16,6 +16,7 @@ export type Accessory = {
 
 export type Bill = {
   id: string;
+  counter_id?: string;
   bill_number?: string;
   chassis_number: string;
   engine_number: string;
@@ -44,6 +45,7 @@ export type Bill = {
 
 type RawBill = {
   id: string;
+  counter_id?: string;
   bill_number?: string;
   chassis_number: string;
   engine_number: string;
