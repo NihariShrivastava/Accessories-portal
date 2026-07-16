@@ -115,7 +115,7 @@ export function useCounterData(user: User | null) {
     data.forEach(item => {
       // Group by base bill number (strip suffix like -1, -2 if present, but preserve INV-XXXX)
       const bNo = item.bill_number 
-        ? (item.bill_number.split('-').length > 2 ? item.bill_number.substring(0, item.bill_number.lastIndexOf('-')) : item.bill_number) 
+        ? (/^\d+-\d+$/.test(item.bill_number) ? item.bill_number.split('-')[0] : (item.bill_number.split('-').length > 2 ? item.bill_number.substring(0, item.bill_number.lastIndexOf('-')) : item.bill_number)) 
         : `TEMP-${item.id}`;
       
       const existing = map.get(bNo);

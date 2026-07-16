@@ -546,6 +546,7 @@ export function useAdminData() {
         .eq('counter_id', targetCounterId)
         .eq('vehicle_model', item.vehicle_model)
         .eq('name', item.name)
+        .limit(1)
         .maybeSingle();
 
       if (existingTarget) {
@@ -600,6 +601,7 @@ export function useAdminData() {
           .eq('counter_id', targetCounterId)
           .eq('vehicle_model', item.vehicle_model)
           .eq('name', item.name)
+          .limit(1)
           .maybeSingle();
 
         if (existingTarget) {
@@ -674,6 +676,7 @@ export function useAdminData() {
           .eq('counter_id', targetCounterId)
           .eq('vehicle_model', item.vehicle_model)
           .eq('name', item.name)
+          .limit(1)
           .maybeSingle();
 
         if (existingTarget) {
@@ -707,7 +710,7 @@ export function useAdminData() {
     const map = new Map<string, CounterBill>();
     data.forEach(item => {
       const bNo = item.bill_number 
-        ? (item.bill_number.split('-').length > 2 ? item.bill_number.substring(0, item.bill_number.lastIndexOf('-')) : item.bill_number) 
+        ? (/^\d+-\d+$/.test(item.bill_number) ? item.bill_number.split('-')[0] : (item.bill_number.split('-').length > 2 ? item.bill_number.substring(0, item.bill_number.lastIndexOf('-')) : item.bill_number)) 
         : `TEMP-${item.id}`;
       const existing = map.get(bNo);
       if (!existing) {

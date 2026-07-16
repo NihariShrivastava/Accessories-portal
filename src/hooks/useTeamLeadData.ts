@@ -87,7 +87,7 @@ export function useTeamLeadData(user: any) {
 
       (billsData || []).forEach(item => {
         const bNo = item.bill_number 
-          ? (item.bill_number.split('-').length > 2 ? item.bill_number.substring(0, item.bill_number.lastIndexOf('-')) : item.bill_number) 
+          ? (/^\d+-\d+$/.test(item.bill_number) ? item.bill_number.split('-')[0] : (item.bill_number.split('-').length > 2 ? item.bill_number.substring(0, item.bill_number.lastIndexOf('-')) : item.bill_number)) 
           : `TEMP-${item.id}`;
         const acc = item.accessories as any;
         const counterObj = countersData.find(c => c.id === item.counter_id);
@@ -336,20 +336,25 @@ export function useTeamLeadData(user: any) {
         if (sErr || !sourceData) throw new Error(`Could not find accessory ${item.name}`);
         if (sourceData.quantity < item.quantity) throw new Error(`Insufficient stock for ${item.name}`);
 
-        await supabase.from('accessories').update({ quantity: sourceData.quantity - item.quantity }).eq('id', item.id);
+        const { error: updateSourceErr } = await supabase.from('accessories').update({ quantity: sourceData.quantity - item.quantity }).eq('id', item.id);
+        if (updateSourceErr) throw new Error(`Failed to decrement source stock: ${updateSourceErr.message}`);
 
         // 2. Increment/Create target counter stock
-        const { data: targetData } = await supabase.from('accessories')
+        const { data: targetData, error: targetFindErr } = await supabase.from('accessories')
           .select('id, quantity')
           .eq('counter_id', targetCounterId)
           .eq('vehicle_model', sourceData.vehicle_model)
           .eq('name', sourceData.name)
+          .limit(1)
           .maybeSingle();
+          
+        if (targetFindErr) throw new Error(`Failed to check target stock: ${targetFindErr.message}`);
 
         if (targetData) {
-          await supabase.from('accessories').update({ quantity: targetData.quantity + item.quantity }).eq('id', targetData.id);
+          const { error: updateTargetErr } = await supabase.from('accessories').update({ quantity: targetData.quantity + item.quantity }).eq('id', targetData.id);
+          if (updateTargetErr) throw new Error(`Failed to update target stock: ${updateTargetErr.message}`);
         } else {
-          await supabase.from('accessories').insert([{
+          const { error: insertTargetErr } = await supabase.from('accessories').insert([{
             counter_id: targetCounterId,
             vehicle_model: sourceData.vehicle_model,
             name: sourceData.name,
@@ -359,6 +364,7 @@ export function useTeamLeadData(user: any) {
             sgst_percent: sourceData.sgst_percent,
             quantity: item.quantity
           }]);
+          if (insertTargetErr) throw new Error(`Failed to insert target stock: ${insertTargetErr.message}`);
         }
       }
 
