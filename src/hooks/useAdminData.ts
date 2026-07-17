@@ -680,11 +680,19 @@ export function useAdminData() {
           .maybeSingle();
 
         if (existingTarget) {
-          await supabase.from('accessories')
+          const { error: updateErr } = await supabase.from('accessories')
             .update({ quantity: existingTarget.quantity + item.transferQuantity })
             .eq('id', existingTarget.id);
+            
+          if (updateErr) {
+             // Rollback
+             await supabase.from('accessories')
+              .update({ quantity: item.quantity }) // Restore original quantity
+              .eq('id', item.id);
+             throw updateErr;
+          }
         } else {
-          await supabase.from('accessories').insert({
+          const { error: insertErr } = await supabase.from('accessories').insert({
             counter_id: targetCounterId,
             vehicle_model: item.vehicle_model,
             name: item.name,
@@ -694,6 +702,14 @@ export function useAdminData() {
             sgst_percent: item.sgst_percent,
             quantity: item.transferQuantity
           });
+          
+          if (insertErr) {
+             // Rollback
+             await supabase.from('accessories')
+              .update({ quantity: item.quantity }) // Restore original quantity
+              .eq('id', item.id);
+             throw insertErr;
+          }
         }
       }
       toast.success(`Successfully transferred ${transferCart.length} items!`);
