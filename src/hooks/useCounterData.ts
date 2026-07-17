@@ -115,10 +115,20 @@ export function useCounterData(user: User | null) {
   const groupBills = useCallback((data: RawBill[]): Bill[] => {
     const map = new Map<string, Bill>();
     data.forEach(item => {
-      // Group by base bill number (strip suffix like -1, -2 if present, but preserve INV-XXXX)
-      const bNo = item.bill_number 
-        ? (/^\d+-\d+$/.test(item.bill_number) ? item.bill_number.split('-')[0] : (item.bill_number.split('-').length > 2 ? item.bill_number.substring(0, item.bill_number.lastIndexOf('-')) : item.bill_number)) 
-        : `TEMP-${item.id}`;
+      let bNo = item.bill_number || `TEMP-${item.id}`;
+      if (/^\d+-\d+$/.test(bNo)) {
+        bNo = bNo.split('-')[0];
+      } else {
+        const parts = bNo.split('-');
+        if (parts.length > 1) {
+          const last = parts[parts.length - 1];
+          const secondLast = parts[parts.length - 2];
+          if (/^\d{4,}$/.test(secondLast) && /^\d+$/.test(last)) {
+            bNo = bNo.substring(0, bNo.lastIndexOf('-'));
+          }
+        }
+      }
+      
       const groupKey = `${item.counter_id || 'unknown'}_${bNo}_${(item.created_at || '').substring(0, 16)}`;
       
       const existing = map.get(groupKey);
@@ -349,3 +359,4 @@ export function useCounterData(user: User | null) {
     createCashierTransfer
   };
 }
+

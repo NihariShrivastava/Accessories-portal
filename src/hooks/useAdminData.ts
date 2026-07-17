@@ -709,9 +709,19 @@ export function useAdminData() {
   const groupBills = useCallback((data: any[]): CounterBill[] => {
     const map = new Map<string, CounterBill>();
     data.forEach(item => {
-      const bNo = item.bill_number 
-        ? (/^\d+-\d+$/.test(item.bill_number) ? item.bill_number.split('-')[0] : (item.bill_number.split('-').length > 2 ? item.bill_number.substring(0, item.bill_number.lastIndexOf('-')) : item.bill_number)) 
-        : `TEMP-${item.id}`;
+      let bNo = item.bill_number || `TEMP-${item.id}`;
+      if (/^\d+-\d+$/.test(bNo)) {
+        bNo = bNo.split('-')[0];
+      } else {
+        const parts = bNo.split('-');
+        if (parts.length > 1) {
+          const last = parts[parts.length - 1];
+          const secondLast = parts[parts.length - 2];
+          if (/^\d{4,}$/.test(secondLast) && /^\d+$/.test(last)) {
+            bNo = bNo.substring(0, bNo.lastIndexOf('-'));
+          }
+        }
+      }
       const groupKey = `${item.counter_id || 'unknown'}_${bNo}_${(item.created_at || '').substring(0, 16)}`;
       const existing = map.get(groupKey);
       if (!existing) {
@@ -1382,6 +1392,122 @@ export function useAdminData() {
     }
   };
 
+  const migrateLegacyBills = async () => {
+    try {
+      setUploading(true);
+      const { data: profiles, error: pError } = await supabase.from('profiles').select('id, name');
+      if (pError) throw pError;
+      const profileMap = new Map();
+      profiles.forEach(p => profileMap.set(p.id, p.name));
+
+      const { data: bills, error: bError } = await supabase.from('bills').select('*');
+      if (bError) throw bError;
+
+      const counterGroups = new Map();
+      bills.forEach(bill => {
+        const counterId = bill.counter_id;
+        if (!counterId) return;
+        if (!counterGroups.has(counterId)) counterGroups.set(counterId, []);
+        counterGroups.get(counterId).push(bill);
+      });
+
+      const firstPassUpdates: any[] = [];
+      const secondPassUpdates: any[] = [];
+
+      for (const [counterId, counterBills] of counterGroups.entries()) {
+        const counterName = profileMap.get(counterId) || '';
+        let prefix = 'INV';
+        if (counterName) {
+          const words = counterName.trim().split(/[-_ ]+/);
+          let initials = '';
+          if (words.length >= 2 && words[0] && words[1]) {
+            initials = (words[0][0] + words[1][0]).toUpperCase();
+          } else if (counterName.length >= 2) {
+            initials = counterName.substring(0, 2).toUpperCase();
+          } else {
+            initials = counterName.toUpperCase();
+          }
+          const userHash = counterId ? counterId.substring(0, 3).toUpperCase() : '';
+          prefix = `${initials}${userHash}`;
+        } else if (counterId) {
+          prefix = `C${counterId.substring(0, 4).toUpperCase()}`;
+        }
+
+        // Group logical bills (same bill number AND same time)
+        const logicalBillsMap = new Map();
+        counterBills.forEach((item: any) => {
+          let bNo = item.bill_number || `TEMP-${item.id}`;
+          if (/^\d+-\d+$/.test(bNo)) bNo = bNo.split('-')[0];
+          else {
+            const parts = bNo.split('-');
+            if (parts.length > 1) {
+              const last = parts[parts.length - 1];
+              const secondLast = parts[parts.length - 2];
+              if (/^\d{4,}$/.test(secondLast) && /^\d+$/.test(last)) {
+                bNo = bNo.substring(0, bNo.lastIndexOf('-'));
+              }
+            }
+          }
+          
+          const timeStr = (item.created_at || '').substring(0, 16);
+          // Only group items that share the EXACT SAME legacy bill_number and time
+          // If bill_number starts with our target prefix, it might be a valid one, but we group by original bill_number + time anyway
+          const uniqueGroupKey = `${bNo}_${timeStr}`;
+          
+          if (!logicalBillsMap.has(uniqueGroupKey)) {
+            logicalBillsMap.set(uniqueGroupKey, { created_at: item.created_at, items: [] });
+          }
+          logicalBillsMap.get(uniqueGroupKey).items.push(item);
+        });
+
+        // Sort logical bills chronologically
+        const sortedLogicalBills = Array.from(logicalBillsMap.values()).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+        let seq = 1;
+        for (const logicalBill of sortedLogicalBills) {
+          const paddedSeq = seq.toString().padStart(4, '0');
+          const newBaseNumber = `${prefix}-${paddedSeq}`;
+          
+          logicalBill.items.sort((a: any, b: any) => a.id.localeCompare(b.id));
+          const isMultiItem = logicalBill.items.length > 1;
+          
+          logicalBill.items.forEach((item: any, index: number) => {
+            const targetBillNumber = isMultiItem ? `${newBaseNumber}-${index + 1}` : newBaseNumber;
+            
+            // If the bill doesn't ALREADY have its exact correct target number, it needs to be updated.
+            if (item.bill_number !== targetBillNumber) {
+              const tempNumber = `TEMP-MIGRATE-${item.id}`;
+              firstPassUpdates.push({ id: item.id, newNumber: tempNumber });
+              secondPassUpdates.push({ id: item.id, newNumber: targetBillNumber });
+            }
+          });
+          seq++;
+        }
+      }
+
+      if (firstPassUpdates.length > 0) {
+        // PASS 1: Assign temp numbers to avoid unique constraint collisions
+        for (const u of firstPassUpdates) {
+          const { error } = await supabase.from('bills').update({ bill_number: u.newNumber }).eq('id', u.id);
+          if (error) console.error("Pass 1 Error:", error);
+        }
+        // PASS 2: Assign final numbers
+        for (const u of secondPassUpdates) {
+          const { error } = await supabase.from('bills').update({ bill_number: u.newNumber }).eq('id', u.id);
+          if (error) console.error("Pass 2 Error:", error);
+        }
+        toast.success(`Migrated ${firstPassUpdates.length} legacy bills successfully in one go!`);
+        fetchBills();
+      } else {
+        toast.success('No bills needed migration.');
+      }
+    } catch (error: any) {
+      toast.error('Migration failed: ' + error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   useEffect(() => {
     fetchStats();
     fetchCounters();
@@ -1406,10 +1532,15 @@ export function useAdminData() {
     updateCounter, deleteCounter, updateWarehouse, deleteWarehouse,
     deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories, fetchInventory,
     transferCart, addToTransferCart, removeFromTransferCart, clearTransferCart, executeCartTransfer,
-    deleteDataByDate,
+    deleteDataByDate, migrateLegacyBills,
     teamLeads, fetchTeamLeads, updateTeamLead, deleteTeamLead,
     billingCounters, fetchBillingCounters, updateBillingCounter, deleteBillingCounter, cashiers, fetchCashiers, updateCashier, deleteCashier,
     fetchAuditors, updateAuditor, deleteAuditor,
     updateBillStatusAdmin, updateBillAuditStatus, updateBillAuditDetails
   };
 }
+
+
+
+
+

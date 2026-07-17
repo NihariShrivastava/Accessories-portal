@@ -15,15 +15,27 @@ export function useAuditorData() {
   const groupBills = useCallback((rawBills: any[]) => {
     const map = new Map<string, any>();
     rawBills.forEach(item => {
-      // Find the base INV-XXXX from INV-XXXX-1
-      const baseBillNumber = item.bill_number?.split('-').slice(0, 2).join('-') || item.bill_number;
+      let bNo = item.bill_number || `TEMP-${item.id}`;
+      if (/^\d+-\d+$/.test(bNo)) {
+        bNo = bNo.split('-')[0];
+      } else {
+        const parts = bNo.split('-');
+        if (parts.length > 1) {
+          const last = parts[parts.length - 1];
+          const secondLast = parts[parts.length - 2];
+          if (/^\d{4,}$/.test(secondLast) && /^\d+$/.test(last)) {
+            bNo = bNo.substring(0, bNo.lastIndexOf('-'));
+          }
+        }
+      }
       
-      const existing = map.get(baseBillNumber);
+      const groupKey = `${item.counter_id || 'unknown'}_${bNo}_${(item.created_at || '').substring(0, 16)}`;
+      const existing = map.get(groupKey);
       if (!existing) {
-        map.set(baseBillNumber, {
+        map.set(groupKey, {
           ...item,
           id: item.id, // Using the first item's ID as the main bill ID for status updates
-          bill_number: baseBillNumber,
+          bill_number: bNo,
           items: [item],
           accessory_name: item.accessories?.name || 'Unknown',
           vehicle_model: item.accessories?.vehicle_model || '-',
@@ -226,3 +238,4 @@ export function useAuditorData() {
     updateBillMetadata
   };
 }
+
