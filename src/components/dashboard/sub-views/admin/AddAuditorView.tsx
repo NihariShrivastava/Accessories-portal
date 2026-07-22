@@ -25,7 +25,7 @@ export const AddAuditorView = ({ onBack, teamLeads }: { onBack: () => void, team
         { auth: { persistSession: false, autoRefreshToken: false } }
       );
 
-      const email = `${formData.username.trim().toLowerCase()}@auditor.local`;
+      const email = `${formData.username.trim().toLowerCase()}@auditor.com`;
       
       const { data: authData, error: authError } = await tempSupabase.auth.signUp({
         email,

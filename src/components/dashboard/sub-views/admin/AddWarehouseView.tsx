@@ -23,7 +23,7 @@ export const AddWarehouseView = ({ onBack }: { onBack: () => void }) => {
       );
 
       const { data, error } = await tempSupabase.auth.signUp({
-        email: `${username}@portal.local`,
+        email: `${username}@portal.com`,
         password,
         options: {
           data: {

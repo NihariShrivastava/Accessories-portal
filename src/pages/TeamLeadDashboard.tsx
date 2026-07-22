@@ -109,7 +109,7 @@ export function TeamLeadDashboard() {
             <span className="text-xs font-black uppercase tracking-[0.2em]">Team Lead Dashboard</span>
           </div>
           <h1 className="text-3xl font-black uppercase tracking-tight text-center">
-            Welcome, <span className="text-primary">{profile?.name || 'Lead'}</span>
+            Welcome, <span className="text-primary">{profile?.username || profile?.name || 'Lead'}</span>
           </h1>
           <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest mt-2">
             Managing {assignedCounters.length} Counters

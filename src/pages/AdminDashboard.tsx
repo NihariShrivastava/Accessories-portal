@@ -65,7 +65,7 @@ export function AdminDashboard() {
     }
   }, [allBills]);
 
-  
+
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [transferringItem, setTransferringItem] = useState<InventoryItem | null>(null);
   const [editForm, setEditForm] = useState({ quantity: 0, price: 0 });
@@ -78,7 +78,7 @@ export function AdminDashboard() {
   const [historyEndDate, setHistoryEndDate] = useState('');
   const [expandedUpload, setExpandedUpload] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [reportSlide, setReportSlide] = useState(0);
 
   const counterBills = useMemo(() => {
@@ -100,14 +100,14 @@ export function AdminDashboard() {
         countMap.set(i.created_at, (countMap.get(i.created_at) || 0) + 1);
       }
     });
-    
+
     // Filter to strictly Excel uploads: 
     // - customDate uploads end in T12:00:00Z
     // - Batch upserts have exactly the same timestamp (count > 1)
     let result = Array.from(timestamps)
       .filter(t => t.includes('T12:00:00') || (countMap.get(t) || 0) > 1)
       .sort((a, b) => b.localeCompare(a));
-      
+
     if (historyStartDate || historyEndDate) {
       result = result.filter(t => {
         try {
@@ -159,13 +159,13 @@ export function AdminDashboard() {
   let content;
   if (activeView === 'logins' || activeView === 'logins-team-leads' || activeView === 'logins-cashiers' || activeView === 'logins-warehouses' || activeView === 'logins-auditors' || activeView === 'logins-billing-counters') {
     content = (
-      <CounterManagementView 
+      <CounterManagementView
         initialTab={activeView === 'logins-team-leads' ? 'team_leads' : activeView === 'logins-cashiers' ? 'cashiers' : activeView === 'logins-warehouses' ? 'warehouses' : activeView === 'logins-auditors' ? 'auditors' : activeView === 'logins-billing-counters' ? 'billing_counters' : 'counters'}
         counters={counters}
         warehouses={warehouses}
         teamLeads={teamLeads}
         cashiers={cashiers}
-        onBack={() => setActiveView('dashboard')} 
+        onBack={() => setActiveView('dashboard')}
         onAddCounter={() => setActiveView('add-counter')}
         onUpdateCounter={updateCounter}
         onDeleteCounter={deleteCounter}
@@ -190,78 +190,78 @@ export function AdminDashboard() {
     );
   } else if (activeView === 'add-counter') {
     content = (
-      <AddCounterView 
-        onBack={() => { 
+      <AddCounterView
+        onBack={() => {
           setTimeout(() => {
-            fetchCounters(); 
-            setActiveView('logins'); 
+            fetchCounters();
+            setActiveView('logins');
           }, 500);
-        }} 
+        }}
       />
     );
   } else if (activeView === 'add-warehouse') {
     content = (
-      <AddWarehouseView 
-        onBack={() => { 
+      <AddWarehouseView
+        onBack={() => {
           setTimeout(() => {
-            fetchWarehouses(); 
-            setActiveView('logins-warehouses'); 
+            fetchWarehouses();
+            setActiveView('logins-warehouses');
           }, 500);
-        }} 
+        }}
       />
     );
   } else if (activeView === 'add-team-lead') {
     content = (
-      <AddTeamLeadView 
+      <AddTeamLeadView
         counters={counters}
         warehouses={warehouses}
-        onBack={() => { 
+        onBack={() => {
           setTimeout(() => {
-            fetchTeamLeads(); 
-            setActiveView('logins-team-leads'); 
+            fetchTeamLeads();
+            setActiveView('logins-team-leads');
           }, 500);
-        }} 
+        }}
       />
     );
   } else if (activeView === 'add-cashier') {
     content = (
-      <AddCashierView 
+      <AddCashierView
         counters={counters}
-        onBack={() => { 
+        onBack={() => {
           setTimeout(() => {
-            fetchCashiers(); 
-            setActiveView('logins-cashiers'); 
+            fetchCashiers();
+            setActiveView('logins-cashiers');
           }, 500);
-        }} 
+        }}
       />
     );
   } else if (activeView === 'add-auditor') {
     content = (
-      <AddAuditorView 
+      <AddAuditorView
         teamLeads={teamLeads}
-        onBack={() => { 
+        onBack={() => {
           setTimeout(() => {
-            fetchAuditors(); 
-            setActiveView('logins-auditors'); 
+            fetchAuditors();
+            setActiveView('logins-auditors');
           }, 500);
-        }} 
+        }}
       />
     );
   } else if (activeView === 'add-billing-counter') {
     content = (
-      <AddBillingCounterView 
+      <AddBillingCounterView
         teamLeads={teamLeads}
-        onBack={() => { 
+        onBack={() => {
           setTimeout(() => {
-            fetchBillingCounters(); 
-            setActiveView('logins-billing-counters'); 
+            fetchBillingCounters();
+            setActiveView('logins-billing-counters');
           }, 500);
-        }} 
+        }}
       />
     );
   } else if (activeView === 'inventory-slider') {
     content = (
-      <InventorySliderView 
+      <InventorySliderView
         vehicleModels={vehicleModels}
         counters={counters}
         warehouses={warehouses}
@@ -287,9 +287,9 @@ export function AdminDashboard() {
     );
   } else if (activeView === 'model-detail') {
     content = (
-      <ModelDetailView 
-        model={selectedModel} 
-        data={modelAccessories} 
+      <ModelDetailView
+        model={selectedModel}
+        data={modelAccessories}
         onBack={() => setActiveView('inventory-slider')}
         onEdit={handleEditClick}
         onTransfer={handleTransferClick}
@@ -299,7 +299,7 @@ export function AdminDashboard() {
   } else if (activeView === 'counter-inventory-detail') {
     const counterInv = inventory.filter(i => i.counter_id === selectedCounterId);
     content = (
-      <CounterInventoryDetailsView 
+      <CounterInventoryDetailsView
         counterName={selectedCounterName}
         data={counterInv}
         onBack={() => setActiveView('inventory-slider')}
@@ -331,16 +331,16 @@ export function AdminDashboard() {
     );
   } else if (activeView === 'cashier-details' && selectedCashierReport) {
     content = (
-      <CashierDetailsView 
-        cashierReport={selectedCashierReport} 
-        onBack={() => setActiveView('reports')} 
+      <CashierDetailsView
+        cashierReport={selectedCashierReport}
+        onBack={() => setActiveView('reports')}
       />
     );
   } else if (activeView === 'auditor-details' && selectedAuditorReport) {
     const tlIds = selectedAuditorReport.team_leads || [];
     const tLeads = teamLeads.filter(tl => tlIds.includes(tl.id));
     const counterIds = tLeads.flatMap(tl => tl.assigned_counters || []);
-    
+
     // pending
     const pendingBills = allBills.filter(b => b.counter_id && counterIds.includes(b.counter_id) && b.approval_status === 'approved' && (!b.audit_status || b.audit_status === 'pending'));
 
@@ -348,7 +348,7 @@ export function AdminDashboard() {
     const auditedBills = allBills.filter(b => b.auditor_id === selectedAuditorReport.auditor_id && b.audit_status === 'audited');
 
     content = (
-      <AuditorDetailsView 
+      <AuditorDetailsView
         report={selectedAuditorReport}
         pendingBills={pendingBills}
         auditedBills={auditedBills}
@@ -374,21 +374,21 @@ export function AdminDashboard() {
       />
     );
   } else if (activeView === 'counter-bills') {
-    content = <BillsView 
-      counterName={selectedCounterName} 
-      data={counterBills} 
-      onBack={() => { setActiveView('reports'); setSelectedCounterId(''); }} 
-      onRowClick={handleBillClick} 
+    content = <BillsView
+      counterName={selectedCounterName}
+      data={counterBills}
+      onBack={() => { setActiveView('reports'); setSelectedCounterId(''); }}
+      onRowClick={handleBillClick}
       onViewBillReceipt={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
       onRevertBill={(b) => {
         if (confirm(`Are you sure you want to revert bill ${b.bill_number}?`)) {
           updateBillStatusAdmin(b.id, 'reverted_by_admin', selectedCounterId);
         }
       }}
-      startDate={startDate} 
-      endDate={endDate} 
-      setStartDate={setStartDate} 
-      setEndDate={setEndDate} 
+      startDate={startDate}
+      endDate={endDate}
+      setStartDate={setStartDate}
+      setEndDate={setEndDate}
     />;
   } else if (activeView === 'duplicacy-report') {
     content = (
@@ -401,7 +401,7 @@ export function AdminDashboard() {
             <Copy className="w-6 h-6 text-primary" /> Duplicacy Report
           </h2>
         </div>
-        
+
         <div className="bg-card p-6 rounded-xl border border-border shadow-lg">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -415,7 +415,7 @@ export function AdminDashboard() {
               {duplicacyReport?.map((report: any) => (
                 <tr key={report.counter_id} className="border-b border-border/10 hover:bg-muted/10 transition-colors">
                   <td className="px-4 py-4">
-                    <button 
+                    <button
                       onClick={() => setSelectedDuplicacyReport(report)}
                       className="text-primary font-bold hover:underline text-left transition-all"
                     >
@@ -440,7 +440,7 @@ export function AdminDashboard() {
     );
   } else if (activeView === 'upload-history') {
     content = (
-      <UploadHistoryView 
+      <UploadHistoryView
         inventory={inventory}
         uploadHistory={uploadHistory}
         expandedUpload={expandedUpload}
@@ -476,9 +476,9 @@ export function AdminDashboard() {
             <div className="space-y-3 flex-1">
               <div className="space-y-1">
                 <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Target Counter / Warehouse</label>
-                <select 
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary/20 transition-all outline-none text-sm" 
-                  value={selectedCounterId} 
+                <select
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary/20 transition-all outline-none text-sm"
+                  value={selectedCounterId}
                   onChange={(e) => setSelectedCounterId(e.target.value)}
                 >
                   <option value="" className="bg-background text-foreground">-- Choose Target --</option>
@@ -497,9 +497,9 @@ export function AdminDashboard() {
 
               <div className="space-y-1">
                 <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Upload Date</label>
-                <input 
-                  type="date" 
-                  className="w-full px-3 py-2 bg-muted/20 border border-border rounded-lg outline-none focus:ring-2 focus:ring-primary/20 dark:[&::-webkit-calendar-picker-indicator]:invert text-sm" 
+                <input
+                  type="date"
+                  className="w-full px-3 py-2 bg-muted/20 border border-border rounded-lg outline-none focus:ring-2 focus:ring-primary/20 dark:[&::-webkit-calendar-picker-indicator]:invert text-sm"
                   value={uploadDate}
                   onChange={(e) => setUploadDate(e.target.value)}
                 />
@@ -507,9 +507,9 @@ export function AdminDashboard() {
 
               <div className="pt-1">
                 <input type="file" className="hidden" ref={fileInputRef} onChange={(e) => { if (e.target.files?.[0]) handleFileUpload(e.target.files[0], selectedCounterId, uploadDate); }} />
-                <button 
-                  onClick={() => fileInputRef.current?.click()} 
-                  disabled={uploading || !selectedCounterId} 
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading || !selectedCounterId}
                   className="w-full h-[46px] bg-primary text-primary-foreground font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 transition-all shadow-md hover:scale-[1.02] active:scale-[0.98] text-sm"
                 >
                   {uploading ? (
@@ -522,7 +522,7 @@ export function AdminDashboard() {
             </div>
 
             <div className="pt-3 border-t border-border">
-              <button 
+              <button
                 onClick={() => setActiveView('upload-history')}
                 className="w-full py-2.5 bg-secondary/50 hover:bg-secondary text-secondary-foreground font-bold rounded-lg flex items-center justify-center gap-2 transition-all border border-border/50 text-xs"
               >
@@ -533,7 +533,7 @@ export function AdminDashboard() {
 
           {/* Right Column: Global Inventory Slider */}
           <div className="lg:col-span-2 h-full">
-            <GlobalInventorySliderView 
+            <GlobalInventorySliderView
               inventory={inventory}
               counters={counters}
               warehouses={warehouses || []}
@@ -579,7 +579,7 @@ export function AdminDashboard() {
               {selectedDuplicacyReport.edited_entries.map((entry: any, idx: number) => {
                 const isUtrChange = !!entry.old_utr || !!entry.new_utr;
                 const isReverting = revertingIdx === idx;
-                
+
                 return (
                   <div key={idx} className="bg-muted/30 border border-border rounded-xl p-4 space-y-3">
                     <div className="flex justify-between items-start">
@@ -613,7 +613,7 @@ export function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                    
+
                     {isReverting ? (
                       <div className="mt-3 p-3 bg-card border border-destructive/20 rounded-lg space-y-2">
                         <label className="text-xs font-semibold text-destructive">Reason for Revert</label>
@@ -641,16 +641,16 @@ export function AdminDashboard() {
                                 alert("Remark is required to revert a bill.");
                                 return;
                               }
-                              
+
                               if (entry.bill_id && selectedDuplicacyReport.counter_id) {
                                 const billToFix = allBills.find((b: any) => b.id === entry.bill_id);
                                 if (!billToFix) {
                                   alert("Bill not found.");
                                   return;
                                 }
-                                
+
                                 const isUtrChange = !!entry.old_utr || !!entry.new_utr;
-                                
+
                                 let newPaymentDetails = billToFix.payment_details;
                                 if (Array.isArray(newPaymentDetails)) {
                                   newPaymentDetails = newPaymentDetails.map((pd: any) => {
@@ -664,34 +664,34 @@ export function AdminDashboard() {
                                     return newPd;
                                   });
                                 }
-                                
-                                const newAudits = Array.isArray(billToFix.payment_audits) 
+
+                                const newAudits = Array.isArray(billToFix.payment_audits)
                                   ? billToFix.payment_audits.filter((a: any) => !a.resolved_duplicate)
                                   : [];
-                                  
+
                                 const updatePayload: any = {
                                   approval_status: 'approved',
                                   approval_note: `Admin Revert: ${revertRemark}`,
                                   payment_audits: newAudits,
                                   payment_details: newPaymentDetails,
                                 };
-                                
+
                                 if (!isUtrChange && entry.old_excellon_receipt) {
                                   updatePayload.excellon_receipt_number = entry.old_excellon_receipt;
                                 }
-                                
+
                                 try {
                                   const { supabase } = await import('../lib/supabase');
                                   await supabase.from('bills').update(updatePayload).eq('id', entry.bill_id);
-                                  
+
                                   setSelectedDuplicacyReport({
                                     ...selectedDuplicacyReport,
                                     edited_entries: selectedDuplicacyReport.edited_entries.filter((_: any, i: number) => i !== idx)
                                   });
-                                  
+
                                   setRevertingIdx(null);
                                   setRevertRemark('');
-                                  
+
                                   fetchBills();
                                 } catch (err) {
                                   console.error(err);
@@ -707,7 +707,7 @@ export function AdminDashboard() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-3 pt-2">
-                        <button 
+                        <button
                           onClick={() => {
                             const billData = allBills.find((b: any) => b.id === entry.bill_id);
                             if (billData) {
@@ -721,7 +721,7 @@ export function AdminDashboard() {
                         >
                           View Bill
                         </button>
-                        <button 
+                        <button
                           onClick={() => {
                             setRevertingIdx(idx);
                             setRevertRemark('');
@@ -750,24 +750,24 @@ export function AdminDashboard() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Quantity</label>
-              <input 
-                type="number" 
-                className="w-full px-3 py-2 bg-input border rounded-md" 
-                value={editForm.quantity} 
+              <input
+                type="number"
+                className="w-full px-3 py-2 bg-input border rounded-md"
+                value={editForm.quantity}
                 onChange={(e) => setEditForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
               />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Price (₹)</label>
-              <input 
-                type="number" 
-                className="w-full px-3 py-2 bg-input border rounded-md" 
-                value={editForm.price} 
+              <input
+                type="number"
+                className="w-full px-3 py-2 bg-input border rounded-md"
+                value={editForm.price}
                 onChange={(e) => setEditForm(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
               />
             </div>
           </div>
-          <button 
+          <button
             onClick={() => {
               if (editingItem) {
                 updateAccessory(editingItem.id, editForm);
@@ -785,10 +785,10 @@ export function AdminDashboard() {
       <Modal isOpen={!!transferringItem} onClose={() => setTransferringItem(null)} title={transferMode === 'type' ? "Transfer Options" : "Transfer Accessory"}>
         <div className="space-y-4 p-4">
           <p className="text-sm text-muted-foreground">Transferring <span className="font-bold text-foreground">{transferringItem?.name}</span> from <span className="font-bold text-foreground">{transferringItem?.counter_name}</span></p>
-          
+
           {transferMode === 'type' ? (
             <div className="grid grid-cols-1 gap-3">
-              <button 
+              <button
                 onClick={() => setTransferMode('single')}
                 className="w-full flex items-center justify-between p-4 bg-muted/30 border border-border rounded-xl hover:bg-muted transition-all group"
               >
@@ -804,7 +804,7 @@ export function AdminDashboard() {
                 <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
               </button>
 
-              <button 
+              <button
                 onClick={() => setTransferMode('cart')}
                 className="w-full flex items-center justify-between p-4 bg-muted/30 border border-border rounded-xl hover:bg-muted transition-all group"
               >
@@ -825,9 +825,9 @@ export function AdminDashboard() {
               {transferMode === 'single' && (
                 <div>
                   <label className="block text-sm font-medium mb-1">Target Destination</label>
-                  <select 
-                    className="w-full px-3 py-2 bg-input border rounded-md" 
-                    value={transferForm.targetCounterId} 
+                  <select
+                    className="w-full px-3 py-2 bg-input border rounded-md"
+                    value={transferForm.targetCounterId}
                     onChange={(e) => setTransferForm(prev => ({ ...prev, targetCounterId: e.target.value }))}
                   >
                     <option value="" className="bg-background text-foreground">-- Select Destination --</option>
@@ -846,17 +846,17 @@ export function AdminDashboard() {
               )}
               <div>
                 <label className="block text-sm font-medium mb-1">Quantity (Available: {transferringItem?.quantity})</label>
-                <input 
-                  type="number" 
-                  className="w-full px-3 py-2 bg-input border rounded-md" 
-                  value={transferForm.quantity} 
+                <input
+                  type="number"
+                  className="w-full px-3 py-2 bg-input border rounded-md"
+                  value={transferForm.quantity}
                   onChange={(e) => setTransferForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
                   max={transferringItem?.quantity}
                 />
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setTransferMode('type')} className="flex-1 py-2 rounded-md font-semibold bg-muted text-muted-foreground">Back</button>
-                <button 
+                <button
                   onClick={() => {
                     if (transferringItem && transferForm.quantity > 0) {
                       if (transferMode === 'single') {
@@ -908,7 +908,7 @@ export function AdminDashboard() {
               <div className="pt-4 border-t border-border space-y-4">
                 <div>
                   <label className="block text-xs font-bold uppercase text-muted-foreground mb-1.5 ml-1">Destination Target</label>
-                  <select 
+                  <select
                     className="w-full px-4 py-2 bg-input border border-border rounded-lg outline-none focus:ring-2 focus:ring-primary/20"
                     value={cartTargetCounterId}
                     onChange={(e) => setCartTargetCounterId(e.target.value)}
@@ -929,7 +929,7 @@ export function AdminDashboard() {
 
                 <div className="flex gap-3">
                   <button onClick={() => { clearTransferCart(); setShowCartModal(false); }} className="px-4 py-2 text-destructive font-bold hover:bg-destructive/10 rounded-lg">Clear All</button>
-                  <button 
+                  <button
                     disabled={!cartTargetCounterId || uploading}
                     onClick={async () => {
                       await executeCartTransfer(cartTargetCounterId);

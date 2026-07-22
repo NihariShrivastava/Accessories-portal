@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { createClient } from '@supabase/supabase-js';
+
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
@@ -94,79 +94,8 @@ export type CounterBill = {
   total_gap?: number;
 };
 
-const syncAuthCredentials = async (
-  oldUsername: string,
-  oldPassword: string,
-  newUsername?: string,
-  newPassword?: string,
-  role?: 'counter' | 'team_lead' | 'cashier' | 'auditor'
-) => {
-  if (!oldUsername || !oldPassword) return;
-  if ((!newUsername || newUsername === oldUsername) && (!newPassword || newPassword === oldPassword)) return;
-
-  const tempSupabase = createClient(
-    import.meta.env.VITE_SUPABASE_URL,
-    import.meta.env.VITE_SUPABASE_ANON_KEY,
-    { auth: { persistSession: false, autoRefreshToken: false } }
-  );
-
-  let emailToTry = `${oldUsername.trim().toLowerCase()}@portal.local`;
-  let { error: signInError } = await tempSupabase.auth.signInWithPassword({
-    email: emailToTry,
-    password: oldPassword
-  });
-
-  if (signInError && role === 'team_lead') {
-    emailToTry = `${oldUsername.trim().toLowerCase()}@teamlead.local`;
-    const fallback = await tempSupabase.auth.signInWithPassword({
-      email: emailToTry,
-      password: oldPassword
-    });
-    signInError = fallback.error;
-  }
-  
-  if (signInError && role === 'auditor') {
-    emailToTry = `${oldUsername.trim().toLowerCase()}@auditor.local`;
-    const fallback = await tempSupabase.auth.signInWithPassword({
-      email: emailToTry,
-      password: oldPassword
-    });
-    signInError = fallback.error;
-  } else if (signInError && role === 'cashier') {
-    emailToTry = `${oldUsername.trim().toLowerCase()}@cashier.local`;
-    const fallback = await tempSupabase.auth.signInWithPassword({
-      email: emailToTry,
-      password: oldPassword
-    });
-    signInError = fallback.error;
-  }
-
-  if (signInError) {
-    console.warn("Could not sync auth credentials:", signInError.message);
-    throw new Error("Could not authenticate with current credentials. If you previously updated this user and they cannot log in, they are out of sync. Please delete and recreate this account.");
-  }
-
-  const authUpdates: any = {};
-  if (newUsername && newUsername !== oldUsername) {
-     authUpdates.email = `${newUsername.trim().toLowerCase()}@portal.local`;
-  }
-  if (newPassword && newPassword !== oldPassword) {
-     authUpdates.password = newPassword;
-  }
-
-  if (Object.keys(authUpdates).length > 0) {
-    const { error: updateError } = await tempSupabase.auth.updateUser(authUpdates);
-    if (updateError) {
-      console.warn("Error updating auth user:", updateError.message);
-      if (updateError.message.includes('invalid') || updateError.message.includes('email')) {
-        throw new Error("Cannot update username (email) because 'Secure Email Change' is enabled in your Supabase project settings. Please turn it off in Authentication -> Providers -> Email, or create a new account instead.");
-      }
-      throw new Error("Failed to update login credentials: " + updateError.message);
-    }
-  }
-
-  await tempSupabase.auth.signOut();
-};
+  // syncAuthCredentials has been removed. All auth synchronization is now handled automatically
+  // by a PostgreSQL Trigger in the database, bypassing all Supabase email limitations.
 
 export function useAdminData() {
   const [stats, setStats] = useState({ uniqueLogins: 0, items: 0, models: 0 });
@@ -342,10 +271,6 @@ export function useAdminData() {
 
   const updateBillingCounter = async (id: string, updates: any) => {
     try {
-      const oldData = billingCounters.find(b => b.id === id);
-      if (oldData && oldData.username && oldData.password && updates.password && updates.username) {
-        // syncAuthCredentials requires syncAuthCredentials to be imported or available. It is available.
-      }
       const { error } = await supabase.from('profiles').update({
         name: updates.name,
         username: updates.username,
@@ -355,7 +280,8 @@ export function useAdminData() {
       }).eq('id', id);
       if (error) throw error;
       fetchBillingCounters();
-    } catch (err) {
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update billing counter');
       console.error(err);
     }
   };
@@ -440,10 +366,6 @@ export function useAdminData() {
   const updateCounter = async (id: string, updates: Partial<Counter>) => {
     console.log('Updating Counter:', id, updates);
     try {
-      const oldData = counters.find(c => c.id === id);
-      if (oldData && oldData.username && oldData.password) {
-        await syncAuthCredentials(oldData.username, oldData.password, updates.username, updates.password, 'counter');
-      }
       const { error } = await supabase.from('profiles').update(updates).eq('id', id);
       if (error) throw error;
       toast.success('Counter updated successfully');
@@ -1193,16 +1115,12 @@ export function useAdminData() {
 
   const updateTeamLead = async (id: string, updates: any) => {
     try {
-      const oldData = teamLeads.find(t => t.id === id);
-      if (oldData && oldData.username && oldData.password) {
-        await syncAuthCredentials(oldData.username, oldData.password, updates.username, updates.password, 'team_lead');
-      }
       const { error } = await supabase.from('profiles').update(updates).eq('id', id);
       if (error) throw error;
       toast.success('Team Lead updated');
       fetchTeamLeads();
-    } catch (err) {
-      toast.error('Failed to update team lead');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update team lead');
       console.error(err);
     }
   };
@@ -1222,16 +1140,12 @@ export function useAdminData() {
 
   const updateCashier = async (id: string, updates: any) => {
     try {
-      const oldData = cashiers.find(c => c.id === id);
-      if (oldData && oldData.username && oldData.password) {
-        await syncAuthCredentials(oldData.username, oldData.password, updates.username, updates.password, 'cashier');
-      }
       const { error } = await supabase.from('profiles').update(updates).eq('id', id);
       if (error) throw error;
       toast.success('Cashier updated');
       fetchCashiers();
-    } catch (err) {
-      toast.error('Failed to update cashier');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update cashier');
       console.error(err);
     }
   };
@@ -1251,16 +1165,12 @@ export function useAdminData() {
 
   const updateAuditor = async (id: string, updates: any) => {
     try {
-      const oldData = auditors.find(a => a.id === id);
-      if (oldData && oldData.username && oldData.password) {
-        await syncAuthCredentials(oldData.username, oldData.password, updates.username, updates.password, 'auditor');
-      }
       const { error } = await supabase.from('profiles').update(updates).eq('id', id);
       if (error) throw error;
       toast.success('Auditor updated');
       fetchAuditors();
-    } catch (err) {
-      toast.error('Failed to update auditor');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update auditor');
       console.error(err);
     }
   };
@@ -1282,10 +1192,6 @@ export function useAdminData() {
 
   const updateWarehouse = async (id: string, updates: any) => {
     try {
-      const oldData = warehouses.find(w => w.id === id);
-      if (oldData && oldData.username && oldData.password) {
-        await syncAuthCredentials(oldData.username, oldData.password, updates.username, updates.password, 'counter');
-      }
       const { error } = await supabase.from('profiles').update(updates).eq('id', id);
       if (error) throw error;
       toast.success('Warehouse updated successfully');

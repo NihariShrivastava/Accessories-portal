@@ -23,7 +23,7 @@ import { CollapsibleModelRow } from '../components/dashboard/CollapsibleModelRow
 import { SearchableDropdown } from '../components/dashboard/SearchableDropdown';
 
 export function CounterDashboard() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const {
     models, selectedModel, setSelectedModel, accessories, allBills, loading,
     startDate, endDate, setStartDate, setEndDate,
@@ -387,7 +387,7 @@ export function CounterDashboard() {
             <span className="text-[10px] font-black uppercase tracking-[0.2em]">Active Session</span>
           </div>
           <h1 className="text-2xl font-black uppercase tracking-tight text-center">
-            COUNTER: <span className="text-primary">"{user?.user_metadata?.name || 'Unknown'}"</span>
+            COUNTER: <span className="text-primary">"{profile?.username || profile?.name || user?.user_metadata?.name || 'Unknown'}"</span>
           </h1>
           <div className="w-12 h-1 bg-primary rounded-full mt-2" />
         </div>
@@ -600,7 +600,7 @@ export function CounterDashboard() {
         <BillForm
           items={cart}
           userId={user?.id || ''}
-          userName={user?.user_metadata?.name || ''}
+          userName={profile?.username || profile?.name || user?.user_metadata?.name || ''}
           onSuccess={handleBillSuccess}
           loading={formLoading}
           setLoading={setFormLoading}

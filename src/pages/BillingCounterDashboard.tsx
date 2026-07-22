@@ -340,7 +340,7 @@ export function BillingCounterDashboard() {
           <span className="text-xs font-black uppercase tracking-[0.2em]">Billing Counter Dashboard</span>
         </div>
         <h1 className="text-3xl font-black uppercase tracking-tight text-center">
-          Welcome, <span className="text-primary">{profile?.name || 'Cashier'}</span>
+          Welcome, <span className="text-primary">{profile?.username || profile?.name || 'Cashier'}</span>
         </h1>
         <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest mt-2">
           Managing {assignedCounters.length} Counters

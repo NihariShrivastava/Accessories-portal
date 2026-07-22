@@ -259,7 +259,7 @@ export function CashierDashboard() {
                 </span>
               </div>
               <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-0.5">
-                OPERATOR DESK: <span className="text-primary">{profile?.name}</span>
+                OPERATOR DESK: <span className="text-primary">{profile?.username || profile?.name}</span>
               </div>
             </div>
           </div>

@@ -59,7 +59,7 @@ export function AuditorDashboard() {
           <span className="text-xs font-black uppercase tracking-[0.2em]">Auditor Dashboard</span>
         </div>
         <h1 className="text-3xl font-black uppercase tracking-tight text-center">
-          Welcome, <span className="text-primary">{profile?.name || 'Auditor'}</span>
+          Welcome, <span className="text-primary">{profile?.username || profile?.name || 'Auditor'}</span>
         </h1>
         <p className="text-muted-foreground text-sm font-medium uppercase tracking-widest mt-2">
           Managing {assignedCounters?.length || 0} Counters
@@ -331,7 +331,7 @@ export function AuditorDashboard() {
                 <ul className="space-y-2">
                   {teamLeads.map(tl => (
                     <li key={tl.id} className="p-3 bg-muted/30 border border-border rounded-xl text-foreground font-medium">
-                      {tl.name}
+                      {tl.username || tl.name}
                     </li>
                   ))}
                 </ul>

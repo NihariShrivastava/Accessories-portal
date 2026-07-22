@@ -26,7 +26,7 @@ export const AddTeamLeadView = ({ counters, warehouses, onBack }: { counters: Co
       );
 
       const { data, error } = await tempSupabase.auth.signUp({
-        email: `${username.trim().toLowerCase()}@portal.local`,
+        email: `${username.trim().toLowerCase()}@portal.com`,
         password,
         options: {
           data: {

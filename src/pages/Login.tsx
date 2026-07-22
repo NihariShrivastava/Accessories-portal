@@ -27,57 +27,38 @@ export function Login() {
     setLoading(true);
 
     try {
-      let { data, error } = await supabase.auth.signInWithPassword({
-        email: `${username.trim().toLowerCase()}@portal.local`,
-        password,
-      });
-
-      // Fallback for previously created team leads with @teamlead.local
-      if (error && error.message.includes('Invalid login credentials')) {
-        const fallbackResult = await supabase.auth.signInWithPassword({
-          email: `${username.trim().toLowerCase()}@teamlead.local`,
+      const domains = [
+        'portal.com', 'teamlead.com', 'cashier.com', 'auditor.com',
+        'portal.local', 'teamlead.local', 'cashier.local', 'auditor.local'
+      ];
+      
+      let data, error;
+      for (const domain of domains) {
+        const result = await supabase.auth.signInWithPassword({
+          email: `${username.trim().toLowerCase()}@${domain}`,
           password,
         });
         
-        if (!fallbackResult.error) {
-          data = fallbackResult.data;
-          error = fallbackResult.error;
-        } else {
-          // Additional fallback for previously created cashiers with @cashier.local
-          const cashierFallbackResult = await supabase.auth.signInWithPassword({
-            email: `${username.trim().toLowerCase()}@cashier.local`,
-            password,
-          });
-
-          if (!cashierFallbackResult.error) {
-            data = cashierFallbackResult.data;
-            error = cashierFallbackResult.error;
-          } else {
-            // Additional fallback for auditors with @auditor.local
-            const auditorFallbackResult = await supabase.auth.signInWithPassword({
-              email: `${username.trim().toLowerCase()}@auditor.local`,
-              password,
-            });
-
-            if (!auditorFallbackResult.error) {
-              data = auditorFallbackResult.data;
-              error = auditorFallbackResult.error;
-            }
-          }
+        data = result.data;
+        error = result.error;
+        
+        if (!error) break;
+        if (error && !error.message.includes('Invalid login credentials')) {
+          break; // Stop trying if it's a real error (like rate limit)
         }
       }
 
       if (error) throw error;
 
-      // Check if profile exists before redirecting
-      if (data.user) {
+        // Check if profile exists before redirecting
+      if (data?.user) {
         const isHardcodedAdmin = data.user.email?.startsWith('admin@');
         let role = isHardcodedAdmin ? 'admin' : 'counter';
 
         if (!isHardcodedAdmin) {
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('role')
+            .select('role, username, password')
             .eq('id', data.user.id)
             .single();
 

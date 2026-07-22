@@ -25,7 +25,7 @@ export const AddCashierView = ({ counters, onBack }: { counters: Counter[], onBa
       );
 
       const { data, error } = await tempSupabase.auth.signUp({
-        email: `${username.trim().toLowerCase()}@portal.local`,
+        email: `${username.trim().toLowerCase()}@portal.com`,
         password,
         options: {
           data: {

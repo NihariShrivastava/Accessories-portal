@@ -8,7 +8,7 @@ export function useAuditorData() {
   const { profile } = useAuth();
   const [bills, setBills] = useState<CounterBill[]>([]);
   const [loading, setLoading] = useState(false);
-  const [teamLeads, setTeamLeads] = useState<{id: string, name: string}[]>([]);
+  const [teamLeads, setTeamLeads] = useState<{id: string, name: string, username?: string}[]>([]);
   const [assignedCounters, setAssignedCounters] = useState<{id: string, name: string}[]>([]);
   
   // Group bills since they are row-per-item
@@ -79,12 +79,12 @@ export function useAuditorData() {
 
       const { data: teamLeadsData, error: tlError } = await supabase
         .from('profiles')
-        .select('id, name, assigned_counters')
+        .select('id, name, username, assigned_counters')
         .in('id', assignedTlIds);
 
       if (tlError) throw tlError;
 
-      setTeamLeads(teamLeadsData.map(tl => ({ id: tl.id, name: tl.name })));
+      setTeamLeads(teamLeadsData.map(tl => ({ id: tl.id, name: tl.name, username: tl.username })));
 
       // Collect all counter IDs assigned to these team leads
       const allowedCounterIds = new Set<string>();
