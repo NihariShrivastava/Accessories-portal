@@ -49,6 +49,7 @@ export type AmountCollectedReport = {
   upi_collected: number;
   card_collected: number;
   bank_transfer_collected: number;
+  total_collected: number;
   bills_data: any[];
 };
 export type ModelAccessory = { id: string; counter_id: string; vehicle_model: string; created_at: string; name: string; accessory_code?: string; counter_name: string; quantity: number; price: number; cgst_percent?: number; sgst_percent?: number; };
@@ -765,6 +766,7 @@ export function useAdminData() {
         upi_collected: 0,
         card_collected: 0,
         bank_transfer_collected: 0,
+        total_collected: 0,
         bills_data: []
       };
       
@@ -792,6 +794,7 @@ export function useAdminData() {
       existing.upi_collected += upi;
       existing.card_collected += card;
       existing.bank_transfer_collected += bank;
+      existing.total_collected += (cash + upi + card + bank);
       
       existing.bills_data.push({
         bill_number: bill.bill_number,

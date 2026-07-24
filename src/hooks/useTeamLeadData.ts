@@ -230,6 +230,7 @@ export function useTeamLeadData(user: any) {
         upi_collected: 0,
         card_collected: 0,
         bank_transfer_collected: 0,
+        total_collected: 0,
         bills_data: []
       };
       
@@ -257,6 +258,7 @@ export function useTeamLeadData(user: any) {
       existing.upi_collected += upi;
       existing.card_collected += card;
       existing.bank_transfer_collected += bank;
+      existing.total_collected += (cash + upi + card + bank);
       
       existing.bills_data.push({
         bill_number: bill.bill_number,

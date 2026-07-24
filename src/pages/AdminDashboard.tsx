@@ -327,6 +327,8 @@ export function AdminDashboard() {
         onViewUnpaidBill={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
         currentSlide={reportSlide}
         onSlideChange={setReportSlide}
+        allBills={allBills}
+        onViewBill={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
       />
     );
   } else if (activeView === 'cashier-details' && selectedCashierReport) {

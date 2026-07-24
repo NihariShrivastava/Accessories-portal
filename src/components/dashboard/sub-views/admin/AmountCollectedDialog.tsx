@@ -28,10 +28,12 @@ export const AmountCollectedDialog = ({
                 const exportData = report.bills_data.map(bill => {
                   const otherPayments = bill.payment_details.filter((p: any) => p.method.toLowerCase() !== 'cash');
                   const others = otherPayments.map((p: any) => `${p.method}: ₹${Number(p.amount).toFixed(2)}`).join(', ');
+                  const total = bill.cash_amount + otherPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
                   return {
                     'Bill Number': bill.bill_number,
                     'Cash Amount (₹)': bill.cash_amount,
-                    'Other Payments': others || '-'
+                    'Other Payments': others || '-',
+                    'Total Amount (₹)': total
                   };
                 });
                 if (exportData.length > 0) {
@@ -61,11 +63,13 @@ export const AmountCollectedDialog = ({
                     <th className="px-4 py-3">Bill Number</th>
                     <th className="px-4 py-3 text-right text-emerald-600">Cash Amount</th>
                     <th className="px-4 py-3 text-right">Other Payment Method</th>
+                    <th className="px-4 py-3 text-right text-primary">Total Amount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {report.bills_data.map((bill, index) => {
                     const otherPayments = bill.payment_details.filter((p: any) => p.method.toLowerCase() !== 'cash');
+                    const total = bill.cash_amount + otherPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
                     return (
                       <tr key={index} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3 font-mono font-medium">{bill.bill_number}</td>
@@ -88,12 +92,15 @@ export const AmountCollectedDialog = ({
                             <span className="text-muted-foreground">-</span>
                           )}
                         </td>
+                        <td className="px-4 py-3 text-right font-bold text-primary">
+                          ₹{total.toFixed(2)}
+                        </td>
                       </tr>
                     );
                   })}
                   {report.bills_data.length === 0 && (
                     <tr>
-                      <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
+                      <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
                         No bills found for this counter.
                       </td>
                     </tr>

@@ -8,7 +8,7 @@ import { AmountCollectedDialog } from './AmountCollectedDialog';
 import { exportToExcel } from '../../../../utils/exportToExcel';
 
 export const ReportsView = ({
-  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick, auditorReports, onAuditorClick, unpaidBillsReport, onViewUnpaidBill, currentSlide, onSlideChange
+  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick, auditorReports, onAuditorClick, unpaidBillsReport, onViewUnpaidBill, currentSlide, onSlideChange, allBills, onViewBill
 }: {
   data: SalesReport[], onBack: () => void, onCounterClick: (r: SalesReport) => void,
   inventory: InventoryItem[], inventoryReport: InventorySummary[], cashierReports?: CashierReport[],
@@ -16,7 +16,8 @@ export const ReportsView = ({
   teamLeadReports?: TeamLeadReport[], onTeamLeadClick?: (r: TeamLeadReport) => void,
   auditorReports?: any[], onAuditorClick?: (r: any) => void,
   unpaidBillsReport?: CounterBill[], onViewUnpaidBill?: (b: CounterBill) => void,
-  currentSlide?: number, onSlideChange?: (slide: number) => void
+  currentSlide?: number, onSlideChange?: (slide: number) => void,
+  allBills?: CounterBill[], onViewBill?: (b: CounterBill) => void
 }) => {
   // Use local state if props are not provided, else use props
   const [localSlide, setLocalSlide] = useState(0);
@@ -35,6 +36,7 @@ export const ReportsView = ({
   if (cashierReports && onCashierClick) slideNames.push('Cashier Report');
   if (auditorReports && onAuditorClick) slideNames.push('Auditor Report');
   if (unpaidBillsReport && onViewUnpaidBill) slideNames.push('Unpaid Bills Report');
+  if (allBills && onViewBill) slideNames.push('Billing Report');
   const totalSlides = slideNames.length;
 
   const filteredData = selectedCounterFilter === 'all' ? data : data.filter(d => d.counter_id === selectedCounterFilter);
@@ -54,8 +56,8 @@ export const ReportsView = ({
         'Counter Name': r.counter_name,
         'Total Bills': r.total_bills,
         'Receivable Amt (Debit) ₹': r.total_sales,
-        'Paid (Credit) ₹': r.total_collected,
-        'Outstanding (₹)': r.outstanding
+        'Outstanding (₹)': r.outstanding,
+        'Total Paid (Credit) ₹': r.total_collected
       }));
       exportToExcel(exportData, 'Ledger_Report');
     } else if (currentSlideName === 'Revenue Report') {
@@ -79,7 +81,8 @@ export const ReportsView = ({
         'Cash Collected (₹)': r.cash_collected,
         'UPI Collected (₹)': r.upi_collected,
         'Card Collected (₹)': r.card_collected,
-        'Bank Transfer Collected (₹)': r.bank_transfer_collected
+        'Bank Transfer Collected (₹)': r.bank_transfer_collected,
+        'Total Collected (₹)': r.total_collected
       }));
       exportToExcel(exportData, 'Amount_Collected_Report');
     } else if (currentSlideName === 'Team Lead Report' && teamLeadReports) {
@@ -96,10 +99,10 @@ export const ReportsView = ({
     } else if (currentSlideName === 'Cashier Report' && cashierReports) {
       const exportData = cashierReports.map(r => ({
         'Cashier Name': r.cashier_name,
-        'Total Cash Collected (₹)': r.total_cash_collected,
         'Pending Handover (₹)': r.pending_handover,
         'Approved Handover (₹)': r.approved_handover,
-        'Drawer Cash Balance (₹)': r.drawer_balance
+        'Drawer Cash Balance (₹)': r.drawer_balance,
+        'Total Cash Collected (₹)': r.total_cash_collected
       }));
       exportToExcel(exportData, 'Cashier_Report');
     } else if (currentSlideName === 'Auditor Report' && auditorReports) {
@@ -110,15 +113,26 @@ export const ReportsView = ({
         'Total Savings Found (₹)': r.total_savings_found
       }));
       exportToExcel(exportData, 'Auditor_Report');
-    } else if (currentSlideName === 'Unpaid Bills Report' && unpaidBillsReport) {
+        } else if (currentSlideName === 'Unpaid Bills Report' && unpaidBillsReport) {
       const exportData = (selectedCounterFilter === 'all' ? unpaidBillsReport : unpaidBillsReport.filter(b => b.counter_id === selectedCounterFilter)).map(b => ({
         'Bill Number': b.bill_number,
         'Counter Name': b.profiles?.name || 'Unknown',
         'Customer Name': b.customer_name || 'N/A',
-        'Billed Amount (₹)': b.total_amount,
-        'Balance Left (₹)': b.amount_left
+        'Balance Left (₹)': b.amount_left,
+        'Total Billed Amount (₹)': b.total_amount
       }));
       exportToExcel(exportData, 'Unpaid_Bills_Report');
+    } else if (currentSlideName === 'Billing Report' && allBills) {
+      const exportData = (selectedCounterFilter === 'all' ? allBills : allBills.filter(b => b.counter_id === selectedCounterFilter))
+        .filter(b => b.approval_status !== 'reverted' && b.approval_status !== 'reverted_by_admin')
+        .map(b => ({
+        'Bill Number': b.bill_number,
+        'Counter Name': b.profiles?.name || 'Unknown',
+        'Customer Name': b.customer_name || 'N/A',
+        'Payment Method': b.payment_method || 'Cash',
+        'Total Amount (₹)': b.total_amount
+      }));
+      exportToExcel(exportData, 'Billing_Report');
     }
   };
 
@@ -199,8 +213,8 @@ export const ReportsView = ({
                 { header: 'Counter Name', accessor: 'counter_name', sortAccessor: 'counter_name', className: 'text-left font-semibold text-primary group-hover:underline' },
                 { header: 'Total Bills', accessor: 'total_bills', sortAccessor: 'total_bills', className: 'text-center' },
                 { header: 'Receivable Amt (Debit) ₹', accessor: (r) => `₹${r.total_sales.toFixed(2)}`, sortAccessor: 'total_sales', className: 'text-right font-medium' },
-                { header: 'Paid (Credit) ₹', accessor: (r) => <span className="text-green-600 dark:text-green-400 font-medium">₹{r.total_collected.toFixed(2)}</span>, sortAccessor: 'total_collected', className: 'text-right' },
-                { header: 'Outstanding (₹)', accessor: (r) => <span className="text-destructive font-medium">₹{r.outstanding.toFixed(2)}</span>, sortAccessor: 'outstanding', className: 'text-right' }
+                { header: 'Outstanding (₹)', accessor: (r) => <span className="text-destructive font-medium">₹{r.outstanding.toFixed(2)}</span>, sortAccessor: 'outstanding', className: 'text-right' },
+                { header: 'Total Paid (Credit) ₹', accessor: (r) => <span className="text-green-600 dark:text-green-400 font-bold">₹{r.total_collected.toFixed(2)}</span>, sortAccessor: 'total_collected', className: 'text-right' }
               ]} />
             </div>
 
@@ -364,7 +378,8 @@ export const ReportsView = ({
                   { header: 'Cash Collected (₹)', accessor: (r) => `₹${r.cash_collected.toLocaleString()}`, sortAccessor: 'cash_collected', className: 'text-right font-medium text-emerald-600' },
                   { header: 'UPI (₹)', accessor: (r) => `₹${r.upi_collected.toLocaleString()}`, sortAccessor: 'upi_collected', className: 'text-right' },
                   { header: 'Card (₹)', accessor: (r) => `₹${r.card_collected.toLocaleString()}`, sortAccessor: 'card_collected', className: 'text-right' },
-                  { header: 'Bank Transfer (₹)', accessor: (r) => `₹${r.bank_transfer_collected.toLocaleString()}`, sortAccessor: 'bank_transfer_collected', className: 'text-right' }
+                  { header: 'Bank Transfer (₹)', accessor: (r) => `₹${r.bank_transfer_collected.toLocaleString()}`, sortAccessor: 'bank_transfer_collected', className: 'text-right' },
+                  { header: 'Total (₹)', accessor: (r) => `₹${r.total_collected.toLocaleString()}`, sortAccessor: 'total_collected', className: 'text-right font-bold text-primary' }
                 ]}
               />
             </div>
@@ -414,10 +429,10 @@ export const ReportsView = ({
                   onRowClick={onCashierClick}
                   columns={[
                     { header: 'Cashier Name', accessor: 'cashier_name', sortAccessor: 'cashier_name', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
-                    { header: 'Total Cash Collected', accessor: (r) => `₹${r.total_cash_collected.toLocaleString()}`, sortAccessor: 'total_cash_collected', className: 'text-right font-medium' },
                     { header: 'Pending Handover', accessor: (r) => <span className="text-amber-500 font-medium">₹{r.pending_handover.toLocaleString()}</span>, sortAccessor: 'pending_handover', className: 'text-right' },
                     { header: 'Approved Handover', accessor: (r) => <span className="text-emerald-600 dark:text-emerald-400 font-medium">₹{r.approved_handover.toLocaleString()}</span>, sortAccessor: 'approved_handover', className: 'text-right' },
-                    { header: 'Drawer Cash Balance', accessor: (r) => <span className="font-black text-foreground">₹{r.drawer_balance.toLocaleString()}</span>, sortAccessor: 'drawer_balance', className: 'text-right font-bold' }
+                    { header: 'Drawer Cash Balance', accessor: (r) => <span className="font-medium text-foreground">₹{r.drawer_balance.toLocaleString()}</span>, sortAccessor: 'drawer_balance', className: 'text-right' },
+                    { header: 'Total Cash Collected', accessor: (r) => <span className="font-black text-primary">₹{r.total_cash_collected.toLocaleString()}</span>, sortAccessor: 'total_cash_collected', className: 'text-right' }
                   ]}
                 />
               </div>
@@ -462,13 +477,13 @@ export const ReportsView = ({
                     { header: 'Bill Number', accessor: 'bill_number', sortAccessor: 'bill_number', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
                     { header: 'Counter Name', accessor: (r) => r.profiles?.name || 'Unknown', sortAccessor: 'counter_id', className: 'text-left' },
                     { header: 'Customer', accessor: (r) => r.customer_name || 'N/A', sortAccessor: 'customer_name', className: 'text-left' },
-                    { header: 'Total Amount', accessor: (r) => <span className="font-medium text-foreground">₹{r.total_amount.toLocaleString()}</span>, sortAccessor: 'total_amount', className: 'text-right' },
                     { header: 'Net Balance Off', accessor: (r) => {
                         const net = (Number(r.amount_left) || 0) + (Number(r.excess_adjustment) || 0) - (Number(r.discount_approved) || 0);
                         return <span className={`font-black ${net > 0 ? 'text-rose-600' : 'text-blue-600'}`}>{net > 0 ? '+' : net < 0 ? '-' : ''}₹{Math.abs(net).toLocaleString()}</span>;
                       }, 
                       sortAccessor: 'amount_left', className: 'text-right' 
                     },
+                    { header: 'Total Amount', accessor: (r) => <span className="font-black text-primary">₹{r.total_amount.toLocaleString()}</span>, sortAccessor: 'total_amount', className: 'text-right' },
                     { header: 'Action', accessor: (r) => (
                       <button 
                         onClick={(e) => { e.stopPropagation(); onViewUnpaidBill(r); }}
@@ -478,6 +493,38 @@ export const ReportsView = ({
                       </button>
                     ), className: 'text-center' }
                   ]}
+                  pageSize={10}
+                />
+              </div>
+            )}
+            {/* Slide 9: Billing Report */}
+            {allBills && onViewBill && (
+              <div className="w-full flex-shrink-0">
+                <div className="px-4 sm:px-6 pt-4 pb-2">
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <History className="w-4 h-4 text-primary" />
+                    Overview of all bills generated across counters.
+                  </p>
+                </div>
+                <DataTable<CounterBill>
+                  idAccessor="id"
+                  data={(selectedCounterFilter === 'all' ? allBills : allBills.filter(b => b.counter_id === selectedCounterFilter)).filter(b => b.approval_status !== 'reverted' && b.approval_status !== 'reverted_by_admin')}
+                  columns={[
+                    { header: 'Bill Number', accessor: 'bill_number', sortAccessor: 'bill_number', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
+                    { header: 'Counter Name', accessor: (r) => r.profiles?.name || 'Unknown', sortAccessor: 'counter_id', className: 'text-left' },
+                    { header: 'Customer', accessor: (r) => r.customer_name || 'N/A', sortAccessor: 'customer_name', className: 'text-left' },
+                    { header: 'Payment', accessor: (r) => <Badge variant="secondary">{r.payment_method}</Badge> },
+                    { header: 'Total Amount', accessor: (r) => <span className="font-black text-primary">₹{r.total_amount.toLocaleString()}</span>, sortAccessor: 'total_amount', className: 'text-right' },
+                    { header: 'Action', accessor: (r) => (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onViewBill(r); }}
+                        className="px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-md font-bold text-[10px] uppercase tracking-wider transition-colors inline-block"
+                      >
+                        VIEW BILL
+                      </button>
+                    ), className: 'text-center' }
+                  ]}
+                  pageSize={10}
                 />
               </div>
             )}
