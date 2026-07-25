@@ -42,6 +42,18 @@ export const ReportsView = ({
   const filteredData = selectedCounterFilter === 'all' ? data : data.filter(d => d.counter_id === selectedCounterFilter);
   const filteredInventoryReport = selectedCounterFilter === 'all' ? inventoryReport : inventoryReport.filter(r => r.counter_id === selectedCounterFilter);
   const filteredInventory = selectedCounterFilter === 'all' ? inventory : inventory.filter(i => i.counter_id === selectedCounterFilter);
+  const filteredBillsForStats = selectedCounterFilter === 'all' ? (allBills || []) : (allBills || []).filter(b => b.counter_id === selectedCounterFilter);
+
+  const totalRevenue = filteredData.reduce((sum, r) => sum + r.total_sales, 0);
+  const totalAccessoriesSold = filteredData.reduce((sum, r) => sum + r.total_items, 0);
+  const totalAuditedBills = filteredBillsForStats.filter(b => b.audit_status === 'audited' || b.audit_status === 'verified').length;
+  // Calculate profit if purchase_price is available, else fallback to 0. (Requires purchase_price to be fetched in useAdminData)
+  const totalProfit = filteredBillsForStats.reduce((sum, b) => {
+    // If we have purchase_price, calculate profit. Otherwise it remains 0.
+    const cost = b.items ? b.items.reduce((itemSum, item) => itemSum + (Number(item.accessories?.purchase_price || 0) * Number(item.quantity || 0)), 0) : 0;
+    const profit = cost > 0 ? (Number(b.total_amount) - cost) : 0;
+    return sum + profit;
+  }, 0);
 
   const uniqueCounters = Array.from(new Map(data.map(d => [d.counter_id, d])).values());
 
@@ -159,6 +171,44 @@ export const ReportsView = ({
               ))}
             </select>
           </div>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-primary/50 transition-colors">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <IndianRupee className="w-12 h-12 text-primary" />
+          </div>
+          <p className="text-sm font-semibold text-muted-foreground mb-1">Total Revenue Generated</p>
+          <p className="text-2xl font-black text-primary">₹{totalRevenue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+        </div>
+        
+        <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-orange-500/50 transition-colors">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Package className="w-12 h-12 text-orange-500" />
+          </div>
+          <p className="text-sm font-semibold text-muted-foreground mb-1">Total Accessories Sold</p>
+          <p className="text-2xl font-black text-orange-600 dark:text-orange-500">{totalAccessoriesSold.toLocaleString('en-IN')}</p>
+        </div>
+        
+        <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-blue-500/50 transition-colors">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <History className="w-12 h-12 text-blue-500" />
+          </div>
+          <p className="text-sm font-semibold text-muted-foreground mb-1">Total Audited Bills</p>
+          <p className="text-2xl font-black text-blue-600 dark:text-blue-500">{totalAuditedBills.toLocaleString('en-IN')}</p>
+        </div>
+        
+        <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <IndianRupee className="w-12 h-12 text-emerald-500" />
+          </div>
+          <p className="text-sm font-semibold text-muted-foreground mb-1">Total Profit Amount</p>
+          <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">₹{totalProfit.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+          {totalProfit === 0 && (
+            <p className="text-[10px] text-muted-foreground mt-1 absolute bottom-2 right-4">Cost data pending</p>
+          )}
         </div>
       </div>
 

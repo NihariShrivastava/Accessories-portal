@@ -8,7 +8,7 @@ export * from './admin/CashierDetailsView';
 export * from './admin/CounterInventoryDetailsView';
 export * from './admin/GlobalInventorySliderView';
 export * from './admin/UploadHistoryView';
-export * from './admin/CounterInventoryStatusViews';
+
 export * from './admin/CounterManagementView';
 export * from './admin/ManageTeamLeadsView';
 export * from './admin/AddTeamLeadView';

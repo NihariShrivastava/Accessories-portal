@@ -51,6 +51,7 @@ export function CashierDashboard() {
   // Metrics Calculation
   const metrics = useMemo(() => {
     let expenses = 0; // Sum of daily_expense for selected counters
+    let adminAdjustments = 0;
     let bankTransfers = 0; // Sum of bank_transfers for this cashier
     let globalCashCollected = 0; // Sum of all approved cashier_transfers (across all counters)
     let refunds = 0;
@@ -59,11 +60,15 @@ export function CashierDashboard() {
       if (t.status === 'approved') {
         if (t.transaction_type === 'cashier_transfer') {
           globalCashCollected += Number(t.amount);
-        } else if (t.transaction_type === 'daily_expense' && selectedCounters.includes(t.counter_id)) {
-          expenses += Number(t.amount);
+        } else if (t.transaction_type === 'daily_expense' && (selectedCounters.includes(t.counter_id) || t.counter_id === profile?.id)) {
+          if (t.details === 'Admin Adjustment') {
+            adminAdjustments += -(Number(t.amount));
+          } else {
+            expenses += Number(t.amount);
+          }
         } else if (t.transaction_type === 'bank_transfer' && t.counter_id === profile?.id) {
           bankTransfers += Number(t.amount);
-        } else if (t.transaction_type === 'refund' && selectedCounters.includes(t.counter_id)) {
+        } else if (t.transaction_type === 'refund' && (selectedCounters.includes(t.counter_id) || t.counter_id === profile?.id)) {
           refunds += Number(t.amount);
         }
       }
@@ -73,7 +78,7 @@ export function CashierDashboard() {
       cashCollected: globalCashCollected, // Showing total amount collected (approved handovers)
       expenses,
       bankTransfers,
-      drawerBalance: globalCashCollected - expenses - bankTransfers - refunds
+      drawerBalance: globalCashCollected + adminAdjustments - expenses - bankTransfers - refunds
     };
   }, [transactions, selectedCounters, profile?.id]);
 
@@ -146,15 +151,18 @@ export function CashierDashboard() {
       }));
       filename = 'Approved_Handovers';
     } else if (tableTab === 'expenses') {
-      exportData = expensesList.map(t => ({
-        'Counter/Desk': t.counter_name || 'Cashier Desk',
-        'ID': t.id.split('-')[0],
-        'Category': t.category || t.details || 'N/A',
-        'Amount (₹)': t.amount,
-        'Status': 'DEDUCTED',
-        'Date': new Date(t.created_at).toLocaleString()
-      }));
-      filename = 'Expenses';
+      exportData = expensesList.map(t => {
+        const isAdminAdj = t.details === 'Admin Adjustment';
+        return {
+          'Counter/Desk': t.counter_name || 'Cashier Desk',
+          'ID': t.id.split('-')[0],
+          'Category': isAdminAdj ? 'Admin Adjustment' : (t.category || t.details || 'N/A'),
+          'Amount (₹)': isAdminAdj ? -(Number(t.amount)) : Number(t.amount),
+          'Status': isAdminAdj ? 'ADJUSTED' : 'DEDUCTED',
+          'Date': new Date(t.created_at).toLocaleString()
+        };
+      });
+      filename = 'Expenses_And_Adjustments';
     } else if (tableTab === 'bank') {
       exportData = bankTransfersList.map(t => ({
         'Bank Name': t.bank_name || 'Bank Transfer',
@@ -439,25 +447,33 @@ export function CashierDashboard() {
                     {tableTab === 'expenses' && expensesList.length === 0 && (
                       <tr><td colSpan={4} className="px-4 py-12 text-center text-muted-foreground text-sm">No expenses found.</td></tr>
                     )}
-                    {tableTab === 'expenses' && expensesList.map(t => (
+                    {tableTab === 'expenses' && expensesList.map(t => {
+                      const isAdminAdj = t.details === 'Admin Adjustment';
+                      const displayAmount = isAdminAdj ? -(Number(t.amount)) : Number(t.amount);
+                      
+                      return (
                       <tr key={t.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-4">
                           <div className="font-bold text-foreground text-sm">{t.counter_name || 'Cashier Desk'}</div>
                           <div className="text-[10px] text-muted-foreground font-mono mt-1">ID: {t.id.split('-')[0]}</div>
                         </td>
                         <td className="px-4 py-4 text-xs">
-                          <div className="text-muted-foreground uppercase tracking-wider text-[10px] mb-1 font-bold text-amber-600 dark:text-amber-400">DAILY EXPENSE</div>
-                          <div className="text-foreground">{t.category || t.details || 'N/A'}</div>
+                          <div className={`text-muted-foreground uppercase tracking-wider text-[10px] mb-1 font-bold ${isAdminAdj ? 'text-indigo-600 dark:text-indigo-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                            {isAdminAdj ? 'ADMIN ADJUSTMENT' : 'DAILY EXPENSE'}
+                          </div>
+                          <div className="text-foreground">{isAdminAdj ? 'Admin Adjustment' : (t.category || t.details || 'N/A')}</div>
                           <div className="text-muted-foreground mt-0.5">{new Date(t.created_at).toLocaleString()}</div>
                         </td>
-                        <td className="px-4 py-4 text-sm font-bold text-foreground">₹{t.amount.toLocaleString()}</td>
+                        <td className="px-4 py-4 text-sm font-bold text-foreground">
+                          {displayAmount > 0 ? '+' : ''}₹{displayAmount.toLocaleString()}
+                        </td>
                         <td className="px-4 py-4">
-                          <span className="px-2 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded text-[10px] font-bold tracking-wider flex items-center gap-1 w-max uppercase">
-                            DEDUCTED
+                          <span className={`px-2 py-1 border rounded text-[10px] font-bold tracking-wider flex items-center gap-1 w-max uppercase ${isAdminAdj ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'}`}>
+                            {isAdminAdj ? 'ADJUSTED' : 'DEDUCTED'}
                           </span>
                         </td>
                       </tr>
-                    ))}
+                    )})}
 
                     {tableTab === 'bank' && bankTransfersList.length === 0 && (
                       <tr><td colSpan={4} className="px-4 py-12 text-center text-muted-foreground text-sm">No bank transfers found.</td></tr>

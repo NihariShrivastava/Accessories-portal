@@ -18,6 +18,7 @@ export function TeamLeadDashboard() {
     salesReport, 
     inventoryReport, 
     amountCollectedReport,
+    cashierReports,
     loading,
     updateBillStatus,
     executeTransfer
@@ -53,8 +54,12 @@ export function TeamLeadDashboard() {
         inventory={inventory}
         inventoryReport={inventoryReport}
         amountCollectedReport={amountCollectedReport}
+        cashierReports={cashierReports}
+        allBills={bills}
         onBack={() => setActiveView('dashboard')}
         onCounterClick={handleCounterClick}
+        onCashierClick={() => {}} // No drill-down needed yet
+        onViewBill={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
       />
     );
   } else if (activeView === 'bills') {

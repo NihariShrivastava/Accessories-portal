@@ -9,6 +9,7 @@ export function useTeamLeadData(user: any) {
   const [assignedWarehouses, setAssignedWarehouses] = useState<Counter[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [bills, setBills] = useState<CounterBill[]>([]);
+  const [cashierReports, setCashierReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProfileAndData = useCallback(async (showLoading = true) => {
@@ -43,7 +44,7 @@ export function useTeamLeadData(user: any) {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
-      const [countersRes, warehousesRes, invRes, billsRes] = await Promise.all([
+      const [countersRes, warehousesRes, invRes, billsRes, cashiersRes, drawerRes] = await Promise.all([
         supabase.from('profiles').select('id, name').in('id', counterIds),
         prof?.assigned_warehouses && prof.assigned_warehouses.length > 0 
           ? supabase.from('profiles').select('id, name').in('id', prof.assigned_warehouses)
@@ -58,13 +59,17 @@ export function useTeamLeadData(user: any) {
           .in('counter_id', counterIds)
           .gte('created_at', thirtyDaysAgo.toISOString())
           .order('created_at', { ascending: false })
-          .limit(1000) // Added limit to prevent massive payload issues
+          .limit(1000), // Added limit to prevent massive payload issues
+        supabase.from('profiles').select('*').eq('role', 'cashier'),
+        supabase.from('drawer_transactions').select('*').in('counter_id', counterIds)
       ]);
 
       const countersData = countersRes.data || [];
       const warehousesData = warehousesRes?.data || [];
       const invData = invRes.data || [];
       const billsData = billsRes.data || [];
+      const cashiersData = cashiersRes.data || [];
+      const drawerData = drawerRes.data || [];
 
       if (invRes.error) console.error("Team Lead Inventory Fetch Error:", invRes.error);
       if (billsRes.error) console.error("Team Lead Bills Fetch Error:", billsRes.error);
@@ -143,6 +148,45 @@ export function useTeamLeadData(user: any) {
       );
 
       setBills(finalBills);
+
+      // 5. Calculate Cashier Reports for assigned counters
+      const relevantCashiers = cashiersData.filter((c: any) => (c.assigned_counters || []).some((id: string) => counterIds.includes(id)));
+      const cashierRpts: any[] = [];
+      
+      relevantCashiers.forEach((p: any) => {
+        let cashCollected = 0;
+        let pendingHandover = 0;
+        let approvedHandover = 0;
+        let expenses = 0;
+        let bankTransfers = 0;
+        let refunds = 0;
+
+        drawerData.forEach((t: any) => {
+          if (counterIds.includes(t.counter_id) && (p.assigned_counters || []).includes(t.counter_id)) {
+            if (t.transaction_type === 'cashier_transfer') {
+              if (t.status === 'pending') pendingHandover += Number(t.amount);
+              else if (t.status === 'approved') {
+                approvedHandover += Number(t.amount);
+                cashCollected += Number(t.amount);
+              }
+            } else if (t.status === 'approved') {
+              if (t.transaction_type === 'daily_expense') expenses += Number(t.amount);
+              if (t.transaction_type === 'bank_transfer') bankTransfers += Number(t.amount);
+              if (t.transaction_type === 'refund') refunds += Number(t.amount);
+            }
+          }
+        });
+
+        cashierRpts.push({
+          cashier_id: p.id,
+          cashier_name: p.name || p.username || 'Unknown',
+          total_cash_collected: cashCollected,
+          pending_handover: pendingHandover,
+          approved_handover: approvedHandover,
+          drawer_balance: cashCollected - expenses - bankTransfers - refunds
+        });
+      });
+      setCashierReports(cashierRpts);
 
     } catch (err) {
       console.error('Error fetching team lead data:', err);
@@ -399,6 +443,7 @@ export function useTeamLeadData(user: any) {
     salesReport,
     inventoryReport,
     amountCollectedReport,
+    cashierReports,
     loading,
     updateBillStatus,
     executeTransfer,

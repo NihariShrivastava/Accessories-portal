@@ -320,6 +320,7 @@ export function useAdminData() {
         let expenses = 0;
         let bankTransfers = 0;
         let refunds = 0;
+        let adminAdjustments = 0;
 
         (drawerData || []).forEach(t => {
           if (allowedIds.includes(t.counter_id)) {
@@ -331,7 +332,14 @@ export function useAdminData() {
                 cashCollected += Number(t.amount);
               }
             } else if (t.status === 'approved') {
-              if (t.transaction_type === 'daily_expense') expenses += Number(t.amount);
+              if (t.transaction_type === 'daily_expense') {
+                if (t.details === 'Admin Adjustment') {
+                  // Amount was negated during insert so that it doesn't break legacy sums, reverse it here
+                  adminAdjustments += -(Number(t.amount)); 
+                } else {
+                  expenses += Number(t.amount);
+                }
+              }
               if (t.transaction_type === 'bank_transfer') bankTransfers += Number(t.amount);
               if (t.transaction_type === 'refund') refunds += Number(t.amount);
             }
@@ -344,7 +352,7 @@ export function useAdminData() {
           total_cash_collected: cashCollected,
           pending_handover: pendingHandover,
           approved_handover: approvedHandover,
-          drawer_balance: cashCollected - expenses - bankTransfers - refunds
+          drawer_balance: cashCollected + adminAdjustments - expenses - bankTransfers - refunds
         });
 
         return {
@@ -1433,6 +1441,28 @@ export function useAdminData() {
     }
   };
 
+  const addAdminDrawerAdjustment = async (targetId: string, amount: number) => {
+    try {
+      const { error } = await supabase
+        .from('drawer_transactions')
+        .insert([{
+          counter_id: targetId,
+          transaction_type: 'daily_expense',
+          amount: -amount, // Negate so that a positive adjustment acts as a negative expense (increases drawer balance)
+          status: 'approved',
+          details: 'Admin Adjustment'
+        }]);
+        
+      if (error) throw error;
+      toast.success(`Adjustment of ₹${amount} applied successfully.`);
+      await fetchBills();
+      return true;
+    } catch (error: any) {
+      toast.error(error.message || "Failed to post adjustment");
+      return false;
+    }
+  };
+
   useEffect(() => {
     fetchStats();
     fetchCounters();
@@ -1461,7 +1491,8 @@ export function useAdminData() {
     teamLeads, fetchTeamLeads, updateTeamLead, deleteTeamLead,
     billingCounters, fetchBillingCounters, updateBillingCounter, deleteBillingCounter, cashiers, fetchCashiers, updateCashier, deleteCashier,
     fetchAuditors, updateAuditor, deleteAuditor,
-    updateBillStatusAdmin, updateBillAuditStatus, updateBillAuditDetails
+    updateBillStatusAdmin, updateBillAuditStatus, updateBillAuditDetails,
+    addAdminDrawerAdjustment
   };
 }
 

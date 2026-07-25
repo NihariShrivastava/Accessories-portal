@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { Upload, Users, Package, FileSpreadsheet, BarChart3, ShoppingCart, ArrowLeftRight, Plus, Trash2, ChevronRight, History, Copy } from 'lucide-react';
+import { Upload, Users, Package, FileSpreadsheet, BarChart3, ShoppingCart, ArrowLeftRight, Plus, Trash2, ChevronRight, History, Copy, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
 
 
@@ -23,7 +23,7 @@ export function AdminDashboard() {
     cashiers, fetchCashiers, updateCashier, deleteCashier,
     auditors, fetchAuditors, updateAuditor, deleteAuditor, auditorReports,
     billingCounters, fetchBillingCounters, updateBillingCounter, deleteBillingCounter,
-    updateBillStatusAdmin, updateBillAuditStatus, updateBillAuditDetails
+    updateBillStatusAdmin, updateBillAuditStatus, updateBillAuditDetails, addAdminDrawerAdjustment
   } = useAdminData();
 
   const [activeView, setActiveView] = useState('dashboard');
@@ -40,6 +40,10 @@ export function AdminDashboard() {
   const [selectedDuplicacyReport, setSelectedDuplicacyReport] = useState<any>(null);
   const [revertingIdx, setRevertingIdx] = useState<number | null>(null);
   const [revertRemark, setRevertRemark] = useState('');
+  
+  const [isDrawerAdjOpen, setIsDrawerAdjOpen] = useState(false);
+  const [adjTargetId, setAdjTargetId] = useState('');
+  const [adjAmount, setAdjAmount] = useState('');
 
 
   useEffect(() => {
@@ -463,6 +467,79 @@ export function AdminDashboard() {
           <DashboardCard icon={Package} label="Total Inventory" value="" onClick={() => { fetchVehicleModels(); fetchCounters(); setActiveView('inventory-slider'); }} colorClass="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" />
           <DashboardCard icon={BarChart3} label="Reports" value="" onClick={() => { fetchBills(); setActiveView('reports'); }} colorClass="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
           <DashboardCard icon={Copy} label="Duplicacy Report" value="" onClick={() => { fetchBills(); setActiveView('duplicacy-report'); }} colorClass="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" />
+        </div>
+
+        {/* ADMIN DRAWER ADJUSTMENT */}
+        <div className="bg-[#15192b] rounded-xl border border-border shadow-sm overflow-hidden">
+          <button 
+            onClick={() => setIsDrawerAdjOpen(!isDrawerAdjOpen)}
+            className="w-full flex items-center justify-between p-5 hover:bg-white/5 transition-colors"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-500/20 border border-indigo-500/30 rounded-xl flex items-center justify-center">
+                <SlidersHorizontal className="w-6 h-6 text-indigo-400" />
+              </div>
+              <div className="text-left">
+                <h3 className="font-bold tracking-widest text-white uppercase text-base">Admin Drawer Adjustment</h3>
+                <p className="text-[11px] text-slate-400 uppercase tracking-widest mt-0.5">Increase or decrease a counter/cashier cash drawer balance</p>
+              </div>
+            </div>
+            {isDrawerAdjOpen ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+          </button>
+          
+          {isDrawerAdjOpen && (
+            <div className="p-5 bg-[#15192b] border-t border-white/10 flex flex-col md:flex-row gap-5 items-end animate-in slide-in-from-top-2 duration-300">
+              <div className="w-full md:w-[40%] space-y-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Target Counter / Cashier</label>
+                <div className="relative">
+                  <select 
+                    className="w-full bg-[#1e233b] border border-white/10 text-white rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all appearance-none font-medium"
+                    value={adjTargetId}
+                    onChange={(e) => setAdjTargetId(e.target.value)}
+                  >
+                    <option value="">Select Targets...</option>
+                    {counters.length > 0 && (
+                      <optgroup label="Counters" className="bg-[#1e233b] text-indigo-300 font-bold">
+                        {counters.map(c => <option key={c.id} value={c.id} className="text-white font-medium">{c.name}</option>)}
+                      </optgroup>
+                    )}
+                    {cashiers.length > 0 && (
+                      <optgroup label="Cashiers" className="bg-[#1e233b] text-purple-300 font-bold">
+                        {cashiers.map(c => <option key={c.id} value={c.id} className="text-white font-medium">{c.name || c.username}</option>)}
+                      </optgroup>
+                    )}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+              <div className="w-full md:w-[30%] space-y-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Amount (±ve)</label>
+                <input 
+                  type="number" 
+                  placeholder="e.g. 500 or -500"
+                  className="w-full bg-[#1e233b] border border-white/10 text-white placeholder-slate-500 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-mono font-medium"
+                  value={adjAmount}
+                  onChange={(e) => setAdjAmount(e.target.value)}
+                />
+              </div>
+              <div className="w-full md:w-[30%]">
+                <button 
+                  disabled={!adjTargetId || !adjAmount || isNaN(Number(adjAmount)) || Number(adjAmount) === 0}
+                  onClick={async () => {
+                    const success = await addAdminDrawerAdjustment(adjTargetId, Number(adjAmount));
+                    if (success) {
+                      setAdjTargetId('');
+                      setAdjAmount('');
+                      setIsDrawerAdjOpen(false);
+                    }
+                  }}
+                  className="w-full bg-[#272e4a] hover:bg-[#323b5d] text-slate-200 font-bold py-3 rounded-lg transition-colors uppercase tracking-widest text-[11px] disabled:opacity-50 disabled:cursor-not-allowed border border-white/5 shadow-sm"
+                >
+                  Post Adjustment
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
