@@ -14,7 +14,7 @@ import { TeamLeadApprovalView } from '../components/dashboard/sub-views/admin/Te
 
 export function AdminDashboard() {
   const {
-    counters, warehouses, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, allBills, unpaidBillsReport, duplicacyReport,
+    counters, warehouses, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, billingCounterReports, allBills, unpaidBillsReport, duplicacyReport,
     startDate, endDate, setStartDate, setEndDate,
     fetchCounters, fetchWarehouses, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter, updateWarehouse, deleteWarehouse, deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories,
@@ -320,6 +320,7 @@ export function AdminDashboard() {
         inventoryReport={inventoryReport}
         cashierReports={cashierReports}
         teamLeadReports={teamLeadReports}
+        billingCounterReports={billingCounterReports}
         amountCollectedReport={amountCollectedReport}
         onBack={() => setActiveView('dashboard')}
         onCounterClick={handleCounterClick}

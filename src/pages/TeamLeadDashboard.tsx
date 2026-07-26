@@ -19,6 +19,7 @@ export function TeamLeadDashboard() {
     inventoryReport, 
     amountCollectedReport,
     cashierReports,
+    billingCounterReports,
     loading,
     updateBillStatus,
     executeTransfer
@@ -50,11 +51,13 @@ export function TeamLeadDashboard() {
   if (activeView === 'reports') {
     content = (
       <ReportsView
+        role="team_lead"
         data={salesReport}
         inventory={inventory}
         inventoryReport={inventoryReport}
         amountCollectedReport={amountCollectedReport}
         cashierReports={cashierReports}
+        billingCounterReports={billingCounterReports}
         allBills={bills}
         onBack={() => setActiveView('dashboard')}
         onCounterClick={handleCounterClick}

@@ -2,18 +2,21 @@ import { useState } from 'react';
 import { DataTable } from '../../DataTable';
 import { ViewHeader } from '../../ViewHeader';
 import { Badge } from '../../Badge';
-import { BarChart3, ChevronLeft, ChevronRight, History, IndianRupee, Package, X, Save, Users, Download } from 'lucide-react';
-import type { SalesReport, InventoryItem, InventorySummary, CashierReport, AmountCollectedReport, TeamLeadReport, CounterBill } from '../../../../hooks/useAdminData';
+import { ChevronLeft, ChevronRight, Download, Package, IndianRupee, History, Users, Save, Clock, BarChart3, X } from 'lucide-react';
+import type { SalesReport, InventoryItem, InventorySummary, CashierReport, AmountCollectedReport, TeamLeadReport, CounterBill, BillingCounterReport } from '../../../../hooks/useAdminData';
 import { AmountCollectedDialog } from './AmountCollectedDialog';
 import { exportToExcel } from '../../../../utils/exportToExcel';
 
 export const ReportsView = ({
-  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick, auditorReports, onAuditorClick, unpaidBillsReport, onViewUnpaidBill, currentSlide, onSlideChange, allBills, onViewBill
+  role = 'admin',
+  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick, billingCounterReports, auditorReports, onAuditorClick, unpaidBillsReport, onViewUnpaidBill, currentSlide, onSlideChange, allBills, onViewBill
 }: {
+  role?: 'admin' | 'team_lead',
   data: SalesReport[], onBack: () => void, onCounterClick: (r: SalesReport) => void,
   inventory: InventoryItem[], inventoryReport: InventorySummary[], cashierReports?: CashierReport[],
   onCashierClick?: (r: CashierReport) => void, amountCollectedReport?: AmountCollectedReport[],
   teamLeadReports?: TeamLeadReport[], onTeamLeadClick?: (r: TeamLeadReport) => void,
+  billingCounterReports?: BillingCounterReport[],
   auditorReports?: any[], onAuditorClick?: (r: any) => void,
   unpaidBillsReport?: CounterBill[], onViewUnpaidBill?: (b: CounterBill) => void,
   currentSlide?: number, onSlideChange?: (slide: number) => void,
@@ -33,10 +36,10 @@ export const ReportsView = ({
   
   const slideNames = ['Ledger', 'Revenue Report', 'Inventory Report', 'Amount Collected'];
   if (teamLeadReports) slideNames.push('Team Lead Report');
+  if (billingCounterReports) slideNames.push('Billing Counter Report');
   if (cashierReports && onCashierClick) slideNames.push('Cashier Report');
   if (auditorReports && onAuditorClick) slideNames.push('Auditor Report');
   if (unpaidBillsReport && onViewUnpaidBill) slideNames.push('Unpaid Bills Report');
-  if (allBills && onViewBill) slideNames.push('Billing Report');
   const totalSlides = slideNames.length;
 
   const filteredData = selectedCounterFilter === 'all' ? data : data.filter(d => d.counter_id === selectedCounterFilter);
@@ -54,6 +57,11 @@ export const ReportsView = ({
     const profit = cost > 0 ? (Number(b.total_amount) - cost) : 0;
     return sum + profit;
   }, 0);
+
+  const totalPendingApprovals = filteredBillsForStats.filter(b => b.approval_status === 'pending').length;
+  const totalCashCollectedTL = selectedCounterFilter === 'all' 
+    ? amountCollectedReport.reduce((sum, r) => sum + r.total_collected, 0)
+    : amountCollectedReport.filter(r => r.counter_id === selectedCounterFilter).reduce((sum, r) => sum + r.total_collected, 0);
 
   const uniqueCounters = Array.from(new Map(data.map(d => [d.counter_id, d])).values());
 
@@ -108,6 +116,15 @@ export const ReportsView = ({
         'Excess Approved (₹)': r.total_excess_approved
       }));
       exportToExcel(exportData, 'Team_Lead_Report');
+    } else if (currentSlideName === 'Billing Counter Report' && billingCounterReports) {
+      const exportData = billingCounterReports.map(r => ({
+        'Billing Counter': r.billing_counter_name,
+        'Counters Assigned Count': r.assigned_counters_count,
+        'Counters Assigned Names': r.assigned_counters_names.join(', '),
+        'Pending Bills': r.pending_bills,
+        'Closed Bills': r.closed_bills
+      }));
+      exportToExcel(exportData, 'Billing_Counter_Report');
     } else if (currentSlideName === 'Cashier Report' && cashierReports) {
       const exportData = cashierReports.map(r => ({
         'Cashier Name': r.cashier_name,
@@ -192,24 +209,46 @@ export const ReportsView = ({
           <p className="text-2xl font-black text-orange-600 dark:text-orange-500">{totalAccessoriesSold.toLocaleString('en-IN')}</p>
         </div>
         
-        <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-blue-500/50 transition-colors">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <History className="w-12 h-12 text-blue-500" />
-          </div>
-          <p className="text-sm font-semibold text-muted-foreground mb-1">Total Audited Bills</p>
-          <p className="text-2xl font-black text-blue-600 dark:text-blue-500">{totalAuditedBills.toLocaleString('en-IN')}</p>
-        </div>
-        
-        <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <IndianRupee className="w-12 h-12 text-emerald-500" />
-          </div>
-          <p className="text-sm font-semibold text-muted-foreground mb-1">Total Profit Amount</p>
-          <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">₹{totalProfit.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
-          {totalProfit === 0 && (
-            <p className="text-[10px] text-muted-foreground mt-1 absolute bottom-2 right-4">Cost data pending</p>
-          )}
-        </div>
+        {role === 'admin' ? (
+          <>
+            <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-blue-500/50 transition-colors">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <History className="w-12 h-12 text-blue-500" />
+              </div>
+              <p className="text-sm font-semibold text-muted-foreground mb-1">Total Audited Bills</p>
+              <p className="text-2xl font-black text-blue-600 dark:text-blue-500">{totalAuditedBills.toLocaleString('en-IN')}</p>
+            </div>
+            
+            <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <IndianRupee className="w-12 h-12 text-emerald-500" />
+              </div>
+              <p className="text-sm font-semibold text-muted-foreground mb-1">Total Profit Amount</p>
+              <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">₹{totalProfit.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+              {totalProfit === 0 && (
+                <p className="text-[10px] text-muted-foreground mt-1 absolute bottom-2 right-4">Cost data pending</p>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-amber-500/50 transition-colors">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Clock className="w-12 h-12 text-amber-500" />
+              </div>
+              <p className="text-sm font-semibold text-muted-foreground mb-1">Pending Approvals</p>
+              <p className="text-2xl font-black text-amber-600 dark:text-amber-500">{totalPendingApprovals.toLocaleString('en-IN')}</p>
+            </div>
+            
+            <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <IndianRupee className="w-12 h-12 text-emerald-500" />
+              </div>
+              <p className="text-sm font-semibold text-muted-foreground mb-1">Total Cash Collected</p>
+              <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">₹{totalCashCollectedTL.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Slider Container */}
@@ -464,6 +503,33 @@ export const ReportsView = ({
               </div>
             )}
             
+            {/* Slide 5.5: Billing Counter Report */}
+            {billingCounterReports && (
+              <div className="w-full flex-shrink-0">
+                <div className="px-4 sm:px-6 pt-4 pb-2">
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Users className="w-4 h-4 text-purple-500" />
+                    Overview of billing counters and their bill closures.
+                  </p>
+                </div>
+                <DataTable<BillingCounterReport>
+                  idAccessor="billing_counter_id"
+                  data={billingCounterReports}
+                  columns={[
+                    { header: 'Billing Counter', accessor: 'billing_counter_name', sortAccessor: 'billing_counter_name', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
+                    { header: 'Counters Assigned', accessor: (r) => (
+                      <div className="flex flex-col gap-1">
+                        <span className="font-bold">{r.assigned_counters_count}</span>
+                        <span className="text-[10px] text-muted-foreground">{r.assigned_counters_names.join(', ')}</span>
+                      </div>
+                    ), sortAccessor: 'assigned_counters_count', className: 'text-left' },
+                    { header: 'Pending Bills', accessor: (r) => <span className="text-amber-500 font-bold">{r.pending_bills}</span>, sortAccessor: 'pending_bills', className: 'text-right' },
+                    { header: 'Closed Bills', accessor: (r) => <span className="text-emerald-600 font-bold">{r.closed_bills}</span>, sortAccessor: 'closed_bills', className: 'text-right' }
+                  ]}
+                />
+              </div>
+            )}
+            
             {/* Slide 6: Cashier Report */}
             {cashierReports && onCashierClick && (
               <div className="w-full flex-shrink-0">
@@ -537,37 +603,6 @@ export const ReportsView = ({
                     { header: 'Action', accessor: (r) => (
                       <button 
                         onClick={(e) => { e.stopPropagation(); onViewUnpaidBill(r); }}
-                        className="px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-md font-bold text-[10px] uppercase tracking-wider transition-colors inline-block"
-                      >
-                        VIEW BILL
-                      </button>
-                    ), className: 'text-center' }
-                  ]}
-                  pageSize={10}
-                />
-              </div>
-            )}
-            {/* Slide 9: Billing Report */}
-            {allBills && onViewBill && (
-              <div className="w-full flex-shrink-0">
-                <div className="px-4 sm:px-6 pt-4 pb-2">
-                  <p className="text-sm text-muted-foreground flex items-center gap-2">
-                    <History className="w-4 h-4 text-primary" />
-                    Overview of all bills generated across counters.
-                  </p>
-                </div>
-                <DataTable<CounterBill>
-                  idAccessor="id"
-                  data={(selectedCounterFilter === 'all' ? allBills : allBills.filter(b => b.counter_id === selectedCounterFilter)).filter(b => b.approval_status !== 'reverted' && b.approval_status !== 'reverted_by_admin')}
-                  columns={[
-                    { header: 'Bill Number', accessor: 'bill_number', sortAccessor: 'bill_number', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
-                    { header: 'Counter Name', accessor: (r) => r.profiles?.name || 'Unknown', sortAccessor: 'counter_id', className: 'text-left' },
-                    { header: 'Customer', accessor: (r) => r.customer_name || 'N/A', sortAccessor: 'customer_name', className: 'text-left' },
-                    { header: 'Payment', accessor: (r) => <Badge variant="secondary">{r.payment_method}</Badge> },
-                    { header: 'Total Amount', accessor: (r) => <span className="font-black text-primary">₹{r.total_amount.toLocaleString()}</span>, sortAccessor: 'total_amount', className: 'text-right' },
-                    { header: 'Action', accessor: (r) => (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); onViewBill(r); }}
                         className="px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary/20 rounded-md font-bold text-[10px] uppercase tracking-wider transition-colors inline-block"
                       >
                         VIEW BILL

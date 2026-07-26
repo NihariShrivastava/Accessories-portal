@@ -40,7 +40,16 @@ export interface TeamLeadReport {
   approved_approvals: number;
   total_discount_approved: number;
   total_excess_approved: number;
-};
+}
+
+export interface BillingCounterReport {
+  billing_counter_id: string;
+  billing_counter_name: string;
+  assigned_counters_count: number;
+  assigned_counters_names: string[];
+  pending_bills: number;
+  closed_bills: number;
+}
 export type InventorySummary = { counter_id: string; counter_name: string; surplus_count: number; shortage_count: number };
 export type AmountCollectedReport = {
   counter_id: string;
@@ -843,6 +852,33 @@ export function useAdminData() {
     });
   }, [teamLeads, counters, filteredBills]);
 
+  const billingCounterReports = useMemo(() => {
+    if (!billingCounters || billingCounters.length === 0) return [];
+    
+    return billingCounters.map((bc: any) => {
+      const directCounterIds = bc.assigned_counters || [];
+      const tlIds = bc.assigned_team_leads || [];
+      const tlCounterIds = teamLeads.filter(tl => tlIds.includes(tl.id)).flatMap(tl => tl.assigned_counters || []);
+      
+      const allAssignedIds = Array.from(new Set([...directCounterIds, ...tlCounterIds]));
+      const assignedNames = counters.filter(c => allAssignedIds.includes(c.id)).map(c => c.name);
+      
+      const bcBills = filteredBills.filter(b => allAssignedIds.includes(b.counter_id));
+      
+      const pendingCount = bcBills.filter(b => b.approval_status === 'approved').length;
+      const closedCount = bcBills.filter(b => b.approval_status === 'closed').length;
+      
+      return {
+        billing_counter_id: bc.id,
+        billing_counter_name: bc.name || bc.username || 'Unknown',
+        assigned_counters_count: allAssignedIds.length,
+        assigned_counters_names: assignedNames,
+        pending_bills: pendingCount,
+        closed_bills: closedCount
+      };
+    });
+  }, [billingCounters, teamLeads, counters, filteredBills]);
+
   const auditorReports = useMemo(() => {
     if (!auditors || auditors.length === 0) return [];
     
@@ -1479,7 +1515,7 @@ export function useAdminData() {
   }, [fetchInventory]);
 
   return {
-    stats, counters, warehouses, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, allBills,
+    stats, counters, warehouses, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, billingCounterReports, allBills,
     auditors, auditorReports,
     duplicacyReport, unpaidBillsReport,
     startDate, endDate, setStartDate, setEndDate,

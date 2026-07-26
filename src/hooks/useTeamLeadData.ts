@@ -10,6 +10,7 @@ export function useTeamLeadData(user: any) {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [bills, setBills] = useState<CounterBill[]>([]);
   const [cashierReports, setCashierReports] = useState<any[]>([]);
+  const [billingCounterReports, setBillingCounterReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProfileAndData = useCallback(async (showLoading = true) => {
@@ -44,7 +45,7 @@ export function useTeamLeadData(user: any) {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
-      const [countersRes, warehousesRes, invRes, billsRes, cashiersRes, drawerRes] = await Promise.all([
+      const [countersRes, warehousesRes, invRes, billsRes, cashiersRes, drawerRes, bcRes] = await Promise.all([
         supabase.from('profiles').select('id, name').in('id', counterIds),
         prof?.assigned_warehouses && prof.assigned_warehouses.length > 0 
           ? supabase.from('profiles').select('id, name').in('id', prof.assigned_warehouses)
@@ -61,7 +62,8 @@ export function useTeamLeadData(user: any) {
           .order('created_at', { ascending: false })
           .limit(1000), // Added limit to prevent massive payload issues
         supabase.from('profiles').select('*').eq('role', 'cashier'),
-        supabase.from('drawer_transactions').select('*').in('counter_id', counterIds)
+        supabase.from('drawer_transactions').select('*').in('counter_id', counterIds),
+        supabase.from('profiles').select('*').eq('role', 'billing_counter')
       ]);
 
       const countersData = countersRes.data || [];
@@ -70,6 +72,7 @@ export function useTeamLeadData(user: any) {
       const billsData = billsRes.data || [];
       const cashiersData = cashiersRes.data || [];
       const drawerData = drawerRes.data || [];
+      const billingCountersData = bcRes.data || [];
 
       if (invRes.error) console.error("Team Lead Inventory Fetch Error:", invRes.error);
       if (billsRes.error) console.error("Team Lead Bills Fetch Error:", billsRes.error);
@@ -187,6 +190,37 @@ export function useTeamLeadData(user: any) {
         });
       });
       setCashierReports(cashierRpts);
+
+      // 6. Calculate Billing Counter Reports
+      const bcRpts: any[] = [];
+      const relevantBc = billingCountersData.filter((bc: any) => 
+        (bc.assigned_counters || []).some((id: string) => counterIds.includes(id)) || 
+        (bc.assigned_team_leads || []).includes(user.id)
+      );
+
+      relevantBc.forEach((bc: any) => {
+        const directCounterIds = bc.assigned_counters || [];
+        const tlIds = bc.assigned_team_leads || [];
+        const tlCounterIds = tlIds.includes(user.id) ? counterIds : [];
+        
+        const allAssignedIds = Array.from(new Set([...directCounterIds, ...tlCounterIds])).filter(id => counterIds.includes(id));
+        const assignedNames = countersData.filter((c: any) => allAssignedIds.includes(c.id)).map((c: any) => c.name);
+        
+        const bcBills = finalBills.filter(b => allAssignedIds.includes(b.counter_id));
+        
+        const pendingCount = bcBills.filter(b => b.approval_status === 'approved').length;
+        const closedCount = bcBills.filter(b => b.approval_status === 'closed').length;
+        
+        bcRpts.push({
+          billing_counter_id: bc.id,
+          billing_counter_name: bc.name || bc.username || 'Unknown',
+          assigned_counters_count: allAssignedIds.length,
+          assigned_counters_names: assignedNames,
+          pending_bills: pendingCount,
+          closed_bills: closedCount
+        });
+      });
+      setBillingCounterReports(bcRpts);
 
     } catch (err) {
       console.error('Error fetching team lead data:', err);
@@ -444,6 +478,7 @@ export function useTeamLeadData(user: any) {
     inventoryReport,
     amountCollectedReport,
     cashierReports,
+    billingCounterReports,
     loading,
     updateBillStatus,
     executeTransfer,
