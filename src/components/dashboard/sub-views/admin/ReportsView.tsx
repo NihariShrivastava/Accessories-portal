@@ -9,7 +9,7 @@ import { exportToExcel } from '../../../../utils/exportToExcel';
 
 export const ReportsView = ({
   role = 'admin',
-  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick, billingCounterReports, auditorReports, onAuditorClick, unpaidBillsReport, onViewUnpaidBill, currentSlide, onSlideChange, allBills, onViewBill
+  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick, billingCounterReports, auditorReports, onAuditorClick, unpaidBillsReport, onViewUnpaidBill, currentSlide, onSlideChange, allBills
 }: {
   role?: 'admin' | 'team_lead',
   data: SalesReport[], onBack: () => void, onCounterClick: (r: SalesReport) => void,
@@ -20,7 +20,7 @@ export const ReportsView = ({
   auditorReports?: any[], onAuditorClick?: (r: any) => void,
   unpaidBillsReport?: CounterBill[], onViewUnpaidBill?: (b: CounterBill) => void,
   currentSlide?: number, onSlideChange?: (slide: number) => void,
-  allBills?: CounterBill[], onViewBill?: (b: CounterBill) => void
+  allBills?: CounterBill[]
 }) => {
   // Use local state if props are not provided, else use props
   const [localSlide, setLocalSlide] = useState(0);

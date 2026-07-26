@@ -62,7 +62,6 @@ export function TeamLeadDashboard() {
         onBack={() => setActiveView('dashboard')}
         onCounterClick={handleCounterClick}
         onCashierClick={() => {}} // No drill-down needed yet
-        onViewBill={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
       />
     );
   } else if (activeView === 'bills') {

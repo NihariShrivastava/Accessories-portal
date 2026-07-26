@@ -333,7 +333,6 @@ export function AdminDashboard() {
         currentSlide={reportSlide}
         onSlideChange={setReportSlide}
         allBills={allBills}
-        onViewBill={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
       />
     );
   } else if (activeView === 'cashier-details' && selectedCashierReport) {
