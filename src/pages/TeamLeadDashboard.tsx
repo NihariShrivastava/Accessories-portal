@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../components/auth-provider';
 import { useTeamLeadData } from '../hooks/useTeamLeadData';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
-import { ReportsView, BillsView, TeamLeadInventoryView, TeamLeadApprovalView, TeamLeadTransferView } from '../components/dashboard/sub-views/AdminSubViews';
+import { ReportsView, BillsView, TeamLeadInventoryView, TeamLeadApprovalView, TeamLeadTransferView, CashierDetailsView } from '../components/dashboard/sub-views/AdminSubViews';
 import { Store, Package, BarChart3, ReceiptText, ArrowLeftRight } from 'lucide-react';
 import type { SalesReport, CounterBill } from '../hooks/useAdminData';
 import { BillReceipt } from '../components/dashboard/BillReceipt';
@@ -25,9 +25,10 @@ export function TeamLeadDashboard() {
     executeTransfer
   } = useTeamLeadData(user);
 
-  const [activeView, setActiveView] = useState<'dashboard' | 'reports' | 'bills' | 'inventory' | 'approvals' | 'transfer'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'reports' | 'bills' | 'inventory' | 'approvals' | 'transfer' | 'cashier-details'>('dashboard');
   const [selectedCounterId, setSelectedCounterId] = useState('');
   const [selectedCounterName, setSelectedCounterName] = useState('');
+  const [selectedCashierReport, setSelectedCashierReport] = useState<any>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [generatedBill, setGeneratedBill] = useState<CounterBill | null>(null);
@@ -47,6 +48,11 @@ export function TeamLeadDashboard() {
     setActiveView('bills');
   };
 
+  const handleCashierClick = (report: any) => {
+    setSelectedCashierReport(report);
+    setActiveView('cashier-details');
+  };
+
   let content;
   if (activeView === 'reports') {
     content = (
@@ -61,7 +67,14 @@ export function TeamLeadDashboard() {
         allBills={bills}
         onBack={() => setActiveView('dashboard')}
         onCounterClick={handleCounterClick}
-        onCashierClick={() => {}} // No drill-down needed yet
+        onCashierClick={handleCashierClick}
+      />
+    );
+  } else if (activeView === 'cashier-details' && selectedCashierReport) {
+    content = (
+      <CashierDetailsView
+        cashierReport={selectedCashierReport}
+        onBack={() => setActiveView('reports')}
       />
     );
   } else if (activeView === 'bills') {

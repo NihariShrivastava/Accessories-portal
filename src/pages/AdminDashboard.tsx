@@ -9,12 +9,12 @@ import type { InventoryItem, CounterBill, SalesReport, TeamLeadReport } from '..
 import { Modal } from '../components/dashboard/Modal';
 import { BillDetails } from '../components/dashboard/BillDetails';
 import { BillReceipt } from '../components/dashboard/BillReceipt';
-import { CounterManagementView, AddTeamLeadView, AddCashierView, AddWarehouseView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView, GlobalInventorySliderView, UploadHistoryView, CashierDetailsView, AddAuditorView, AuditorDetailsView, AddBillingCounterView } from '../components/dashboard/sub-views/AdminSubViews';
+import { CounterManagementView, AddTeamLeadView, AddCashierView, AddWarehouseView, ModelDetailView, ReportsView, BillsView, AddCounterView, InventorySliderView, CounterInventoryDetailsView, GlobalInventorySliderView, UploadHistoryView, CashierDetailsView, AddAuditorView, AuditorDetailsView, AddBillingCounterView, AccessoryMovementDetailsView } from '../components/dashboard/sub-views/AdminSubViews';
 import { TeamLeadApprovalView } from '../components/dashboard/sub-views/admin/TeamLeadApprovalView';
 
 export function AdminDashboard() {
   const {
-    counters, warehouses, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, billingCounterReports, allBills, unpaidBillsReport, duplicacyReport,
+    counters, warehouses, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, accessoryMovementReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, billingCounterReports, allBills, unpaidBillsReport, duplicacyReport,
     startDate, endDate, setStartDate, setEndDate,
     fetchCounters, fetchWarehouses, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter, updateWarehouse, deleteWarehouse, deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories,
@@ -35,6 +35,7 @@ export function AdminDashboard() {
   const [selectedCashierReport, setSelectedCashierReport] = useState<any>(null);
   const [selectedTeamLeadReport, setSelectedTeamLeadReport] = useState<TeamLeadReport | null>(null);
   const [selectedAuditorReport, setSelectedAuditorReport] = useState<any>(null);
+  const [selectedMovementReport, setSelectedMovementReport] = useState<any>(null);
   const [generatedBill, setGeneratedBill] = useState<CounterBill | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [selectedDuplicacyReport, setSelectedDuplicacyReport] = useState<any>(null);
@@ -159,6 +160,11 @@ export function AdminDashboard() {
     setSelectedAuditorReport(report);
     setActiveView('auditor-details');
   };
+
+  const handleMovementClick = useCallback((report: any) => {
+    setSelectedMovementReport(report);
+    setActiveView('movement-details');
+  }, []);
 
   let content;
   if (activeView === 'logins' || activeView === 'logins-team-leads' || activeView === 'logins-cashiers' || activeView === 'logins-warehouses' || activeView === 'logins-auditors' || activeView === 'logins-billing-counters') {
@@ -330,6 +336,8 @@ export function AdminDashboard() {
         onAuditorClick={handleAuditorClick}
         unpaidBillsReport={unpaidBillsReport}
         onViewUnpaidBill={(b) => { setGeneratedBill(b); setShowReceipt(true); }}
+        accessoryMovementReport={accessoryMovementReport}
+        onMovementClick={handleMovementClick}
         currentSlide={reportSlide}
         onSlideChange={setReportSlide}
         allBills={allBills}
@@ -339,6 +347,13 @@ export function AdminDashboard() {
     content = (
       <CashierDetailsView
         cashierReport={selectedCashierReport}
+        onBack={() => setActiveView('reports')}
+      />
+    );
+  } else if (activeView === 'movement-details' && selectedMovementReport) {
+    content = (
+      <AccessoryMovementDetailsView
+        report={selectedMovementReport}
         onBack={() => setActiveView('reports')}
       />
     );

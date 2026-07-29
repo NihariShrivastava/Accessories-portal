@@ -24,3 +24,4 @@ export * from './admin/AddAuditorView';
 export * from './admin/AuditorDetailsView';
 export * from './admin/AddBillingCounterView';
 export * from './admin/ManageBillingCountersView';
+export * from './admin/AccessoryMovementDetailsView';

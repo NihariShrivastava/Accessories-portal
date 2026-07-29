@@ -50,6 +50,20 @@ export interface BillingCounterReport {
   pending_bills: number;
   closed_bills: number;
 }
+export interface AccessoryMovementDetail {
+  accessory_name: string;
+  vehicle_model: string;
+  in_count: number;
+  out_count: number;
+  current_quantity: number;
+}
+export interface AccessoryMovementReport {
+  counter_id: string;
+  counter_name: string;
+  total_in_count: number;
+  total_out_count: number;
+  accessories: AccessoryMovementDetail[];
+}
 export type InventorySummary = { counter_id: string; counter_name: string; surplus_count: number; shortage_count: number };
 export type AmountCollectedReport = {
   counter_id: string;
@@ -824,6 +838,87 @@ export function useAdminData() {
     return Array.from(map.values());
   }, [filteredBills]);
 
+  const accessoryMovementReport = useMemo(() => {
+    const map = new Map<string, AccessoryMovementReport>();
+    
+    // First, populate with current inventory (which contributes to in-count and is the baseline)
+    inventory.forEach((item: any) => {
+      let existing = map.get(item.counter_id);
+      if (!existing) {
+        existing = {
+          counter_id: item.counter_id,
+          counter_name: item.counter_name,
+          total_in_count: 0,
+          total_out_count: 0,
+          accessories: []
+        };
+        map.set(item.counter_id, existing);
+      }
+      
+      const acc = existing.accessories.find(a => a.accessory_name === item.name && a.vehicle_model === item.vehicle_model);
+      if (acc) {
+        acc.current_quantity += item.quantity;
+      } else {
+        existing.accessories.push({
+          accessory_name: item.name,
+          vehicle_model: item.vehicle_model,
+          in_count: 0, // Will be computed after
+          out_count: 0,
+          current_quantity: item.quantity
+        });
+      }
+    });
+
+    // Second, process bills to add out-counts
+    filteredBills.forEach((bill: any) => {
+      let existing = map.get(bill.counter_id);
+      if (!existing) {
+        existing = {
+          counter_id: bill.counter_id,
+          counter_name: bill.profiles?.name || 'Unknown',
+          total_in_count: 0,
+          total_out_count: 0,
+          accessories: []
+        };
+        map.set(bill.counter_id, existing);
+      }
+
+      if (bill.items && Array.isArray(bill.items)) {
+        bill.items.forEach((bi: any) => {
+          const qty = Number(bi.quantity) || 0;
+          const name = bi.accessories?.name || bi.accessory_name || 'Unknown';
+          const model = bi.accessories?.vehicle_model || bi.vehicle_model || '-';
+
+          let acc = existing!.accessories.find(a => a.accessory_name === name && a.vehicle_model === model);
+          if (acc) {
+            acc.out_count += qty;
+          } else {
+            existing!.accessories.push({
+              accessory_name: name,
+              vehicle_model: model,
+              in_count: 0,
+              out_count: qty,
+              current_quantity: 0
+            });
+          }
+        });
+      }
+    });
+
+    // Finally, compute in_count and totals
+    Array.from(map.values()).forEach(report => {
+      report.total_in_count = 0;
+      report.total_out_count = 0;
+      report.accessories.forEach(acc => {
+        acc.in_count = acc.current_quantity + acc.out_count;
+        report.total_in_count += acc.in_count;
+        report.total_out_count += acc.out_count;
+      });
+    });
+
+    return Array.from(map.values());
+  }, [inventory, filteredBills]);
+
   const teamLeadReports = useMemo(() => {
     if (!teamLeads || teamLeads.length === 0) return [];
     
@@ -1515,7 +1610,7 @@ export function useAdminData() {
   }, [fetchInventory]);
 
   return {
-    stats, counters, warehouses, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, billingCounterReports, allBills,
+    stats, counters, warehouses, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, accessoryMovementReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, billingCounterReports, allBills,
     auditors, auditorReports,
     duplicacyReport, unpaidBillsReport,
     startDate, endDate, setStartDate, setEndDate,

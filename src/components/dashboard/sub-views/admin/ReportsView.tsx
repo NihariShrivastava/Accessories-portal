@@ -3,13 +3,13 @@ import { DataTable } from '../../DataTable';
 import { ViewHeader } from '../../ViewHeader';
 import { Badge } from '../../Badge';
 import { ChevronLeft, ChevronRight, Download, Package, IndianRupee, History, Users, Save, Clock, BarChart3, X } from 'lucide-react';
-import type { SalesReport, InventoryItem, InventorySummary, CashierReport, AmountCollectedReport, TeamLeadReport, CounterBill, BillingCounterReport } from '../../../../hooks/useAdminData';
+import type { SalesReport, InventoryItem, InventorySummary, CashierReport, AmountCollectedReport, TeamLeadReport, CounterBill, BillingCounterReport, AccessoryMovementReport } from '../../../../hooks/useAdminData';
 import { AmountCollectedDialog } from './AmountCollectedDialog';
 import { exportToExcel } from '../../../../utils/exportToExcel';
 
 export const ReportsView = ({
   role = 'admin',
-  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick, billingCounterReports, auditorReports, onAuditorClick, unpaidBillsReport, onViewUnpaidBill, currentSlide, onSlideChange, allBills
+  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick, billingCounterReports, auditorReports, onAuditorClick, accessoryMovementReport, onMovementClick, unpaidBillsReport, onViewUnpaidBill, currentSlide, onSlideChange, allBills
 }: {
   role?: 'admin' | 'team_lead',
   data: SalesReport[], onBack: () => void, onCounterClick: (r: SalesReport) => void,
@@ -18,6 +18,7 @@ export const ReportsView = ({
   teamLeadReports?: TeamLeadReport[], onTeamLeadClick?: (r: TeamLeadReport) => void,
   billingCounterReports?: BillingCounterReport[],
   auditorReports?: any[], onAuditorClick?: (r: any) => void,
+  accessoryMovementReport?: AccessoryMovementReport[], onMovementClick?: (r: AccessoryMovementReport) => void,
   unpaidBillsReport?: CounterBill[], onViewUnpaidBill?: (b: CounterBill) => void,
   currentSlide?: number, onSlideChange?: (slide: number) => void,
   allBills?: CounterBill[]
@@ -40,6 +41,7 @@ export const ReportsView = ({
   if (cashierReports && onCashierClick) slideNames.push('Cashier Report');
   if (auditorReports && onAuditorClick) slideNames.push('Auditor Report');
   if (unpaidBillsReport && onViewUnpaidBill) slideNames.push('Unpaid Bills Report');
+  if (accessoryMovementReport && onMovementClick) slideNames.push('Accessory Movement Report');
   const totalSlides = slideNames.length;
 
   const filteredData = selectedCounterFilter === 'all' ? data : data.filter(d => d.counter_id === selectedCounterFilter);
@@ -165,6 +167,387 @@ export const ReportsView = ({
     }
   };
 
+  const renderSummaryCards = () => {
+    const currentSlideName = slideNames[activeSlide];
+
+    if (currentSlideName === 'Ledger') {
+      const totalBills = filteredData.reduce((sum, r) => sum + r.total_bills, 0);
+      const totalReceivable = filteredData.reduce((sum, r) => sum + r.total_sales, 0);
+      const totalOutstanding = filteredData.reduce((sum, r) => sum + r.outstanding, 0);
+      const totalPaid = filteredData.reduce((sum, r) => sum + r.total_collected, 0);
+
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-primary/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <History className="w-12 h-12 text-primary" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Bills</p>
+            <p className="text-2xl font-black text-primary">{totalBills.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-blue-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <IndianRupee className="w-12 h-12 text-blue-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Receivable Amt (Debit)</p>
+            <p className="text-2xl font-black text-blue-600 dark:text-blue-500">₹{totalReceivable.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-destructive/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <IndianRupee className="w-12 h-12 text-destructive" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Outstanding</p>
+            <p className="text-2xl font-black text-destructive">₹{totalOutstanding.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <IndianRupee className="w-12 h-12 text-emerald-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Paid (Credit)</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">₹{totalPaid.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (currentSlideName === 'Revenue Report') {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-primary/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <IndianRupee className="w-12 h-12 text-primary" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Revenue Generated</p>
+            <p className="text-2xl font-black text-primary">₹{totalRevenue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+          </div>
+          
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-orange-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Package className="w-12 h-12 text-orange-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Accessories Sold</p>
+            <p className="text-2xl font-black text-orange-600 dark:text-orange-500">{totalAccessoriesSold.toLocaleString('en-IN')}</p>
+          </div>
+          
+          {role === 'admin' ? (
+            <>
+              <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-blue-500/50 transition-colors">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <History className="w-12 h-12 text-blue-500" />
+                </div>
+                <p className="text-sm font-semibold text-muted-foreground mb-1">Total Audited Bills</p>
+                <p className="text-2xl font-black text-blue-600 dark:text-blue-500">{totalAuditedBills.toLocaleString('en-IN')}</p>
+              </div>
+              
+              <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <IndianRupee className="w-12 h-12 text-emerald-500" />
+                </div>
+                <p className="text-sm font-semibold text-muted-foreground mb-1">Total Profit Amount</p>
+                <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">₹{totalProfit.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                {totalProfit === 0 && (
+                  <p className="text-[10px] text-muted-foreground mt-1 absolute bottom-2 right-4">Cost data pending</p>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-amber-500/50 transition-colors">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <Clock className="w-12 h-12 text-amber-500" />
+                </div>
+                <p className="text-sm font-semibold text-muted-foreground mb-1">Pending Approvals</p>
+                <p className="text-2xl font-black text-amber-600 dark:text-amber-500">{totalPendingApprovals.toLocaleString('en-IN')}</p>
+              </div>
+              
+              <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <IndianRupee className="w-12 h-12 text-emerald-500" />
+                </div>
+                <p className="text-sm font-semibold text-muted-foreground mb-1">Total Cash Collected</p>
+                <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">₹{totalCashCollectedTL.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    if (currentSlideName === 'Inventory Report') {
+      const totalSurplus = filteredInventoryReport.reduce((sum, r) => sum + r.surplus_count, 0);
+      const totalShortage = filteredInventoryReport.reduce((sum, r) => sum + r.shortage_count, 0);
+      
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-primary/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Package className="w-12 h-12 text-primary" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Items Logged</p>
+            <p className="text-2xl font-black text-primary">{filteredInventory.reduce((sum, i) => sum + i.quantity, 0).toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-green-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Save className="w-12 h-12 text-green-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Surplus Count</p>
+            <p className="text-2xl font-black text-green-600 dark:text-green-500">{totalSurplus.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-destructive/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <X className="w-12 h-12 text-destructive" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Shortage Count</p>
+            <p className="text-2xl font-black text-destructive">{totalShortage.toLocaleString('en-IN')}</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (currentSlideName === 'Amount Collected') {
+      const acReport = selectedCounterFilter === 'all' ? amountCollectedReport : amountCollectedReport.filter(r => r.counter_id === selectedCounterFilter);
+      const cash = acReport.reduce((sum, r) => sum + r.cash_collected, 0);
+      const upi = acReport.reduce((sum, r) => sum + r.upi_collected, 0);
+      const card = acReport.reduce((sum, r) => sum + r.card_collected, 0);
+      const bank = acReport.reduce((sum, r) => sum + r.bank_transfer_collected, 0);
+      
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <IndianRupee className="w-12 h-12 text-emerald-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Cash Collected</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">₹{cash.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-blue-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <IndianRupee className="w-12 h-12 text-blue-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">UPI Collected</p>
+            <p className="text-2xl font-black text-blue-600 dark:text-blue-500">₹{upi.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-purple-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <IndianRupee className="w-12 h-12 text-purple-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Card Collected</p>
+            <p className="text-2xl font-black text-purple-600 dark:text-purple-500">₹{card.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-orange-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <IndianRupee className="w-12 h-12 text-orange-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Bank Transfer</p>
+            <p className="text-2xl font-black text-orange-600 dark:text-orange-500">₹{bank.toLocaleString('en-IN')}</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (currentSlideName === 'Team Lead Report' && teamLeadReports) {
+      const totalPending = teamLeadReports.reduce((sum, r) => sum + r.pending_approvals, 0);
+      const totalApproved = teamLeadReports.reduce((sum, r) => sum + r.approved_approvals, 0);
+      const totalDiscount = teamLeadReports.reduce((sum, r) => sum + r.total_discount_approved, 0);
+      const totalExcess = teamLeadReports.reduce((sum, r) => sum + r.total_excess_approved, 0);
+      
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-amber-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Clock className="w-12 h-12 text-amber-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Pending Approvals</p>
+            <p className="text-2xl font-black text-amber-500">{totalPending.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Save className="w-12 h-12 text-emerald-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Approved Approvals</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">{totalApproved.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-destructive/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <IndianRupee className="w-12 h-12 text-destructive" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Discount Approved</p>
+            <p className="text-2xl font-black text-destructive">₹{totalDiscount.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <IndianRupee className="w-12 h-12 text-emerald-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Excess Approved</p>
+            <p className="text-2xl font-black text-emerald-500">₹{totalExcess.toLocaleString('en-IN')}</p>
+          </div>
+        </div>
+      );
+    }
+    
+    if (currentSlideName === 'Billing Counter Report' && billingCounterReports) {
+      const totalPending = billingCounterReports.reduce((sum, r) => sum + r.pending_bills, 0);
+      const totalClosed = billingCounterReports.reduce((sum, r) => sum + r.closed_bills, 0);
+      
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-amber-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Clock className="w-12 h-12 text-amber-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Pending Bills</p>
+            <p className="text-2xl font-black text-amber-500">{totalPending.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Save className="w-12 h-12 text-emerald-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Closed Bills</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">{totalClosed.toLocaleString('en-IN')}</p>
+          </div>
+        </div>
+      );
+    }
+    
+    if (currentSlideName === 'Cashier Report' && cashierReports) {
+      const pendingHandover = cashierReports.reduce((sum, r) => sum + r.pending_handover, 0);
+      const approvedHandover = cashierReports.reduce((sum, r) => sum + r.approved_handover, 0);
+      const drawerBalance = cashierReports.reduce((sum, r) => sum + r.drawer_balance, 0);
+      const cashCollected = cashierReports.reduce((sum, r) => sum + r.total_cash_collected, 0);
+
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-amber-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Clock className="w-12 h-12 text-amber-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Pending Handover</p>
+            <p className="text-2xl font-black text-amber-500">₹{pendingHandover.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Save className="w-12 h-12 text-emerald-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Approved Handover</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">₹{approvedHandover.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-primary/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <IndianRupee className="w-12 h-12 text-primary" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Drawer Cash Balance</p>
+            <p className="text-2xl font-black text-primary">₹{drawerBalance.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <IndianRupee className="w-12 h-12 text-emerald-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Cash Collected</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">₹{cashCollected.toLocaleString('en-IN')}</p>
+          </div>
+        </div>
+      );
+    }
+    
+    if (currentSlideName === 'Auditor Report' && auditorReports) {
+      const pendingAudits = auditorReports.reduce((sum, r) => sum + r.pending_audits, 0);
+      const approvedAudits = auditorReports.reduce((sum, r) => sum + r.approved_audits, 0);
+      const savingsFound = auditorReports.reduce((sum, r) => sum + r.total_savings_found, 0);
+
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-amber-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Clock className="w-12 h-12 text-amber-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Pending Audits</p>
+            <p className="text-2xl font-black text-amber-500">{pendingAudits.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Save className="w-12 h-12 text-emerald-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Approved (Forwarded)</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">{approvedAudits.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-green-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <IndianRupee className="w-12 h-12 text-green-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Savings Found</p>
+            <p className="text-2xl font-black text-green-600 dark:text-green-500">₹{savingsFound.toLocaleString('en-IN')}</p>
+          </div>
+        </div>
+      );
+    }
+    
+    if (currentSlideName === 'Unpaid Bills Report' && unpaidBillsReport) {
+      const ubReport = selectedCounterFilter === 'all' ? unpaidBillsReport : unpaidBillsReport.filter(b => b.counter_id === selectedCounterFilter);
+      const totalUnpaid = ubReport.length;
+      const totalBilled = ubReport.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+      const totalBalance = ubReport.reduce((sum, b) => {
+        const net = (Number(b.amount_left) || 0) + (Number(b.excess_adjustment) || 0) - (Number(b.discount_approved) || 0);
+        return sum + Math.abs(net);
+      }, 0);
+      
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-amber-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <History className="w-12 h-12 text-amber-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Unpaid Bills</p>
+            <p className="text-2xl font-black text-amber-500">{totalUnpaid.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-primary/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <IndianRupee className="w-12 h-12 text-primary" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Billed Amount</p>
+            <p className="text-2xl font-black text-primary">₹{totalBilled.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-rose-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <IndianRupee className="w-12 h-12 text-rose-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Net Balance Left</p>
+            <p className="text-2xl font-black text-rose-600 dark:text-rose-500">₹{totalBalance.toLocaleString('en-IN')}</p>
+          </div>
+        </div>
+      );
+    }
+    
+    if (currentSlideName === 'Accessory Movement Report' && accessoryMovementReport) {
+      const filteredAccReport = selectedCounterFilter === 'all' 
+        ? accessoryMovementReport 
+        : accessoryMovementReport.filter(r => r.counter_id === selectedCounterFilter);
+      
+      const totalInCount = filteredAccReport.reduce((sum, r) => sum + r.total_in_count, 0);
+      const totalOutCount = filteredAccReport.reduce((sum, r) => sum + r.total_out_count, 0);
+
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-primary/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Package className="w-12 h-12 text-primary" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Assigned (In-Count)</p>
+            <p className="text-2xl font-black text-primary">{totalInCount.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-orange-500/50 transition-colors">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Package className="w-12 h-12 text-orange-500" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Sold (Out-Count)</p>
+            <p className="text-2xl font-black text-orange-600 dark:text-orange-500">{totalOutCount.toLocaleString('en-IN')}</p>
+          </div>
+        </div>
+      );
+    }
+    
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -192,64 +575,7 @@ export const ReportsView = ({
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-primary/50 transition-colors">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <IndianRupee className="w-12 h-12 text-primary" />
-          </div>
-          <p className="text-sm font-semibold text-muted-foreground mb-1">Total Revenue Generated</p>
-          <p className="text-2xl font-black text-primary">₹{totalRevenue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
-        </div>
-        
-        <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-orange-500/50 transition-colors">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Package className="w-12 h-12 text-orange-500" />
-          </div>
-          <p className="text-sm font-semibold text-muted-foreground mb-1">Total Accessories Sold</p>
-          <p className="text-2xl font-black text-orange-600 dark:text-orange-500">{totalAccessoriesSold.toLocaleString('en-IN')}</p>
-        </div>
-        
-        {role === 'admin' ? (
-          <>
-            <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-blue-500/50 transition-colors">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <History className="w-12 h-12 text-blue-500" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground mb-1">Total Audited Bills</p>
-              <p className="text-2xl font-black text-blue-600 dark:text-blue-500">{totalAuditedBills.toLocaleString('en-IN')}</p>
-            </div>
-            
-            <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <IndianRupee className="w-12 h-12 text-emerald-500" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground mb-1">Total Profit Amount</p>
-              <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">₹{totalProfit.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
-              {totalProfit === 0 && (
-                <p className="text-[10px] text-muted-foreground mt-1 absolute bottom-2 right-4">Cost data pending</p>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-amber-500/50 transition-colors">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Clock className="w-12 h-12 text-amber-500" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground mb-1">Pending Approvals</p>
-              <p className="text-2xl font-black text-amber-600 dark:text-amber-500">{totalPendingApprovals.toLocaleString('en-IN')}</p>
-            </div>
-            
-            <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-emerald-500/50 transition-colors">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <IndianRupee className="w-12 h-12 text-emerald-500" />
-              </div>
-              <p className="text-sm font-semibold text-muted-foreground mb-1">Total Cash Collected</p>
-              <p className="text-2xl font-black text-emerald-600 dark:text-emerald-500">₹{totalCashCollectedTL.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
-            </div>
-          </>
-        )}
-      </div>
+      {renderSummaryCards()}
 
       {/* Slider Container */}
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
@@ -577,7 +903,6 @@ export const ReportsView = ({
               </div>
             )}
 
-            {/* Slide 8: Unpaid Bills Report */}
             {unpaidBillsReport && onViewUnpaidBill && (
               <div className="w-full flex-shrink-0">
                 <div className="px-4 sm:px-6 pt-4 pb-2">
@@ -610,6 +935,28 @@ export const ReportsView = ({
                     ), className: 'text-center' }
                   ]}
                   pageSize={10}
+                />
+              </div>
+            )}
+
+            {/* Slide 9: Accessory Movement Report */}
+            {accessoryMovementReport && onMovementClick && (
+              <div className="w-full flex-shrink-0">
+                <div className="px-4 sm:px-6 pt-4 pb-2">
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Package className="w-4 h-4 text-primary" />
+                    Overview of assigned stock and units sold per counter. Click to view breakdown.
+                  </p>
+                </div>
+                <DataTable<AccessoryMovementReport>
+                  idAccessor="counter_id"
+                  data={selectedCounterFilter === 'all' ? accessoryMovementReport : accessoryMovementReport.filter(r => r.counter_id === selectedCounterFilter)}
+                  onRowClick={onMovementClick}
+                  columns={[
+                    { header: 'Counter Name', accessor: 'counter_name', sortAccessor: 'counter_name', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
+                    { header: 'Total Assigned (In-Count)', accessor: (r) => <span className="font-medium">{r.total_in_count.toLocaleString('en-IN')}</span>, sortAccessor: 'total_in_count', className: 'text-right text-primary font-bold' },
+                    { header: 'Total Sold (Out-Count)', accessor: (r) => <span className="font-black text-orange-600 dark:text-orange-500">{r.total_out_count.toLocaleString('en-IN')}</span>, sortAccessor: 'total_out_count', className: 'text-right' }
+                  ]}
                 />
               </div>
             )}
