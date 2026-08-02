@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../components/auth-provider';
 import { useTeamLeadData } from '../hooks/useTeamLeadData';
 import { DashboardCard } from '../components/dashboard/DashboardCard';
-import { ReportsView, BillsView, TeamLeadInventoryView, TeamLeadApprovalView, TeamLeadTransferView, CashierDetailsView } from '../components/dashboard/sub-views/AdminSubViews';
+import { ReportsView, BillsView, TeamLeadInventoryView, TeamLeadApprovalView, TeamLeadTransferView, CashierDetailsView, AccessoryMovementDetailsView } from '../components/dashboard/sub-views/AdminSubViews';
 import { Store, Package, BarChart3, ReceiptText, ArrowLeftRight } from 'lucide-react';
 import type { SalesReport, CounterBill } from '../hooks/useAdminData';
 import { BillReceipt } from '../components/dashboard/BillReceipt';
@@ -18,6 +18,7 @@ export function TeamLeadDashboard() {
     salesReport, 
     inventoryReport, 
     amountCollectedReport,
+    accessoryMovementReport,
     cashierReports,
     billingCounterReports,
     loading,
@@ -25,10 +26,11 @@ export function TeamLeadDashboard() {
     executeTransfer
   } = useTeamLeadData(user);
 
-  const [activeView, setActiveView] = useState<'dashboard' | 'reports' | 'bills' | 'inventory' | 'approvals' | 'transfer' | 'cashier-details'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'reports' | 'bills' | 'inventory' | 'approvals' | 'transfer' | 'cashier-details' | 'movement-details'>('dashboard');
   const [selectedCounterId, setSelectedCounterId] = useState('');
   const [selectedCounterName, setSelectedCounterName] = useState('');
   const [selectedCashierReport, setSelectedCashierReport] = useState<any>(null);
+  const [selectedMovementReport, setSelectedMovementReport] = useState<any>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [generatedBill, setGeneratedBill] = useState<CounterBill | null>(null);
@@ -53,6 +55,11 @@ export function TeamLeadDashboard() {
     setActiveView('cashier-details');
   };
 
+  const handleMovementClick = (report: any) => {
+    setSelectedMovementReport(report);
+    setActiveView('movement-details');
+  };
+
   let content;
   if (activeView === 'reports') {
     content = (
@@ -68,12 +75,21 @@ export function TeamLeadDashboard() {
         onBack={() => setActiveView('dashboard')}
         onCounterClick={handleCounterClick}
         onCashierClick={handleCashierClick}
+        accessoryMovementReport={accessoryMovementReport}
+        onMovementClick={handleMovementClick}
       />
     );
   } else if (activeView === 'cashier-details' && selectedCashierReport) {
     content = (
       <CashierDetailsView
         cashierReport={selectedCashierReport}
+        onBack={() => setActiveView('reports')}
+      />
+    );
+  } else if (activeView === 'movement-details' && selectedMovementReport) {
+    content = (
+      <AccessoryMovementDetailsView
+        report={selectedMovementReport}
         onBack={() => setActiveView('reports')}
       />
     );

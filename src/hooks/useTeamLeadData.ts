@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
-import type { InventoryItem, SalesReport, CounterBill, Counter, AmountCollectedReport } from './useAdminData';
+import type { InventoryItem, SalesReport, CounterBill, Counter, AmountCollectedReport, AccessoryMovementReport } from './useAdminData';
 
 export function useTeamLeadData(user: any) {
   const [profile, setProfile] = useState<any>(null);
@@ -10,6 +10,7 @@ export function useTeamLeadData(user: any) {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [bills, setBills] = useState<CounterBill[]>([]);
   const [cashierReports, setCashierReports] = useState<any[]>([]);
+  const [drawerTransactions, setDrawerTransactions] = useState<any[]>([]);
   const [billingCounterReports, setBillingCounterReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -79,6 +80,7 @@ export function useTeamLeadData(user: any) {
 
       setAssignedCounters(countersData);
       setAssignedWarehouses(warehousesData);
+      setDrawerTransactions(drawerData);
 
       // 3. Enrich inventory with counter names
       const enrichedInv = invData.map(item => {
@@ -233,7 +235,6 @@ export function useTeamLeadData(user: any) {
     fetchProfileAndData(true);
   }, [fetchProfileAndData]);
 
-  // Aggregate Sales Report
   const salesReport = useMemo(() => {
     const reportMap = new Map<string, SalesReport>();
     
@@ -245,13 +246,14 @@ export function useTeamLeadData(user: any) {
         total_items: 0,
         total_sales: 0,
         total_collected: 0,
-        outstanding: 0
+        outstanding: 0,
+        drawer_balance: 0
       });
     });
 
     bills.forEach(b => {
       // Ignore reverted bills in sales report
-      if (b.approval_status === 'reverted') return;
+      if (b.approval_status === 'reverted' || b.approval_status === 'reverted_by_admin') return;
 
       const cId = b.counter_id;
       if (!cId || !reportMap.has(cId)) return;
@@ -265,8 +267,27 @@ export function useTeamLeadData(user: any) {
       r.total_items += qty;
     });
 
+    drawerTransactions.forEach(t => {
+      const existing = reportMap.get(t.counter_id);
+      if (existing) {
+        if (t.transaction_type === 'cashier_transfer' && t.status === 'approved') {
+          existing.drawer_balance = (existing.drawer_balance || 0) + Number(t.amount);
+        } else if (t.status === 'approved') {
+          if (t.transaction_type === 'daily_expense') {
+            if (t.details === 'Admin Adjustment') {
+              existing.drawer_balance = (existing.drawer_balance || 0) + -(Number(t.amount));
+            } else {
+              existing.drawer_balance = (existing.drawer_balance || 0) - Number(t.amount);
+            }
+          } else if (t.transaction_type === 'bank_transfer' || t.transaction_type === 'refund') {
+            existing.drawer_balance = (existing.drawer_balance || 0) - Number(t.amount);
+          }
+        }
+      }
+    });
+
     return Array.from(reportMap.values());
-  }, [bills, assignedCounters]);
+  }, [bills, assignedCounters, drawerTransactions]);
 
   // Aggregate Inventory Report
   const inventoryReport = useMemo(() => {
@@ -348,6 +369,87 @@ export function useTeamLeadData(user: any) {
     });
     return Array.from(map.values());
   }, [bills, assignedCounters]);
+
+  const accessoryMovementReport = useMemo(() => {
+    const map = new Map<string, AccessoryMovementReport>();
+    
+    inventory.forEach((item: any) => {
+      let existing = map.get(item.counter_id);
+      if (!existing) {
+        existing = {
+          counter_id: item.counter_id,
+          counter_name: item.counter_name,
+          total_in_count: 0,
+          total_out_count: 0,
+          accessories: []
+        };
+        map.set(item.counter_id, existing);
+      }
+      
+      const acc = existing.accessories.find(a => a.accessory_name === item.name && a.vehicle_model === item.vehicle_model);
+      if (acc) {
+        acc.current_quantity += item.quantity;
+      } else {
+        existing.accessories.push({
+          accessory_name: item.name,
+          vehicle_model: item.vehicle_model,
+          in_count: 0,
+          out_count: 0,
+          current_quantity: item.quantity
+        });
+      }
+    });
+
+    bills.forEach((bill: any) => {
+      if (bill.approval_status === 'reverted' || bill.approval_status === 'reverted_by_admin') return;
+
+      let existing = map.get(bill.counter_id);
+      if (!existing) {
+        const cObj = assignedCounters.find(c => c.id === bill.counter_id);
+        existing = {
+          counter_id: bill.counter_id,
+          counter_name: cObj?.name || bill.profiles?.name || 'Unknown',
+          total_in_count: 0,
+          total_out_count: 0,
+          accessories: []
+        };
+        map.set(bill.counter_id, existing);
+      }
+
+      if (bill.items && Array.isArray(bill.items)) {
+        bill.items.forEach((bi: any) => {
+          const qty = Number(bi.quantity) || 0;
+          const name = bi.accessories?.name || bi.accessory_name || 'Unknown';
+          const model = bi.accessories?.vehicle_model || bi.vehicle_model || '-';
+
+          let acc = existing!.accessories.find(a => a.accessory_name === name && a.vehicle_model === model);
+          if (acc) {
+            acc.out_count += qty;
+          } else {
+            existing!.accessories.push({
+              accessory_name: name,
+              vehicle_model: model,
+              in_count: 0,
+              out_count: qty,
+              current_quantity: 0
+            });
+          }
+        });
+      }
+    });
+
+    Array.from(map.values()).forEach(report => {
+      report.total_in_count = 0;
+      report.total_out_count = 0;
+      report.accessories.forEach(acc => {
+        acc.in_count = acc.current_quantity + acc.out_count;
+        report.total_in_count += acc.in_count;
+        report.total_out_count += acc.out_count;
+      });
+    });
+
+    return Array.from(map.values());
+  }, [inventory, bills, assignedCounters]);
 
   const updateBillStatus = async (billId: string, status: 'approved' | 'reverted', counterId: string, excessAdjustment: number = 0, discountApproved: number = 0, approvalNote: string = '') => {
     try {
@@ -477,6 +579,7 @@ export function useTeamLeadData(user: any) {
     salesReport,
     inventoryReport,
     amountCollectedReport,
+    accessoryMovementReport,
     cashierReports,
     billingCounterReports,
     loading,

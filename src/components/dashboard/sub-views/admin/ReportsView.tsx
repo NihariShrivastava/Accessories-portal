@@ -79,7 +79,8 @@ export const ReportsView = ({
         'Total Bills': r.total_bills,
         'Receivable Amt (Debit) ₹': r.total_sales,
         'Outstanding (₹)': r.outstanding,
-        'Total Paid (Credit) ₹': r.total_collected
+        'Total Paid (Credit) ₹': r.total_collected,
+        'Cash Drawer Balance (₹)': r.drawer_balance || 0
       }));
       exportToExcel(exportData, 'Ledger_Report');
     } else if (currentSlideName === 'Revenue Report') {
@@ -629,7 +630,8 @@ export const ReportsView = ({
                 { header: 'Total Bills', accessor: 'total_bills', sortAccessor: 'total_bills', className: 'text-center' },
                 { header: 'Receivable Amt (Debit) ₹', accessor: (r) => `₹${r.total_sales.toFixed(2)}`, sortAccessor: 'total_sales', className: 'text-right font-medium' },
                 { header: 'Outstanding (₹)', accessor: (r) => <span className="text-destructive font-medium">₹{r.outstanding.toFixed(2)}</span>, sortAccessor: 'outstanding', className: 'text-right' },
-                { header: 'Total Paid (Credit) ₹', accessor: (r) => <span className="text-green-600 dark:text-green-400 font-bold">₹{r.total_collected.toFixed(2)}</span>, sortAccessor: 'total_collected', className: 'text-right' }
+                { header: 'Total Paid (Credit) ₹', accessor: (r) => <span className="text-green-600 dark:text-green-400 font-bold">₹{r.total_collected.toFixed(2)}</span>, sortAccessor: 'total_collected', className: 'text-right' },
+                { header: 'Cash Drawer Balance (₹)', accessor: (r) => <span className="text-indigo-600 dark:text-indigo-400 font-bold">₹{(r.drawer_balance || 0).toFixed(2)}</span>, sortAccessor: 'drawer_balance', className: 'text-right' }
               ]} />
             </div>
 

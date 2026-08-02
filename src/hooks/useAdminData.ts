@@ -11,7 +11,7 @@ export type Cashier = { id: string; name: string; username?: string; password?: 
 export type Auditor = { id: string; name: string; username?: string; password?: string; assigned_team_leads?: string[]; login_count?: number };
 export type InventoryItem = { id: string; counter_id: string; counter_name: string; vehicle_model: string; name: string; accessory_code?: string; quantity: number; price: number; cgst_percent?: number; sgst_percent?: number; created_at: string };
 export type LoginDetail = { user_id: string; name: string; login_count: number };
-export type SalesReport = { counter_id: string; counter_name: string; total_bills: number; total_items: number; total_sales: number; total_collected: number; outstanding: number };
+export type SalesReport = { counter_id: string; counter_name: string; total_bills: number; total_items: number; total_sales: number; total_collected: number; outstanding: number; drawer_balance?: number };
 export interface CashierReport {
   cashier_id: string;
   cashier_name: string;
@@ -129,6 +129,7 @@ export function useAdminData() {
   const [cashiers, setCashiers] = useState<Cashier[]>([]);
   const [auditors, setAuditors] = useState<Auditor[]>([]);
   const [cashierReports, setCashierReports] = useState<CashierReport[]>([]);
+  const [drawerTransactions, setDrawerTransactions] = useState<any[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loginDetails, setLoginDetails] = useState<LoginDetail[]>([]);
   const [vehicleModels, setVehicleModels] = useState<string[]>([]);
@@ -332,6 +333,7 @@ export function useAdminData() {
       });
       
       const { data: drawerData } = await supabase.from('drawer_transactions').select('*');
+      setDrawerTransactions(drawerData || []);
       const reports: CashierReport[] = [];
 
       const formatted = (data || []).map(p => {
@@ -746,6 +748,14 @@ export function useAdminData() {
   }, [filteredBills]);
   const salesReport = useMemo(() => {
     const map = new Map<string, SalesReport>();
+    
+    counters.forEach(c => {
+      map.set(c.id, {
+        counter_id: c.id, counter_name: c.name, total_bills: 0,
+        total_items: 0, total_sales: 0, total_collected: 0, outstanding: 0, drawer_balance: 0
+      });
+    });
+
     filteredBills.forEach((bill: any) => {
       const existing = map.get(bill.counter_id);
       if (existing) {
@@ -758,12 +768,32 @@ export function useAdminData() {
         map.set(bill.counter_id, {
           counter_id: bill.counter_id, counter_name: bill.profiles?.name || 'Unknown', total_bills: 1,
           total_items: Number(bill.quantity) || 0,
-          total_sales: Number(bill.total_amount) || 0, total_collected: Number(bill.amount_paid) || 0, outstanding: Number(bill.amount_left) || 0
+          total_sales: Number(bill.total_amount) || 0, total_collected: Number(bill.amount_paid) || 0, outstanding: Number(bill.amount_left) || 0, drawer_balance: 0
         });
       }
     });
+
+    drawerTransactions.forEach(t => {
+      const existing = map.get(t.counter_id);
+      if (existing) {
+        if (t.transaction_type === 'cashier_transfer' && t.status === 'approved') {
+          existing.drawer_balance = (existing.drawer_balance || 0) + Number(t.amount);
+        } else if (t.status === 'approved') {
+          if (t.transaction_type === 'daily_expense') {
+            if (t.details === 'Admin Adjustment') {
+              existing.drawer_balance = (existing.drawer_balance || 0) + -(Number(t.amount));
+            } else {
+              existing.drawer_balance = (existing.drawer_balance || 0) - Number(t.amount);
+            }
+          } else if (t.transaction_type === 'bank_transfer' || t.transaction_type === 'refund') {
+            existing.drawer_balance = (existing.drawer_balance || 0) - Number(t.amount);
+          }
+        }
+      }
+    });
+
     return Array.from(map.values());
-  }, [filteredBills]);
+  }, [filteredBills, counters, drawerTransactions]);
 
   const inventoryReport = useMemo(() => {
     const map = new Map<string, InventorySummary>();
