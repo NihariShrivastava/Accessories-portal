@@ -35,6 +35,7 @@ export function TeamLeadDashboard() {
   const [endDate, setEndDate] = useState('');
   const [generatedBill, setGeneratedBill] = useState<CounterBill | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [reportSlide, setReportSlide] = useState(0);
 
   if (authLoading || loading) {
     return (
@@ -77,6 +78,8 @@ export function TeamLeadDashboard() {
         onCashierClick={handleCashierClick}
         accessoryMovementReport={accessoryMovementReport}
         onMovementClick={handleMovementClick}
+        currentSlide={reportSlide}
+        onSlideChange={setReportSlide}
       />
     );
   } else if (activeView === 'cashier-details' && selectedCashierReport) {

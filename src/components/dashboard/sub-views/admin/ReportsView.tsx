@@ -532,7 +532,7 @@ export const ReportsView = ({
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <Package className="w-12 h-12 text-primary" />
             </div>
-            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Assigned (In-Count)</p>
+            <p className="text-sm font-semibold text-muted-foreground mb-1">Total Purchased/Assigned (In-Count)</p>
             <p className="text-2xl font-black text-primary">{totalInCount.toLocaleString('en-IN')}</p>
           </div>
           <div className="bg-card border border-border rounded-xl p-4 shadow-sm flex flex-col justify-center items-start relative overflow-hidden group hover:border-orange-500/50 transition-colors">
@@ -956,7 +956,7 @@ export const ReportsView = ({
                   onRowClick={onMovementClick}
                   columns={[
                     { header: 'Counter Name', accessor: 'counter_name', sortAccessor: 'counter_name', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
-                    { header: 'Total Assigned (In-Count)', accessor: (r) => <span className="font-medium">{r.total_in_count.toLocaleString('en-IN')}</span>, sortAccessor: 'total_in_count', className: 'text-right text-primary font-bold' },
+                    { header: 'Total Purchased/Assigned (In-Count)', accessor: (r) => <span className="font-medium">{r.total_in_count.toLocaleString('en-IN')}</span>, sortAccessor: 'total_in_count', className: 'text-right text-primary font-bold' },
                     { header: 'Total Sold (Out-Count)', accessor: (r) => <span className="font-black text-orange-600 dark:text-orange-500">{r.total_out_count.toLocaleString('en-IN')}</span>, sortAccessor: 'total_out_count', className: 'text-right' }
                   ]}
                 />
