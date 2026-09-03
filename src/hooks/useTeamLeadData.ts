@@ -33,9 +33,11 @@ export function useTeamLeadData(user: any) {
       setProfile(prof);
       
       const counterIds: string[] = prof?.assigned_counters || [];
+      const warehouseIds: string[] = prof?.assigned_warehouses || [];
       
-      if (counterIds.length === 0) {
+      if (counterIds.length === 0 && warehouseIds.length === 0) {
         setAssignedCounters([]);
+        setAssignedWarehouses([]);
         setInventory([]);
         setBills([]);
         setLoading(false);
@@ -46,24 +48,32 @@ export function useTeamLeadData(user: any) {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
+      const allLocationIds = Array.from(new Set([...counterIds, ...warehouseIds]));
+      
       const [countersRes, warehousesRes, invRes, billsRes, cashiersRes, drawerRes, bcRes] = await Promise.all([
-        supabase.from('profiles').select('id, name').in('id', counterIds),
-        prof?.assigned_warehouses && prof.assigned_warehouses.length > 0 
-          ? supabase.from('profiles').select('id, name').in('id', prof.assigned_warehouses)
+        counterIds.length > 0 
+          ? supabase.from('profiles').select('id, name').in('id', counterIds)
           : Promise.resolve({ data: [], error: null }),
-        supabase.from('accessories').select('*').in('counter_id', counterIds),
-        supabase
-          .from('bills')
-          .select(`
-            *,
-            accessories:accessory_id (name, accessory_code, vehicle_model)
-          `)
-          .in('counter_id', counterIds)
-          .gte('created_at', thirtyDaysAgo.toISOString())
-          .order('created_at', { ascending: false })
-          .limit(1000), // Added limit to prevent massive payload issues
+        warehouseIds.length > 0 
+          ? supabase.from('profiles').select('id, name').in('id', warehouseIds)
+          : Promise.resolve({ data: [], error: null }),
+        supabase.from('accessories').select('*').in('counter_id', allLocationIds),
+        counterIds.length > 0
+          ? supabase
+              .from('bills')
+              .select(`
+                *,
+                accessories:accessory_id (name, accessory_code, vehicle_model)
+              `)
+              .in('counter_id', counterIds)
+              .gte('created_at', thirtyDaysAgo.toISOString())
+              .order('created_at', { ascending: false })
+              .limit(1000)
+          : Promise.resolve({ data: [], error: null }), // Added limit to prevent massive payload issues
         supabase.from('profiles').select('*').eq('role', 'cashier'),
-        supabase.from('drawer_transactions').select('*').in('counter_id', counterIds),
+        counterIds.length > 0
+          ? supabase.from('drawer_transactions').select('*').in('counter_id', counterIds)
+          : Promise.resolve({ data: [], error: null }),
         supabase.from('profiles').select('*').eq('role', 'billing_counter')
       ]);
 
@@ -76,15 +86,16 @@ export function useTeamLeadData(user: any) {
       const billingCountersData = bcRes.data || [];
 
       if (invRes.error) console.error("Team Lead Inventory Fetch Error:", invRes.error);
-      if (billsRes.error) console.error("Team Lead Bills Fetch Error:", billsRes.error);
+      if (billsRes?.error) console.error("Team Lead Bills Fetch Error:", billsRes.error);
 
       setAssignedCounters(countersData);
       setAssignedWarehouses(warehousesData);
       setDrawerTransactions(drawerData);
 
       // 3. Enrich inventory with counter names
+      const allLocations = [...countersData, ...warehousesData];
       const enrichedInv = invData.map(item => {
-        const c = countersData.find(c => c.id === item.counter_id);
+        const c = allLocations.find(c => c.id === item.counter_id);
         return { ...item, counter_name: c?.name || 'Unknown' };
       });
       setInventory(enrichedInv);
