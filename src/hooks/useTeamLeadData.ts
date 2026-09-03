@@ -32,8 +32,14 @@ export function useTeamLeadData(user: any) {
       if (profErr) throw profErr;
       setProfile(prof);
       
-      const counterIds: string[] = prof?.assigned_counters || [];
-      const warehouseIds: string[] = prof?.assigned_warehouses || [];
+      let counterIds: string[] = [];
+      let warehouseIds: string[] = [];
+      try {
+        counterIds = (typeof prof?.assigned_counters === 'string' ? JSON.parse(prof.assigned_counters) : (prof?.assigned_counters || [])).filter(Boolean);
+        warehouseIds = (typeof prof?.assigned_warehouses === 'string' ? JSON.parse(prof.assigned_warehouses) : (prof?.assigned_warehouses || [])).filter(Boolean);
+      } catch (e) {
+        console.error("Error parsing assigned IDs", e);
+      }
       
       if (counterIds.length === 0 && warehouseIds.length === 0) {
         setAssignedCounters([]);
@@ -57,7 +63,7 @@ export function useTeamLeadData(user: any) {
         warehouseIds.length > 0 
           ? supabase.from('profiles').select('id, name').in('id', warehouseIds)
           : Promise.resolve({ data: [], error: null }),
-        supabase.from('accessories').select('*').in('counter_id', allLocationIds),
+        supabase.from('accessories').select('*').in('counter_id', allLocationIds).limit(100000),
         counterIds.length > 0
           ? supabase
               .from('bills')
