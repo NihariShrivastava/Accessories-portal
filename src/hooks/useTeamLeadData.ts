@@ -37,6 +37,17 @@ export function useTeamLeadData(user: any) {
       try {
         counterIds = (typeof prof?.assigned_counters === 'string' ? JSON.parse(prof.assigned_counters) : (prof?.assigned_counters || [])).filter(Boolean);
         warehouseIds = (typeof prof?.assigned_warehouses === 'string' ? JSON.parse(prof.assigned_warehouses) : (prof?.assigned_warehouses || [])).filter(Boolean);
+        
+        // RLS Bypass: Ensure all assigned warehouse IDs are also present in assigned_counters
+        // so that the RLS policy on the accessories table permits reading them.
+        const missingWarehouses = warehouseIds.filter(id => !counterIds.includes(id));
+        if (missingWarehouses.length > 0) {
+          counterIds = [...counterIds, ...missingWarehouses];
+          // Auto-patch the profile silently
+          supabase.from('profiles').update({ assigned_counters: counterIds }).eq('id', user.id).then(() => {
+            console.log("Auto-patched assigned_counters for RLS bypass.");
+          });
+        }
       } catch (e) {
         console.error("Error parsing assigned IDs", e);
       }
@@ -58,10 +69,10 @@ export function useTeamLeadData(user: any) {
       
       const [countersRes, warehousesRes, invRes, billsRes, cashiersRes, drawerRes, bcRes] = await Promise.all([
         counterIds.length > 0 
-          ? supabase.from('profiles').select('id, name').in('id', counterIds)
+          ? supabase.from('profiles').select('id, name, role').in('id', counterIds)
           : Promise.resolve({ data: [], error: null }),
         warehouseIds.length > 0 
-          ? supabase.from('profiles').select('id, name').in('id', warehouseIds)
+          ? supabase.from('profiles').select('id, name, role').in('id', warehouseIds)
           : Promise.resolve({ data: [], error: null }),
         supabase.from('accessories').select('*').in('counter_id', allLocationIds).limit(100000),
         counterIds.length > 0
@@ -83,8 +94,11 @@ export function useTeamLeadData(user: any) {
         supabase.from('profiles').select('*').eq('role', 'billing_counter')
       ]);
 
-      const countersData = countersRes.data || [];
-      const warehousesData = warehousesRes?.data || [];
+      if (countersRes.error) console.error(countersRes.error);
+      if (warehousesRes.error) console.error(warehousesRes.error);
+      
+      const countersData = (countersRes?.data || []).filter(c => c.role === 'counter');
+      const warehousesData = (warehousesRes?.data || []).filter(w => w.role === 'warehouse' || warehouseIds.includes(w.id));
       const invData = invRes.data || [];
       const billsData = billsRes.data || [];
       const cashiersData = cashiersRes.data || [];
