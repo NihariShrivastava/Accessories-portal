@@ -25,7 +25,7 @@ export function TeamLeadTransferView({ warehouses, counters, inventory, onBack, 
   // Filter inventory based on selected source warehouse
   const availableInventory = useMemo(() => {
     if (!sourceId) return [];
-    let items = inventory.filter(i => i.counter_id === sourceId && i.quantity > 0);
+    let items = inventory.filter(i => String(i.counter_id).trim() === String(sourceId).trim());
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       items = items.filter(i => 
@@ -249,7 +249,9 @@ export function TeamLeadTransferView({ warehouses, counters, inventory, onBack, 
                   { header: '', accessor: (row) => (
                     <button
                       onClick={() => handleAddClick(row)}
-                      className="px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground text-xs font-bold rounded flex items-center gap-1 transition-colors ml-auto"
+                      disabled={Number(row.quantity) <= 0}
+                      title={Number(row.quantity) <= 0 ? "Out of stock" : "Add to cart"}
+                      className="px-3 py-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground disabled:opacity-50 disabled:hover:bg-primary/10 disabled:hover:text-primary disabled:cursor-not-allowed text-xs font-bold rounded flex items-center gap-1 transition-colors ml-auto"
                     >
                       <Plus className="w-3 h-3" /> Add
                     </button>
