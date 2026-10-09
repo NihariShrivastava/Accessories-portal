@@ -15,6 +15,7 @@ import { TeamLeadApprovalView } from '../components/dashboard/sub-views/admin/Te
 export function AdminDashboard() {
   const {
     counters, warehouses, inventory, vehicleModels, modelAccessories, salesReport, inventoryReport, accessoryMovementReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, billingCounterReports, allBills, unpaidBillsReport, duplicacyReport,
+    drawerTransactions,
     startDate, endDate, setStartDate, setEndDate,
     fetchCounters, fetchWarehouses, fetchVehicleModels, fetchModelAccessories, fetchCounterBills, handleFileUpload, fetchBills,
     updateCounter, deleteCounter, updateWarehouse, deleteWarehouse, deleteAccessory, updateAccessory, transferAccessory, transferAllAccessories,
@@ -341,6 +342,13 @@ export function AdminDashboard() {
         currentSlide={reportSlide}
         onSlideChange={setReportSlide}
         allBills={allBills}
+        drawerTransactions={drawerTransactions}
+        startDate={startDate}
+        endDate={endDate}
+        onDateChange={(start, end) => {
+          setStartDate(start);
+          setEndDate(end);
+        }}
       />
     );
   } else if (activeView === 'cashier-details' && selectedCashierReport) {

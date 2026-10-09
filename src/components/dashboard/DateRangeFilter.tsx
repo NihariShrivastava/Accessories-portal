@@ -34,8 +34,9 @@ export function DateRangeFilter({
         <label className="text-xs text-muted-foreground">From:</label>
         <input
           type="date"
-          className="px-2 py-1 text-sm bg-input border border-border rounded-md focus:ring-2 focus:ring-primary outline-none"
+          className="px-2 py-1 text-sm bg-input border border-border rounded-md focus:ring-2 focus:ring-primary outline-none cursor-pointer dark:[&::-webkit-calendar-picker-indicator]:invert dark:[&::-webkit-calendar-picker-indicator]:brightness-125 dark:[&::-webkit-calendar-picker-indicator]:cursor-pointer"
           value={localStart}
+          onClick={(e) => { try { e.currentTarget.showPicker?.(); } catch {} }}
           onChange={(e) => setLocalStart(e.target.value)}
         />
       </div>
@@ -44,8 +45,9 @@ export function DateRangeFilter({
         <label className="text-xs text-muted-foreground">To:</label>
         <input
           type="date"
-          className="px-2 py-1 text-sm bg-input border border-border rounded-md focus:ring-2 focus:ring-primary outline-none"
+          className="px-2 py-1 text-sm bg-input border border-border rounded-md focus:ring-2 focus:ring-primary outline-none cursor-pointer dark:[&::-webkit-calendar-picker-indicator]:invert dark:[&::-webkit-calendar-picker-indicator]:brightness-125 dark:[&::-webkit-calendar-picker-indicator]:cursor-pointer"
           value={localEnd}
+          onClick={(e) => { try { e.currentTarget.showPicker?.(); } catch {} }}
           onChange={(e) => setLocalEnd(e.target.value)}
         />
       </div>

@@ -1,15 +1,46 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { DataTable } from '../../DataTable';
 import { ViewHeader } from '../../ViewHeader';
 import { Badge } from '../../Badge';
-import { ChevronLeft, ChevronRight, Download, Package, IndianRupee, History, Users, Save, Clock, BarChart3, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Package, IndianRupee, History, Users, Save, Clock, BarChart3, X, Calendar } from 'lucide-react';
 import type { SalesReport, InventoryItem, InventorySummary, CashierReport, AmountCollectedReport, TeamLeadReport, CounterBill, BillingCounterReport, AccessoryMovementReport } from '../../../../hooks/useAdminData';
 import { AmountCollectedDialog } from './AmountCollectedDialog';
 import { exportToExcel } from '../../../../utils/exportToExcel';
 
+// Fast local ISO date string formatter (YYYY-MM-DD)
+const formatDateToLocalISO = (d: Date): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Extremely fast date extraction from created_at string
+const getBillDateStr = (createdAt: string): string => {
+  if (!createdAt) return '';
+  if (createdAt.length >= 10 && createdAt[4] === '-' && createdAt[7] === '-') {
+    return createdAt.substring(0, 10);
+  }
+  const d = new Date(createdAt);
+  if (isNaN(d.getTime())) return '';
+  return formatDateToLocalISO(d);
+};
+
+const isInDateRange = (dateStr: string, start: string, end: string): boolean => {
+  if (!start && !end) return true;
+  if (!dateStr) return false;
+  if (start && dateStr < start) return false;
+  if (end && dateStr > end) return false;
+  return true;
+};
+
 export const ReportsView = ({
   role = 'admin',
-  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick, billingCounterReports, auditorReports, onAuditorClick, accessoryMovementReport, onMovementClick, unpaidBillsReport, onViewUnpaidBill, currentSlide, onSlideChange, allBills
+  data, onBack, onCounterClick, inventory, inventoryReport, cashierReports, onCashierClick, amountCollectedReport = [], teamLeadReports, onTeamLeadClick, billingCounterReports, auditorReports, onAuditorClick, accessoryMovementReport, onMovementClick, unpaidBillsReport, onViewUnpaidBill, currentSlide, onSlideChange, allBills,
+  drawerTransactions,
+  startDate: startDateProp,
+  endDate: endDateProp,
+  onDateChange
 }: {
   role?: 'admin' | 'team_lead',
   data: SalesReport[], onBack: () => void, onCounterClick: (r: SalesReport) => void,
@@ -21,7 +52,11 @@ export const ReportsView = ({
   accessoryMovementReport?: AccessoryMovementReport[], onMovementClick?: (r: AccessoryMovementReport) => void,
   unpaidBillsReport?: CounterBill[], onViewUnpaidBill?: (b: CounterBill) => void,
   currentSlide?: number, onSlideChange?: (slide: number) => void,
-  allBills?: CounterBill[]
+  allBills?: CounterBill[],
+  drawerTransactions?: any[],
+  startDate?: string,
+  endDate?: string,
+  onDateChange?: (start: string, end: string) => void
 }) => {
   // Use local state if props are not provided, else use props
   const [localSlide, setLocalSlide] = useState(0);
@@ -30,6 +65,58 @@ export const ReportsView = ({
     if (onSlideChange) onSlideChange(newSlide);
     else setLocalSlide(newSlide);
   };
+
+  const [localStartDate, setLocalStartDate] = useState(startDateProp || '');
+  const [localEndDate, setLocalEndDate] = useState(endDateProp || '');
+
+  const startDate = startDateProp !== undefined ? startDateProp : localStartDate;
+  const endDate = endDateProp !== undefined ? endDateProp : localEndDate;
+
+  const handleDateChange = (newStart: string, newEnd: string) => {
+    setLocalStartDate(newStart);
+    setLocalEndDate(newEnd);
+    if (onDateChange) onDateChange(newStart, newEnd);
+  };
+
+  const handlePreset = (preset: 'all' | 'today' | 'yesterday' | '7days' | 'this_month') => {
+    const now = new Date();
+    const today = formatDateToLocalISO(now);
+    if (preset === 'all') {
+      handleDateChange('', '');
+    } else if (preset === 'today') {
+      handleDateChange(today, today);
+    } else if (preset === 'yesterday') {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      const yesterday = formatDateToLocalISO(y);
+      handleDateChange(yesterday, yesterday);
+    } else if (preset === '7days') {
+      const d7 = new Date();
+      d7.setDate(d7.getDate() - 6);
+      handleDateChange(formatDateToLocalISO(d7), today);
+    } else if (preset === 'this_month') {
+      const mStart = formatDateToLocalISO(new Date(now.getFullYear(), now.getMonth(), 1));
+      handleDateChange(mStart, today);
+    }
+  };
+
+  const activePreset = useMemo(() => {
+    if (!startDate && !endDate) return 'all';
+    const now = new Date();
+    const today = formatDateToLocalISO(now);
+    if (startDate === today && endDate === today) return 'today';
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    const yesterday = formatDateToLocalISO(y);
+    if (startDate === yesterday && endDate === yesterday) return 'yesterday';
+    const d7 = new Date();
+    d7.setDate(d7.getDate() - 6);
+    const sevenDaysAgo = formatDateToLocalISO(d7);
+    if (startDate === sevenDaysAgo && endDate === today) return '7days';
+    const mStart = formatDateToLocalISO(new Date(now.getFullYear(), now.getMonth(), 1));
+    if (startDate === mStart && endDate === today) return 'this_month';
+    return 'custom';
+  }, [startDate, endDate]);
 
   const [expandedCounter, setExpandedCounter] = useState<string | null>(null);
   const [selectedCounterFilter, setSelectedCounterFilter] = useState<string>('all');
@@ -44,26 +131,444 @@ export const ReportsView = ({
   if (accessoryMovementReport && onMovementClick) slideNames.push('Accessory Movement Report');
   const totalSlides = slideNames.length;
 
-  const filteredData = selectedCounterFilter === 'all' ? data : data.filter(d => d.counter_id === selectedCounterFilter);
-  const filteredInventoryReport = selectedCounterFilter === 'all' ? inventoryReport : inventoryReport.filter(r => r.counter_id === selectedCounterFilter);
-  const filteredInventory = selectedCounterFilter === 'all' ? inventory : inventory.filter(i => i.counter_id === selectedCounterFilter);
-  const filteredBillsForStats = selectedCounterFilter === 'all' ? (allBills || []) : (allBills || []).filter(b => b.counter_id === selectedCounterFilter);
+  // 1. High efficiency in-memory date-filtered bills
+  const effectiveBills = useMemo(() => {
+    if (!allBills || allBills.length === 0) return [];
+    return allBills.filter(bill => {
+      if (bill.approval_status === 'reverted' || bill.approval_status === 'reverted_by_admin') return false;
+      if (!startDate && !endDate) return true;
+      const dStr = getBillDateStr(bill.created_at);
+      return isInDateRange(dStr, startDate, endDate);
+    });
+  }, [allBills, startDate, endDate]);
+
+  // 2. High efficiency date-filtered drawer transactions
+  const dateFilteredDrawerTransactions = useMemo(() => {
+    if (!drawerTransactions || drawerTransactions.length === 0) return [];
+    if (!startDate && !endDate) return drawerTransactions;
+    return drawerTransactions.filter((t: any) => {
+      const dStr = getBillDateStr(t.created_at);
+      return isInDateRange(dStr, startDate, endDate);
+    });
+  }, [drawerTransactions, startDate, endDate]);
+
+  // 3. Date-filtered Sales Report (Ledger & Revenue)
+  const dateFilteredSalesReport = useMemo(() => {
+    if (!startDate && !endDate) {
+      return data;
+    }
+
+    const map = new Map<string, SalesReport>();
+    data.forEach(d => {
+      map.set(d.counter_id, {
+        counter_id: d.counter_id,
+        counter_name: d.counter_name,
+        total_bills: 0,
+        total_items: 0,
+        total_sales: 0,
+        total_collected: 0,
+        outstanding: 0,
+        drawer_balance: d.drawer_balance || 0
+      });
+    });
+
+    effectiveBills.forEach(bill => {
+      const existing = map.get(bill.counter_id || '');
+      const qty = bill.items ? bill.items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 1), 0) : (Number(bill.quantity) || 1);
+      const sales = Number(bill.total_amount) || 0;
+      const collected = Number(bill.amount_paid) || 0;
+      const left = Number(bill.amount_left) || 0;
+
+      if (existing) {
+        existing.total_bills += 1;
+        existing.total_items += qty;
+        existing.total_sales += sales;
+        existing.total_collected += collected;
+        existing.outstanding += left;
+      } else if (bill.counter_id) {
+        map.set(bill.counter_id, {
+          counter_id: bill.counter_id,
+          counter_name: bill.profiles?.name || bill.counter_name || 'Unknown',
+          total_bills: 1,
+          total_items: qty,
+          total_sales: sales,
+          total_collected: collected,
+          outstanding: left,
+          drawer_balance: 0
+        });
+      }
+    });
+
+    if (dateFilteredDrawerTransactions && dateFilteredDrawerTransactions.length > 0) {
+      map.forEach(entry => {
+        entry.drawer_balance = 0;
+      });
+      dateFilteredDrawerTransactions.forEach((t: any) => {
+        const existing = map.get(t.counter_id);
+        if (existing) {
+          if (t.transaction_type === 'cashier_transfer' && t.status === 'approved') {
+            existing.drawer_balance = (existing.drawer_balance || 0) + Number(t.amount);
+          } else if (t.status === 'approved') {
+            if (t.transaction_type === 'daily_expense') {
+              existing.drawer_balance = (existing.drawer_balance || 0) - Number(t.amount);
+            } else if (t.transaction_type === 'bank_transfer' || t.transaction_type === 'refund') {
+              existing.drawer_balance = (existing.drawer_balance || 0) - Number(t.amount);
+            }
+          }
+        }
+      });
+    }
+
+    return Array.from(map.values());
+  }, [data, effectiveBills, dateFilteredDrawerTransactions, startDate, endDate]);
+
+  // 4. Date-filtered Amount Collected Report
+  const dateFilteredAmountCollected = useMemo(() => {
+    if (!startDate && !endDate) {
+      return amountCollectedReport;
+    }
+
+    const map = new Map<string, AmountCollectedReport>();
+    data.forEach(d => {
+      map.set(d.counter_id, {
+        counter_id: d.counter_id,
+        counter_name: d.counter_name,
+        cash_collected: 0,
+        upi_collected: 0,
+        card_collected: 0,
+        bank_transfer_collected: 0,
+        total_collected: 0,
+        bills_data: []
+      });
+    });
+
+    effectiveBills.forEach(bill => {
+      const cId = bill.counter_id || '';
+      const existing: AmountCollectedReport = map.get(cId) || {
+        counter_id: cId,
+        counter_name: bill.profiles?.name || bill.counter_name || 'Unknown',
+        cash_collected: 0,
+        upi_collected: 0,
+        card_collected: 0,
+        bank_transfer_collected: 0,
+        total_collected: 0,
+        bills_data: []
+      };
+
+      let cash = 0, upi = 0, card = 0, bank = 0;
+      if (bill.payment_method === 'Split Payment' && bill.payment_details) {
+        bill.payment_details.forEach((p: any) => {
+          const amt = Number(p.amount) || 0;
+          const m = (p.method || '').toLowerCase();
+          if (m.includes('cash')) cash += amt;
+          else if (m.includes('upi')) upi += amt;
+          else if (m.includes('card')) card += amt;
+          else if (m.includes('bank')) bank += amt;
+        });
+      } else {
+        const amt = Number(bill.amount_paid) || 0;
+        const m = (bill.payment_method || '').toLowerCase();
+        if (m.includes('cash')) cash += amt;
+        else if (m.includes('upi')) upi += amt;
+        else if (m.includes('card')) card += amt;
+        else if (m.includes('bank')) bank += amt;
+      }
+
+      existing.cash_collected += cash;
+      existing.upi_collected += upi;
+      existing.card_collected += card;
+      existing.bank_transfer_collected += bank;
+      existing.total_collected += (cash + upi + card + bank);
+      existing.bills_data.push({
+        bill_number: bill.bill_number,
+        cash_amount: cash,
+        payment_details: bill.payment_details || [{ method: bill.payment_method, amount: bill.amount_paid }]
+      });
+
+      map.set(cId, existing);
+    });
+
+    return Array.from(map.values());
+  }, [amountCollectedReport, data, effectiveBills, startDate, endDate]);
+
+  // 5. Date-filtered Team Lead Reports
+  const dateFilteredTeamLeadReports = useMemo(() => {
+    if (!teamLeadReports || teamLeadReports.length === 0) return undefined;
+    if (!startDate && !endDate) return teamLeadReports;
+
+    return teamLeadReports.map(tl => {
+      const assignedIds = tl.assigned_counters_ids || [];
+      const tlBills = effectiveBills.filter(b => b.counter_id && assignedIds.includes(b.counter_id));
+      const pendingCount = tlBills.filter(b => b.approval_status === 'pending').length;
+      const approvedCount = tlBills.filter(b => b.approval_status === 'approved').length;
+      const totalDiscount = tlBills.reduce((sum, b) => sum + (Number(b.discount_approved) || 0), 0);
+      const totalExcess = tlBills.reduce((sum, b) => sum + (Number(b.excess_adjustment) || 0), 0);
+
+      return {
+        ...tl,
+        pending_approvals: pendingCount,
+        approved_approvals: approvedCount,
+        total_discount_approved: totalDiscount,
+        total_excess_approved: totalExcess
+      };
+    });
+  }, [teamLeadReports, effectiveBills, startDate, endDate]);
+
+  // 6. Date-filtered Billing Counter Reports
+  const dateFilteredBillingCounterReports = useMemo(() => {
+    if (!billingCounterReports || billingCounterReports.length === 0) return undefined;
+    if (!startDate && !endDate) return billingCounterReports;
+
+    return billingCounterReports.map(bc => {
+      const assignedNames = bc.assigned_counters_names || [];
+      const bcBills = effectiveBills.filter(b => {
+        const cName = b.profiles?.name || b.counter_name;
+        return cName && assignedNames.includes(cName);
+      });
+
+      const pendingCount = bcBills.filter(b => b.approval_status === 'approved').length;
+      const closedCount = bcBills.filter(b => b.approval_status === 'closed').length;
+
+      return {
+        ...bc,
+        pending_bills: pendingCount,
+        closed_bills: closedCount
+      };
+    });
+  }, [billingCounterReports, effectiveBills, startDate, endDate]);
+
+  // 7. Date-filtered Auditor Reports
+  const dateFilteredAuditorReports = useMemo(() => {
+    if (!auditorReports || auditorReports.length === 0) return undefined;
+    if (!startDate && !endDate) return auditorReports;
+
+    return auditorReports.map(auditor => {
+      const auditedBills = effectiveBills.filter(b => b.auditor_id === auditor.auditor_id && b.audit_status === 'audited');
+      const pendingCount = effectiveBills.filter(b => b.audit_status !== 'audited' && b.approval_status === 'approved').length;
+      const approvedCount = auditedBills.length;
+      const totalSavings = auditedBills.reduce((sum, b) => sum + (Number(b.total_savings) || 0), 0);
+
+      return {
+        ...auditor,
+        pending_audits: pendingCount,
+        approved_audits: approvedCount,
+        total_savings_found: totalSavings
+      };
+    });
+  }, [auditorReports, effectiveBills, startDate, endDate]);
+
+  // 8. Date-filtered Unpaid Bills Report
+  const dateFilteredUnpaidBillsReport = useMemo(() => {
+    if (!unpaidBillsReport) return undefined;
+    if (!startDate && !endDate) return unpaidBillsReport;
+
+    return effectiveBills.filter(b => (Number(b.amount_left) || 0) > 0 && b.approval_status === 'closed');
+  }, [unpaidBillsReport, effectiveBills, startDate, endDate]);
+
+  // 9. Date-filtered Inventory
+  const dateFilteredInventory = useMemo(() => {
+    if (!inventory) return [];
+    if (!startDate && !endDate) return inventory;
+
+    return inventory.filter(item => {
+      const dStr = getBillDateStr(item.created_at);
+      return isInDateRange(dStr, startDate, endDate);
+    });
+  }, [inventory, startDate, endDate]);
+
+  const dateFilteredInventoryReport = useMemo(() => {
+    if (!startDate && !endDate) return inventoryReport;
+
+    const map = new Map<string, InventorySummary>();
+    data.forEach(d => {
+      map.set(d.counter_id, {
+        counter_id: d.counter_id,
+        counter_name: d.counter_name,
+        surplus_count: 0,
+        shortage_count: 0
+      });
+    });
+
+    dateFilteredInventory.forEach(item => {
+      const existing = map.get(item.counter_id);
+      const isSurplus = item.quantity > 5;
+      const isShortage = item.quantity <= 5;
+      if (existing) {
+        if (isSurplus) existing.surplus_count++;
+        if (isShortage) existing.shortage_count++;
+      } else {
+        map.set(item.counter_id, {
+          counter_id: item.counter_id,
+          counter_name: item.counter_name,
+          surplus_count: isSurplus ? 1 : 0,
+          shortage_count: isShortage ? 1 : 0
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [inventoryReport, data, dateFilteredInventory, startDate, endDate]);
+
+  // 10. Date-filtered Accessory Movement Report
+  const dateFilteredAccessoryMovementReport = useMemo(() => {
+    if (!accessoryMovementReport) return undefined;
+    if (!startDate && !endDate) return accessoryMovementReport;
+
+    const map = new Map<string, AccessoryMovementReport>();
+    
+    dateFilteredInventory.forEach(item => {
+      let existing = map.get(item.counter_id);
+      if (!existing) {
+        existing = {
+          counter_id: item.counter_id,
+          counter_name: item.counter_name,
+          total_in_count: 0,
+          total_out_count: 0,
+          accessories: []
+        };
+        map.set(item.counter_id, existing);
+      }
+      const acc = existing.accessories.find(a => a.accessory_name === item.name && a.vehicle_model === item.vehicle_model);
+      if (acc) {
+        acc.current_quantity += item.quantity;
+      } else {
+        existing.accessories.push({
+          accessory_name: item.name,
+          vehicle_model: item.vehicle_model,
+          in_count: 0,
+          out_count: 0,
+          current_quantity: item.quantity
+        });
+      }
+    });
+
+    effectiveBills.forEach(bill => {
+      let existing = map.get(bill.counter_id || '');
+      if (!existing && bill.counter_id) {
+        existing = {
+          counter_id: bill.counter_id,
+          counter_name: bill.profiles?.name || bill.counter_name || 'Unknown',
+          total_in_count: 0,
+          total_out_count: 0,
+          accessories: []
+        };
+        map.set(bill.counter_id, existing);
+      }
+      if (existing && bill.items && Array.isArray(bill.items)) {
+        bill.items.forEach((bi: any) => {
+          const qty = Number(bi.quantity) || 0;
+          const name = bi.accessories?.name || bi.accessory_name || 'Unknown';
+          const model = bi.accessories?.vehicle_model || bi.vehicle_model || '-';
+          let acc = existing!.accessories.find(a => a.accessory_name === name && a.vehicle_model === model);
+          if (acc) {
+            acc.out_count += qty;
+          } else {
+            existing!.accessories.push({
+              accessory_name: name,
+              vehicle_model: model,
+              in_count: 0,
+              out_count: qty,
+              current_quantity: 0
+            });
+          }
+        });
+      }
+    });
+
+    Array.from(map.values()).forEach(report => {
+      report.total_in_count = 0;
+      report.total_out_count = 0;
+      report.accessories.forEach(acc => {
+        acc.in_count = acc.current_quantity + acc.out_count;
+        report.total_in_count += acc.in_count;
+        report.total_out_count += acc.out_count;
+      });
+    });
+
+    return Array.from(map.values());
+  }, [accessoryMovementReport, dateFilteredInventory, effectiveBills, startDate, endDate]);
+
+  // 11. Date-filtered Cashier Reports
+  const dateFilteredCashierReports = useMemo(() => {
+    if (!cashierReports) return undefined;
+    if (!startDate && !endDate) return cashierReports;
+    if (!dateFilteredDrawerTransactions || dateFilteredDrawerTransactions.length === 0) {
+      return cashierReports;
+    }
+
+    return cashierReports.map(c => {
+      let cashCollected = 0;
+      let pendingHandover = 0;
+      let approvedHandover = 0;
+      let expenses = 0;
+      let bankTransfers = 0;
+      let refunds = 0;
+
+      dateFilteredDrawerTransactions.forEach((t: any) => {
+        if (t.transaction_type === 'cashier_transfer') {
+          if (t.status === 'pending') pendingHandover += Number(t.amount);
+          else if (t.status === 'approved') {
+            approvedHandover += Number(t.amount);
+            cashCollected += Number(t.amount);
+          }
+        } else if (t.status === 'approved') {
+          if (t.transaction_type === 'daily_expense') expenses += Number(t.amount);
+          if (t.transaction_type === 'bank_transfer') bankTransfers += Number(t.amount);
+          if (t.transaction_type === 'refund') refunds += Number(t.amount);
+        }
+      });
+
+      return {
+        ...c,
+        total_cash_collected: cashCollected,
+        pending_handover: pendingHandover,
+        approved_handover: approvedHandover,
+        drawer_balance: cashCollected - expenses - bankTransfers - refunds
+      };
+    });
+  }, [cashierReports, dateFilteredDrawerTransactions, startDate, endDate]);
+
+  // Unified filtered datasets matching selectedCounterFilter
+  const filteredData = selectedCounterFilter === 'all' 
+    ? dateFilteredSalesReport 
+    : dateFilteredSalesReport.filter(d => d.counter_id === selectedCounterFilter);
+
+  const filteredInventoryReport = selectedCounterFilter === 'all' 
+    ? dateFilteredInventoryReport 
+    : dateFilteredInventoryReport.filter(r => r.counter_id === selectedCounterFilter);
+
+  const filteredInventory = selectedCounterFilter === 'all' 
+    ? dateFilteredInventory 
+    : dateFilteredInventory.filter(i => i.counter_id === selectedCounterFilter);
+
+  const filteredBillsForStats = selectedCounterFilter === 'all' 
+    ? effectiveBills 
+    : effectiveBills.filter(b => b.counter_id === selectedCounterFilter);
+
+  const filteredAmountCollected = selectedCounterFilter === 'all'
+    ? dateFilteredAmountCollected
+    : dateFilteredAmountCollected.filter(r => r.counter_id === selectedCounterFilter);
+
+  const filteredUnpaidBills = selectedCounterFilter === 'all'
+    ? (dateFilteredUnpaidBillsReport || [])
+    : (dateFilteredUnpaidBillsReport || []).filter(b => b.counter_id === selectedCounterFilter);
+
+  const filteredMovementReport = selectedCounterFilter === 'all'
+    ? (dateFilteredAccessoryMovementReport || [])
+    : (dateFilteredAccessoryMovementReport || []).filter(r => r.counter_id === selectedCounterFilter);
 
   const totalRevenue = filteredData.reduce((sum, r) => sum + r.total_sales, 0);
   const totalAccessoriesSold = filteredData.reduce((sum, r) => sum + r.total_items, 0);
   const totalAuditedBills = filteredBillsForStats.filter(b => b.audit_status === 'audited' || b.audit_status === 'verified').length;
-  // Calculate profit if purchase_price is available, else fallback to 0. (Requires purchase_price to be fetched in useAdminData)
+  // Calculate profit if purchase_price is available, else fallback to 0
   const totalProfit = filteredBillsForStats.reduce((sum, b) => {
-    // If we have purchase_price, calculate profit. Otherwise it remains 0.
     const cost = b.items ? b.items.reduce((itemSum, item) => itemSum + (Number(item.accessories?.purchase_price || 0) * Number(item.quantity || 0)), 0) : 0;
     const profit = cost > 0 ? (Number(b.total_amount) - cost) : 0;
     return sum + profit;
   }, 0);
 
   const totalPendingApprovals = filteredBillsForStats.filter(b => b.approval_status === 'pending').length;
-  const totalCashCollectedTL = selectedCounterFilter === 'all' 
-    ? amountCollectedReport.reduce((sum, r) => sum + r.total_collected, 0)
-    : amountCollectedReport.filter(r => r.counter_id === selectedCounterFilter).reduce((sum, r) => sum + r.total_collected, 0);
+  const totalCashCollectedTL = filteredAmountCollected.reduce((sum, r) => sum + r.total_collected, 0);
 
   const uniqueCounters = Array.from(new Map(data.map(d => [d.counter_id, d])).values());
 
@@ -72,6 +577,7 @@ export const ReportsView = ({
 
   const handleExportSlide = () => {
     const currentSlideName = slideNames[activeSlide];
+    const dateSuffix = startDate || endDate ? `_${startDate || 'start'}_to_${endDate || 'today'}` : '_All_Time';
     
     if (currentSlideName === 'Ledger') {
       const exportData = filteredData.map(r => ({
@@ -82,7 +588,7 @@ export const ReportsView = ({
         'Total Paid (Credit) ₹': r.total_collected,
         'Cash Drawer Balance (₹)': r.drawer_balance || 0
       }));
-      exportToExcel(exportData, 'Ledger_Report');
+      exportToExcel(exportData, `Ledger_Report${dateSuffix}`);
     } else if (currentSlideName === 'Revenue Report') {
       const exportData = filteredData.map(r => ({
         'Counter Name': r.counter_name,
@@ -90,16 +596,16 @@ export const ReportsView = ({
         'Total Items Sold': r.total_items,
         'Revenue Generated (₹)': r.total_sales
       }));
-      exportToExcel(exportData, 'Revenue_Report');
+      exportToExcel(exportData, `Revenue_Report${dateSuffix}`);
     } else if (currentSlideName === 'Inventory Report') {
       const exportData = filteredInventoryReport.map(r => ({
         'Counter Name': r.counter_name,
         'Surplus Count': r.surplus_count,
         'Shortage Count': r.shortage_count
       }));
-      exportToExcel(exportData, 'Inventory_Summary_Report');
+      exportToExcel(exportData, `Inventory_Summary_Report${dateSuffix}`);
     } else if (currentSlideName === 'Amount Collected') {
-      const exportData = (selectedCounterFilter === 'all' ? amountCollectedReport : amountCollectedReport.filter(r => r.counter_id === selectedCounterFilter)).map(r => ({
+      const exportData = filteredAmountCollected.map(r => ({
         'Counter Name': r.counter_name,
         'Cash Collected (₹)': r.cash_collected,
         'UPI Collected (₹)': r.upi_collected,
@@ -107,9 +613,9 @@ export const ReportsView = ({
         'Bank Transfer Collected (₹)': r.bank_transfer_collected,
         'Total Collected (₹)': r.total_collected
       }));
-      exportToExcel(exportData, 'Amount_Collected_Report');
-    } else if (currentSlideName === 'Team Lead Report' && teamLeadReports) {
-      const exportData = teamLeadReports.map(r => ({
+      exportToExcel(exportData, `Amount_Collected_Report${dateSuffix}`);
+    } else if (currentSlideName === 'Team Lead Report' && (dateFilteredTeamLeadReports || teamLeadReports)) {
+      const exportData = (dateFilteredTeamLeadReports || teamLeadReports)!.map(r => ({
         'Team Lead': r.team_lead_name,
         'Counters Assigned Count': r.assigned_counters_count,
         'Counters Assigned Names': r.assigned_counters_names.join(', '),
@@ -118,53 +624,49 @@ export const ReportsView = ({
         'Discount Approved (₹)': r.total_discount_approved,
         'Excess Approved (₹)': r.total_excess_approved
       }));
-      exportToExcel(exportData, 'Team_Lead_Report');
-    } else if (currentSlideName === 'Billing Counter Report' && billingCounterReports) {
-      const exportData = billingCounterReports.map(r => ({
+      exportToExcel(exportData, `Team_Lead_Report${dateSuffix}`);
+    } else if (currentSlideName === 'Billing Counter Report' && (dateFilteredBillingCounterReports || billingCounterReports)) {
+      const exportData = (dateFilteredBillingCounterReports || billingCounterReports)!.map(r => ({
         'Billing Counter': r.billing_counter_name,
         'Counters Assigned Count': r.assigned_counters_count,
         'Counters Assigned Names': r.assigned_counters_names.join(', '),
         'Pending Bills': r.pending_bills,
         'Closed Bills': r.closed_bills
       }));
-      exportToExcel(exportData, 'Billing_Counter_Report');
-    } else if (currentSlideName === 'Cashier Report' && cashierReports) {
-      const exportData = cashierReports.map(r => ({
+      exportToExcel(exportData, `Billing_Counter_Report${dateSuffix}`);
+    } else if (currentSlideName === 'Cashier Report' && (dateFilteredCashierReports || cashierReports)) {
+      const exportData = (dateFilteredCashierReports || cashierReports)!.map(r => ({
         'Cashier Name': r.cashier_name,
         'Pending Handover (₹)': r.pending_handover,
         'Approved Handover (₹)': r.approved_handover,
         'Drawer Cash Balance (₹)': r.drawer_balance,
         'Total Cash Collected (₹)': r.total_cash_collected
       }));
-      exportToExcel(exportData, 'Cashier_Report');
-    } else if (currentSlideName === 'Auditor Report' && auditorReports) {
-      const exportData = auditorReports.map(r => ({
+      exportToExcel(exportData, `Cashier_Report${dateSuffix}`);
+    } else if (currentSlideName === 'Auditor Report' && (dateFilteredAuditorReports || auditorReports)) {
+      const exportData = (dateFilteredAuditorReports || auditorReports)!.map(r => ({
         'Auditor Name': r.auditor_name,
         'Pending Audits': r.pending_audits,
         'Approved (Forwarded) Audits': r.approved_audits,
         'Total Savings Found (₹)': r.total_savings_found
       }));
-      exportToExcel(exportData, 'Auditor_Report');
-        } else if (currentSlideName === 'Unpaid Bills Report' && unpaidBillsReport) {
-      const exportData = (selectedCounterFilter === 'all' ? unpaidBillsReport : unpaidBillsReport.filter(b => b.counter_id === selectedCounterFilter)).map(b => ({
+      exportToExcel(exportData, `Auditor_Report${dateSuffix}`);
+    } else if (currentSlideName === 'Unpaid Bills Report' && filteredUnpaidBills) {
+      const exportData = filteredUnpaidBills.map(b => ({
         'Bill Number': b.bill_number,
         'Counter Name': b.profiles?.name || 'Unknown',
         'Customer Name': b.customer_name || 'N/A',
         'Balance Left (₹)': b.amount_left,
         'Total Billed Amount (₹)': b.total_amount
       }));
-      exportToExcel(exportData, 'Unpaid_Bills_Report');
-    } else if (currentSlideName === 'Billing Report' && allBills) {
-      const exportData = (selectedCounterFilter === 'all' ? allBills : allBills.filter(b => b.counter_id === selectedCounterFilter))
-        .filter(b => b.approval_status !== 'reverted' && b.approval_status !== 'reverted_by_admin')
-        .map(b => ({
-        'Bill Number': b.bill_number,
-        'Counter Name': b.profiles?.name || 'Unknown',
-        'Customer Name': b.customer_name || 'N/A',
-        'Payment Method': b.payment_method || 'Cash',
-        'Total Amount (₹)': b.total_amount
+      exportToExcel(exportData, `Unpaid_Bills_Report${dateSuffix}`);
+    } else if (currentSlideName === 'Accessory Movement Report' && filteredMovementReport) {
+      const exportData = filteredMovementReport.map(r => ({
+        'Counter Name': r.counter_name,
+        'Total Purchased/Assigned (In-Count)': r.total_in_count,
+        'Total Sold (Out-Count)': r.total_out_count
       }));
-      exportToExcel(exportData, 'Billing_Report');
+      exportToExcel(exportData, `Accessory_Movement_Report${dateSuffix}`);
     }
   };
 
@@ -306,7 +808,7 @@ export const ReportsView = ({
     }
 
     if (currentSlideName === 'Amount Collected') {
-      const acReport = selectedCounterFilter === 'all' ? amountCollectedReport : amountCollectedReport.filter(r => r.counter_id === selectedCounterFilter);
+      const acReport = filteredAmountCollected;
       const cash = acReport.reduce((sum, r) => sum + r.cash_collected, 0);
       const upi = acReport.reduce((sum, r) => sum + r.upi_collected, 0);
       const card = acReport.reduce((sum, r) => sum + r.card_collected, 0);
@@ -346,11 +848,12 @@ export const ReportsView = ({
       );
     }
 
-    if (currentSlideName === 'Team Lead Report' && teamLeadReports) {
-      const totalPending = teamLeadReports.reduce((sum, r) => sum + r.pending_approvals, 0);
-      const totalApproved = teamLeadReports.reduce((sum, r) => sum + r.approved_approvals, 0);
-      const totalDiscount = teamLeadReports.reduce((sum, r) => sum + r.total_discount_approved, 0);
-      const totalExcess = teamLeadReports.reduce((sum, r) => sum + r.total_excess_approved, 0);
+    if (currentSlideName === 'Team Lead Report' && (dateFilteredTeamLeadReports || teamLeadReports)) {
+      const reports = dateFilteredTeamLeadReports || teamLeadReports || [];
+      const totalPending = reports.reduce((sum, r) => sum + r.pending_approvals, 0);
+      const totalApproved = reports.reduce((sum, r) => sum + r.approved_approvals, 0);
+      const totalDiscount = reports.reduce((sum, r) => sum + r.total_discount_approved, 0);
+      const totalExcess = reports.reduce((sum, r) => sum + r.total_excess_approved, 0);
       
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -386,9 +889,10 @@ export const ReportsView = ({
       );
     }
     
-    if (currentSlideName === 'Billing Counter Report' && billingCounterReports) {
-      const totalPending = billingCounterReports.reduce((sum, r) => sum + r.pending_bills, 0);
-      const totalClosed = billingCounterReports.reduce((sum, r) => sum + r.closed_bills, 0);
+    if (currentSlideName === 'Billing Counter Report' && (dateFilteredBillingCounterReports || billingCounterReports)) {
+      const reports = dateFilteredBillingCounterReports || billingCounterReports || [];
+      const totalPending = reports.reduce((sum, r) => sum + r.pending_bills, 0);
+      const totalClosed = reports.reduce((sum, r) => sum + r.closed_bills, 0);
       
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
@@ -410,11 +914,12 @@ export const ReportsView = ({
       );
     }
     
-    if (currentSlideName === 'Cashier Report' && cashierReports) {
-      const pendingHandover = cashierReports.reduce((sum, r) => sum + r.pending_handover, 0);
-      const approvedHandover = cashierReports.reduce((sum, r) => sum + r.approved_handover, 0);
-      const drawerBalance = cashierReports.reduce((sum, r) => sum + r.drawer_balance, 0);
-      const cashCollected = cashierReports.reduce((sum, r) => sum + r.total_cash_collected, 0);
+    if (currentSlideName === 'Cashier Report' && (dateFilteredCashierReports || cashierReports)) {
+      const reports = dateFilteredCashierReports || cashierReports || [];
+      const pendingHandover = reports.reduce((sum, r) => sum + r.pending_handover, 0);
+      const approvedHandover = reports.reduce((sum, r) => sum + r.approved_handover, 0);
+      const drawerBalance = reports.reduce((sum, r) => sum + r.drawer_balance, 0);
+      const cashCollected = reports.reduce((sum, r) => sum + r.total_cash_collected, 0);
 
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -450,10 +955,11 @@ export const ReportsView = ({
       );
     }
     
-    if (currentSlideName === 'Auditor Report' && auditorReports) {
-      const pendingAudits = auditorReports.reduce((sum, r) => sum + r.pending_audits, 0);
-      const approvedAudits = auditorReports.reduce((sum, r) => sum + r.approved_audits, 0);
-      const savingsFound = auditorReports.reduce((sum, r) => sum + r.total_savings_found, 0);
+    if (currentSlideName === 'Auditor Report' && (dateFilteredAuditorReports || auditorReports)) {
+      const reports = dateFilteredAuditorReports || auditorReports || [];
+      const pendingAudits = reports.reduce((sum, r) => sum + r.pending_audits, 0);
+      const approvedAudits = reports.reduce((sum, r) => sum + r.approved_audits, 0);
+      const savingsFound = reports.reduce((sum, r) => sum + r.total_savings_found, 0);
 
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -483,7 +989,7 @@ export const ReportsView = ({
     }
     
     if (currentSlideName === 'Unpaid Bills Report' && unpaidBillsReport) {
-      const ubReport = selectedCounterFilter === 'all' ? unpaidBillsReport : unpaidBillsReport.filter(b => b.counter_id === selectedCounterFilter);
+      const ubReport = filteredUnpaidBills;
       const totalUnpaid = ubReport.length;
       const totalBilled = ubReport.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
       const totalBalance = ubReport.reduce((sum, b) => {
@@ -519,9 +1025,7 @@ export const ReportsView = ({
     }
     
     if (currentSlideName === 'Accessory Movement Report' && accessoryMovementReport) {
-      const filteredAccReport = selectedCounterFilter === 'all' 
-        ? accessoryMovementReport 
-        : accessoryMovementReport.filter(r => r.counter_id === selectedCounterFilter);
+      const filteredAccReport = filteredMovementReport;
       
       const totalInCount = filteredAccReport.reduce((sum, r) => sum + r.total_in_count, 0);
       const totalOutCount = filteredAccReport.reduce((sum, r) => sum + r.total_out_count, 0);
@@ -609,6 +1113,129 @@ export const ReportsView = ({
           >
             <ChevronRight className="w-6 h-6" />
           </button>
+        </div>
+
+        {/* Date Range Filter Bar - Visible on every report slide */}
+        <div className="border-b border-border bg-muted/20 px-4 py-3 sm:px-6 sm:py-3.5">
+          <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-3">
+            {/* Quick Presets */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wider mr-1">
+                <Calendar className="w-3.5 h-3.5 text-primary" />
+                <span>Date Range:</span>
+              </div>
+              
+              <div className="inline-flex items-center p-0.5 bg-muted/50 border border-border rounded-lg text-xs">
+                <button
+                  type="button"
+                  onClick={() => handlePreset('all')}
+                  className={`px-3 py-1 rounded-md font-semibold transition-all ${
+                    activePreset === 'all'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  All Time
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePreset('today')}
+                  className={`px-3 py-1 rounded-md font-semibold transition-all ${
+                    activePreset === 'today'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePreset('yesterday')}
+                  className={`px-3 py-1 rounded-md font-semibold transition-all ${
+                    activePreset === 'yesterday'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Yesterday
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePreset('7days')}
+                  className={`px-3 py-1 rounded-md font-semibold transition-all ${
+                    activePreset === '7days'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Last 7 Days
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePreset('this_month')}
+                  className={`px-3 py-1 rounded-md font-semibold transition-all ${
+                    activePreset === 'this_month'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  This Month
+                </button>
+              </div>
+            </div>
+
+            {/* Custom Range Inputs & Info */}
+            <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto justify-between xl:justify-end">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="text-muted-foreground text-[11px] font-bold uppercase">From:</span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onClick={(e) => { try { e.currentTarget.showPicker?.(); } catch {} }}
+                    onChange={(e) => handleDateChange(e.target.value, endDate)}
+                    className="px-2.5 py-1 text-xs bg-card border border-border rounded-md text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all shadow-sm cursor-pointer dark:[&::-webkit-calendar-picker-indicator]:invert dark:[&::-webkit-calendar-picker-indicator]:brightness-125 dark:[&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="text-muted-foreground text-[11px] font-bold uppercase">To:</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onClick={(e) => { try { e.currentTarget.showPicker?.(); } catch {} }}
+                    onChange={(e) => handleDateChange(startDate, e.target.value)}
+                    className="px-2.5 py-1 text-xs bg-card border border-border rounded-md text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all shadow-sm cursor-pointer dark:[&::-webkit-calendar-picker-indicator]:invert dark:[&::-webkit-calendar-picker-indicator]:brightness-125 dark:[&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {(startDate || endDate) && (
+                  <button
+                    type="button"
+                    onClick={() => handlePreset('all')}
+                    className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-destructive hover:bg-destructive/10 border border-destructive/20 rounded-md transition-all active:scale-95"
+                    title="Clear date filter"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Clear</span>
+                  </button>
+                )}
+
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 border border-primary/20 text-primary text-xs font-bold rounded-md">
+                  <span>{effectiveBills.length} Bills</span>
+                  {startDate || endDate ? (
+                    <span className="text-[10px] font-normal text-muted-foreground hidden sm:inline">
+                      ({startDate || 'Start'} → {endDate || 'Today'})
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-normal text-muted-foreground hidden sm:inline">(All Time)</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Slides Track */}
@@ -788,7 +1415,7 @@ export const ReportsView = ({
               </div>
               <DataTable<AmountCollectedReport>
                 idAccessor="counter_id"
-                data={selectedCounterFilter === 'all' ? amountCollectedReport : amountCollectedReport.filter(r => r.counter_id === selectedCounterFilter)}
+                data={filteredAmountCollected}
                 onRowClick={(r) => setSelectedAmountReport(r)}
                 columns={[
                   { header: 'Counter Name', accessor: 'counter_name', sortAccessor: 'counter_name', className: 'text-left font-semibold text-primary group-hover:underline cursor-pointer' },
@@ -802,7 +1429,7 @@ export const ReportsView = ({
             </div>
             
             {/* Slide 5: Team Lead Report */}
-            {teamLeadReports && (
+            {(dateFilteredTeamLeadReports || teamLeadReports) && (
               <div className="w-full flex-shrink-0">
                 <div className="px-4 sm:px-6 pt-4 pb-2">
                   <p className="text-sm text-muted-foreground flex items-center gap-2">
@@ -812,7 +1439,7 @@ export const ReportsView = ({
                 </div>
                 <DataTable<TeamLeadReport>
                   idAccessor="team_lead_id"
-                  data={teamLeadReports}
+                  data={dateFilteredTeamLeadReports || teamLeadReports || []}
                   onRowClick={onTeamLeadClick}
                   columns={[
                     { header: 'Team Lead', accessor: 'team_lead_name', sortAccessor: 'team_lead_name', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
@@ -832,7 +1459,7 @@ export const ReportsView = ({
             )}
             
             {/* Slide 5.5: Billing Counter Report */}
-            {billingCounterReports && (
+            {(dateFilteredBillingCounterReports || billingCounterReports) && (
               <div className="w-full flex-shrink-0">
                 <div className="px-4 sm:px-6 pt-4 pb-2">
                   <p className="text-sm text-muted-foreground flex items-center gap-2">
@@ -842,7 +1469,7 @@ export const ReportsView = ({
                 </div>
                 <DataTable<BillingCounterReport>
                   idAccessor="billing_counter_id"
-                  data={billingCounterReports}
+                  data={dateFilteredBillingCounterReports || billingCounterReports || []}
                   columns={[
                     { header: 'Billing Counter', accessor: 'billing_counter_name', sortAccessor: 'billing_counter_name', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
                     { header: 'Counters Assigned', accessor: (r) => (
@@ -859,7 +1486,7 @@ export const ReportsView = ({
             )}
             
             {/* Slide 6: Cashier Report */}
-            {cashierReports && onCashierClick && (
+            {(dateFilteredCashierReports || cashierReports) && onCashierClick && (
               <div className="w-full flex-shrink-0">
                 <div className="px-4 sm:px-6 pt-4 pb-2">
                   <p className="text-sm text-muted-foreground flex items-center gap-2">
@@ -869,7 +1496,7 @@ export const ReportsView = ({
                 </div>
                 <DataTable<CashierReport>
                   idAccessor="cashier_id"
-                  data={cashierReports}
+                  data={dateFilteredCashierReports || cashierReports || []}
                   onRowClick={onCashierClick}
                   columns={[
                     { header: 'Cashier Name', accessor: 'cashier_name', sortAccessor: 'cashier_name', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
@@ -883,7 +1510,7 @@ export const ReportsView = ({
             )}
 
             {/* Slide 7: Auditor Report */}
-            {auditorReports && onAuditorClick && (
+            {(dateFilteredAuditorReports || auditorReports) && onAuditorClick && (
               <div className="w-full flex-shrink-0">
                 <div className="px-4 sm:px-6 pt-4 pb-2">
                   <p className="text-sm text-muted-foreground flex items-center gap-2">
@@ -893,7 +1520,7 @@ export const ReportsView = ({
                 </div>
                 <DataTable<any>
                   idAccessor="auditor_id"
-                  data={auditorReports}
+                  data={dateFilteredAuditorReports || auditorReports || []}
                   onRowClick={onAuditorClick}
                   columns={[
                     { header: 'Auditor Name', accessor: 'auditor_name', sortAccessor: 'auditor_name', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
@@ -915,7 +1542,7 @@ export const ReportsView = ({
                 </div>
                 <DataTable<CounterBill>
                   idAccessor="id"
-                  data={selectedCounterFilter === 'all' ? unpaidBillsReport : unpaidBillsReport.filter(b => b.counter_id === selectedCounterFilter)}
+                  data={filteredUnpaidBills}
                   columns={[
                     { header: 'Bill Number', accessor: 'bill_number', sortAccessor: 'bill_number', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },
                     { header: 'Counter Name', accessor: (r) => r.profiles?.name || 'Unknown', sortAccessor: 'counter_id', className: 'text-left' },
@@ -952,7 +1579,7 @@ export const ReportsView = ({
                 </div>
                 <DataTable<AccessoryMovementReport>
                   idAccessor="counter_id"
-                  data={selectedCounterFilter === 'all' ? accessoryMovementReport : accessoryMovementReport.filter(r => r.counter_id === selectedCounterFilter)}
+                  data={filteredMovementReport}
                   onRowClick={onMovementClick}
                   columns={[
                     { header: 'Counter Name', accessor: 'counter_name', sortAccessor: 'counter_name', className: 'text-left font-bold text-primary uppercase text-xs tracking-wider' },

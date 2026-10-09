@@ -613,6 +613,7 @@ export function useTeamLeadData(user: any) {
     accessoryMovementReport,
     cashierReports,
     billingCounterReports,
+    drawerTransactions,
     loading,
     updateBillStatus,
     executeTransfer,

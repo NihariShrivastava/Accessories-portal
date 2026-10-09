@@ -21,6 +21,7 @@ export function TeamLeadDashboard() {
     accessoryMovementReport,
     cashierReports,
     billingCounterReports,
+    drawerTransactions,
     loading,
     updateBillStatus,
     executeTransfer
@@ -73,6 +74,13 @@ export function TeamLeadDashboard() {
         cashierReports={cashierReports}
         billingCounterReports={billingCounterReports}
         allBills={bills}
+        drawerTransactions={drawerTransactions}
+        startDate={startDate}
+        endDate={endDate}
+        onDateChange={(start, end) => {
+          setStartDate(start);
+          setEndDate(end);
+        }}
         onBack={() => setActiveView('dashboard')}
         onCounterClick={handleCounterClick}
         onCashierClick={handleCashierClick}

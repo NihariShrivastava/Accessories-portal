@@ -1641,6 +1641,7 @@ export function useAdminData() {
 
   return {
     stats, counters, warehouses, inventory, loginDetails, vehicleModels, modelAccessories, salesReport, inventoryReport, accessoryMovementReport, amountCollectedReport, uploading, cashierReports, teamLeadReports, billingCounterReports, allBills,
+    drawerTransactions,
     auditors, auditorReports,
     duplicacyReport, unpaidBillsReport,
     startDate, endDate, setStartDate, setEndDate,

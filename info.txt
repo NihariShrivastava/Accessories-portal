@@ -1,0 +1,474 @@
+================================================================================
+                    ACCESSORIES PORTAL - SYSTEM DOCUMENTATION
+================================================================================
+
+PROJECT OVERVIEW
+================================================================================
+The Accessories Portal is a comprehensive, enterprise-grade web application designed
+for automobile dealerships and service centers to streamline end-to-end accessory
+sales, inventory control, cash flow reconciliation, multi-tier approvals, fraud 
+prevention, and financial auditing.
+
+The system bridges communication and operational workflows across 7 distinct user 
+roles (Administrators, Sales Counters, Team Leads, Cashiers, Billing Desks, Auditors, 
+and Warehouses). It enforces strict accountability, eliminates billing discrepancies, 
+tracks inventory depletion in real time, and automates dealership ledger reporting.
+
+
+================================================================================
+1. TECHNOLOGY STACK
+================================================================================
+
+A. FRONTEND LAYER
+--------------------------------------------------------------------------------
+- Core Framework: React 19 (v19.2.5) with TypeScript (~6.0.2 / ~5.x)
+  * Functional components with modern React Hooks (useState, useEffect, useMemo, useCallback)
+  * Strict TypeScript typing for safe state management and data manipulation
+- Build Tool & Bundler: Vite 6 (v6.0.0) with @vitejs/plugin-react
+  * Lightning-fast Hot Module Replacement (HMR) and optimized Rollup-based production builds
+- Routing: React Router DOM (v7.14.2)
+  * Declarative client-side routing with nested layouts and role-based Protected Routes
+- Styling & UI Architecture:
+  * Tailwind CSS (v3.4.17) with PostCSS and Autoprefixer
+  * Utility classes with custom color schemes, dark/light theme support (ThemeProvider)
+  * clsx (v2.1.1) and tailwind-merge (v3.5.0) for dynamic conditional class concatenation
+- Icons & Visual Design:
+  * Lucide React (v1.14.0) for clean, responsive vector iconography
+  * Framer Motion (v12.41.0) for smooth UI transitions and modal animations
+- Notifications & Feedback:
+  * Sonner (v2.0.7) for toast alerts, status confirmations, and error dialogs
+- Data Processing & File Export/Import:
+  * XLSX / SheetJS (v0.18.5) for bulk Excel inventory uploads and custom multi-sheet Excel reports
+  * html2pdf.js (v0.14.0) for generating print-ready thermal/A4 branded customer invoices
+
+B. BACKEND AS A SERVICE (BaaS) & DATABASE LAYER
+--------------------------------------------------------------------------------
+- Database & Auth Provider: Supabase (@supabase/supabase-js v2.105.3)
+- Database Engine: Managed PostgreSQL (Cloud-hosted)
+- Storage & Session Persistence:
+  * Client-side window.sessionStorage for isolated, secure multi-tab session management
+  * Supabase Auth integrated with custom role profiles table and JWT verification
+- Security: Row-Level Security (RLS) policies and role-based data filtering
+
+C. DEPLOYMENT & HOSTING INFRASTRUCTURE
+--------------------------------------------------------------------------------
+- Edge Platform: Cloudflare Pages / Workers configured via Wrangler (v3.114.17)
+- Configuration: wrangler.json with single-page application (SPA) fallback routing
+
+
+================================================================================
+2. USER ROLES & ACCESS CONTROL MATRIX
+================================================================================
+
+The portal implements a strict role-based access control (RBAC) structure:
+
+1. ADMINISTRATOR ('admin')
+   - Complete operational and financial authority.
+   - User Management: Create, update, assign, and delete Counters, Warehouses, 
+     Team Leads, Cashiers, Auditors, and Billing Counters.
+   - Inventory Management: Bulk Excel upload with custom timestamps, stock adjustments, 
+     inter-counter/warehouse cart transfers, and batch deletion by upload date.
+   - Comprehensive Analytics: Access to all 10+ ledger and reporting slides with Excel export.
+   - Financial Overrides: Admin drawer adjustments, bill approvals/reversals, 
+     and duplicate audit resolutions.
+
+2. SALES COUNTER ('counter')
+   - Frontline point-of-sale operator at dealership showroom or service counter.
+   - Accessory Sales: Model-wise accessory catalog search, multi-item cart management, 
+     stock verification, and tax calculations (CGST + SGST).
+   - Invoicing: Captures customer name, phone, customer ID, vehicle chassis number, 
+     engine number, checklist number; supports split payment methods (Cash, UPI, Card, 
+     Bank Transfer, Finance).
+   - Invoices: Instant branded invoice generation and thermal/A4 PDF downloading.
+   - Physical Cash Drawer: Real-time balance calculation and submitting cash handover 
+     requests to assigned cashiers.
+   - Stock Visibility: Quick filter for shortage (stock <= 5) and surplus items.
+
+3. TEAM LEAD ('team_lead')
+   - Field supervisor assigned to specific showroom counters and warehouses.
+   - Approval Queue: Reviews pending bills submitted by assigned counters.
+   - Discounts & Excess: Authorizes customer discounts or excess adjustments with notes.
+   - Stock Transfers: Coordinates stock replenishment from warehouses to sales counters.
+   - Performance Monitoring: Views assigned counters' revenue, inventory shortages, 
+     cashier collections, and accessory movements.
+
+4. BILLING COUNTER ('billing_counter')
+   - Administrative billing workstation responsible for invoice closure.
+   - Workstation Queue: Receives approved bills from Team Leads/Admin.
+   - System Reconciliation: Records Customer ID, verifies official dealership DMS / 
+     Excellon Receipt Numbers, and validates payment UTRs.
+   - Fraud / Duplicacy Detection: Real-time global collision scanner detecting duplicated 
+     Excellon receipt numbers or bank UTR numbers across historical bills.
+   - Finalization: Marks bills as 'closed' to pass into the auditor queue.
+
+5. CASHIER ('cashier')
+   - Central financial desk managing store cash flows across assigned counters.
+   - Handover Acceptance: Reviews and approves/reverts pending cash handovers from counters.
+   - Operational Expenses: Logs daily store cash outflows (Electricity, Refreshments/Chai, 
+     Office Supplies, Fuel/Travel, Maintenance, Miscellaneous).
+   - Bank Deposits: Records cash deposited to bank accounts with Bank Name, Account 
+     Number, and IFSC code.
+   - Refunds: Records customer cash refunds linked to target counters.
+   - Real-Time Drawer: Maintains accurate cash-in-drawer balance.
+
+6. AUDITOR ('auditor')
+   - Internal compliance and financial auditor overseeing assigned Team Leads & Counters.
+   - Auditing Workstation: Reviews closed bills for discrepancies.
+   - Dealership Savings Engine: Verifies base price discounts, miscellaneous savings, 
+     TL excess, and calculates net Dealership Savings and payment gaps.
+   - Revert / Forward: Reverts erroneous bills back to Team Lead with remarks or 
+     forwards verified audits to Admin.
+   - Edit Metadata: Ability to correct customer and payment reference metadata.
+
+7. WAREHOUSE MANAGER ('warehouse')
+   - Storage depot personnel monitoring physical stock.
+   - Inventory Catalog: Real-time view of all accessories, part numbers, vehicle models, 
+     retail prices, and color-coded stock availability indicators (Green >5, Amber 1-5, Red 0).
+
+
+================================================================================
+3. END-TO-END BUSINESS WORKFLOW & LIFECYCLE
+================================================================================
+
+[Step 1: Inventory Stocking & Upload]
+   - Admin uploads an Excel file (.xlsx) containing columns: Model, Accessory Name, 
+     Part Number, Price, CGST %, SGST %, Quantity, and Target Counter/Warehouse.
+   - System performs a batch upsert into the 'accessories' table.
+   - Stock quantities become immediately visible to Counters, Team Leads, and Warehouses.
+
+[Step 2: Cart Building & Bill Generation]
+   - Counter operator selects a vehicle model (e.g. Elevate, City, Amaze).
+   - Operator adds items and required quantities to the cart. Stock availability is verified.
+   - Operator inputs customer details (Name, Phone, ID) and Vehicle Details (Chassis, 
+     Engine, Checklist #).
+   - Payment is configured: Single mode or Split Payment (e.g., ₹5,000 Cash + ₹15,000 UPI).
+   - System generates a formatted sequential Bill Number (e.g., "INV-0042" or counter prefix 
+     derived from operator initials + ID hash).
+   - The invoice rows are inserted into 'bills' table; stock is decremented immediately.
+   - Initial bill status: approval_status = 'pending'.
+
+[Step 3: Team Lead Supervisory Approval]
+   - Team Lead opens 'Bill Approvals' on their dashboard.
+   - TL reviews billed accessories, prices, and customer info.
+   - If requested, TL enters approved discount amount or excess adjustment with a remark.
+   - TL clicks "Approve Bill" -> approval_status changes to 'approved'.
+
+[Step 4: Billing Counter Finalization & Anti-Duplicacy Check]
+   - The approved bill appears on Billing Counter's 'Workstation'.
+   - Billing clerk verifies payment against DMS (Excellon / Dealer Management System) 
+     and attaches the Excellon Receipt Number and Customer ID.
+   - Anti-Duplicacy engine runs automatically. If an Excellon Receipt Number or UTR has 
+     already been used on another bill, a warning banner flags the conflict.
+   - Billing clerk closes the bill -> approval_status changes to 'closed'.
+
+[Step 5: Cash Handover & Cashier Drawer Management]
+   - Counter operator collects physical cash from customers into their local counter drawer.
+   - At end of shift/day, counter submits a 'Cashier Transfer' transaction via 'Cash Drawer'.
+   - Cashier sees the transfer under 'Pending Handovers' and clicks 'Approve'.
+   - Physical cash moves to Cashier's Central Drawer.
+   - Cashier logs daily expenses or bank deposit vouchers, keeping the ledger balanced.
+
+[Step 6: Compliance Audit & Dealership Savings]
+   - The 'closed' bill appears in the Auditor's Queue.
+   - Auditor opens 'Audit Receipt', inspects payment breakdown, references, and UTRs.
+   - Auditor computes: Total Savings = Base Price Savings + Misc Savings + TL Excess.
+   - Computes Total Gap = Sum of payment gaps.
+   - If satisfied, Auditor clicks "Forward to Admin" -> audit_status = 'audited' / 'verified'.
+   - If discrepancy exists, Auditor clicks "Revert to Team Lead" with feedback comments.
+
+[Step 7: Administrative Oversight & Multi-Slide Executive Reports]
+   - Admin monitors the entire operation via 10 interactive reporting slides.
+   - Reports include: Ledger, Revenue, Inventory Shortage/Surplus, Amount Collected 
+     (by payment mode), Team Lead approvals, Billing Counter throughput, Cashier 
+     balances, Auditor savings, Unpaid Bills, and Accessory Movement.
+   - Admin can export any report to Excel with one click.
+
+
+================================================================================
+4. DATABASE SCHEMA & DATA DICTIONARY
+================================================================================
+
+1. TABLE: profiles
+   - id: UUID (Primary Key, matches Supabase auth.users.id)
+   - name: TEXT (Display name of the user/counter/branch)
+   - username: TEXT (Unique login handle)
+   - password: TEXT (Stored for administrative staff provisioning)
+   - role: TEXT ('admin' | 'counter' | 'team_lead' | 'cashier' | 'auditor' | 'billing_counter' | 'warehouse')
+   - assigned_counters: UUID[] (Array of counter profile IDs assigned to TL/Cashier/Billing Counter)
+   - assigned_warehouses: UUID[] (Array of warehouse profile IDs assigned to TL)
+   - assigned_team_leads: UUID[] (Array of team lead IDs assigned to Auditor)
+   - created_at: TIMESTAMPTZ
+
+2. TABLE: accessories
+   - id: UUID (Primary Key)
+   - counter_id: UUID (Foreign Key -> profiles.id; counter or warehouse location)
+   - vehicle_model: TEXT (e.g., 'Elevate', 'City 5th Gen', 'Amaze')
+   - name: TEXT (Accessory item name, e.g., 'Seat Cover Elegance')
+   - accessory_code: TEXT (OEM part number / SKU)
+   - quantity: INTEGER (Available stock count)
+   - price: NUMERIC (Retail selling price before tax)
+   - purchase_price: NUMERIC (Wholesale cost / dealer procurement cost)
+   - cgst_percent: NUMERIC (Central GST rate, e.g., 9%)
+   - sgst_percent: NUMERIC (State GST rate, e.g., 9%)
+   - created_at: TIMESTAMPTZ
+
+3. TABLE: bills
+   - id: UUID (Primary Key)
+   - bill_number: TEXT (Formatted invoice ID, e.g., 'INV-0021' or 'INV-0021-1')
+   - counter_id: UUID (Foreign Key -> profiles.id)
+   - accessory_id: UUID (Foreign Key -> accessories.id)
+   - vehicle_model: TEXT
+   - customer_name: TEXT
+   - customer_phone: TEXT
+   - customer_id: TEXT (DMS Customer Identifier)
+   - chassis_number: TEXT (Vehicle VIN / Chassis Number)
+   - engine_number: TEXT
+   - checklist_number: TEXT
+   - quantity: INTEGER (Items sold in this row)
+   - base_amount: NUMERIC (Taxable value)
+   - cgst_amount: NUMERIC (CGST component)
+   - sgst_amount: NUMERIC (SGST component)
+   - total_amount: NUMERIC (Gross invoice value)
+   - payment_method: TEXT ('Cash' | 'UPI' | 'Card' | 'Bank Transfer' | 'Finance' | 'Split Payment')
+   - payment_details: JSONB (Array of payment objects: method, amount, utr, excellon_receipt_number)
+   - amount_paid: NUMERIC (Amount collected)
+   - amount_left: NUMERIC (Outstanding balance / credit)
+   - excellon_receipt_number: TEXT (Official dealer receipt number)
+   - approval_status: TEXT ('pending' | 'approved' | 'closed' | 'reverted' | 'reverted_by_admin')
+   - excess_adjustment: NUMERIC (Additional adjustment approved by TL)
+   - discount_approved: NUMERIC (Discount conceded by TL)
+   - approval_note: TEXT (Remark by supervisor)
+   - audit_status: TEXT ('pending' | 'audited' | 'verified' | 'reverted')
+   - auditor_id: UUID (Foreign Key -> profiles.id)
+   - total_savings: NUMERIC (Dealership savings calculated during audit)
+   - total_gap: NUMERIC (Payment deficiency recorded)
+   - dealership_savings: JSONB (Detailed savings breakdown)
+   - payment_audits: JSONB (Historical audit log and resolved duplicate patches)
+   - created_at: TIMESTAMPTZ
+
+4. TABLE: drawer_transactions
+   - id: UUID (Primary Key)
+   - counter_id: UUID (Foreign Key -> profiles.id; source counter or cashier ID)
+   - transaction_type: TEXT ('cashier_transfer' | 'daily_expense' | 'bank_transfer' | 'refund')
+   - amount: NUMERIC (Monetary transaction value)
+   - status: TEXT ('pending' | 'approved' | 'reverted')
+   - category: TEXT (Expense category: 'Electricity Bill', 'Chai / Refreshments', 'Office Supplies', etc.)
+   - details: TEXT (Remarks, reason, or Admin Adjustment tag)
+   - bank_name: TEXT (For bank transfers)
+   - account_number: TEXT
+   - ifsc_code: TEXT
+   - created_at: TIMESTAMPTZ
+
+5. TABLE: login_logs
+   - id: UUID (Primary Key)
+   - user_id: UUID (Foreign Key -> profiles.id)
+   - created_at: TIMESTAMPTZ (Timestamp of login)
+
+
+================================================================================
+5. KEY ARCHITECTURAL HIGHLIGHTS & SMART ALGORITHMS
+================================================================================
+
+A. VIRTUAL DOMAIN MULTI-REALM AUTHENTICATION
+--------------------------------------------------------------------------------
+Users log in with a clean, simple username (e.g. 'counter1', 'lead_north', 'admin').
+Under the hood, the system iterates through internal virtual email domains:
+  ['portal.com', 'teamlead.com', 'cashier.com', 'auditor.com', 
+   'portal.local', 'teamlead.local', 'cashier.local', 'auditor.local']
+It transparently binds the username to Supabase Auth, retrieves the user metadata 
+and profile, verifies active account status, logs the login event to 'login_logs', 
+and routes to the appropriate dashboard with zero user friction.
+
+B. DYNAMIC SEQUENTIAL INVOICE GENERATOR WITH COLLISION RETRY
+--------------------------------------------------------------------------------
+Bill numbers are formed deterministically using counter operator initials plus a 
+3-character user hash (e.g., "NS3A9-0001") or standard "INV-" prefixes.
+To guarantee collision-free concurrency in high-volume showrooms:
+- It queries the highest existing sequence number for that counter prefix.
+- Loops with retry attempts incrementing `maxNum + 1 + retryCount`.
+- Multi-item cart bills share the base bill number with index suffixes (-1, -2).
+- Financial totals (amount_paid, amount_left) are pinned to row 0 to prevent 
+  double-counting in SQL aggregate sums.
+
+C. REAL-TIME FRAUD & DUPLICACY DETECTION ENGINE
+--------------------------------------------------------------------------------
+Located in the Billing Counter module and Admin Reports:
+- Maps all historical bills across all counters by `excellon_receipt_number` and `utr_number`.
+- Identifies any instance where the same bank UTR or DMS receipt has been submitted 
+  more than once across different customers or dates.
+- Flags duplicate rows in high-visibility amber/red badges, preventing duplicate 
+  claims or false revenue reporting.
+
+D. COMPREHENSIVE CASH DRAWER FORMULA
+--------------------------------------------------------------------------------
+Cashier Drawer Balance is dynamically computed in real-time:
+  Drawer Balance = (Approved Cashier Transfers from Counters)
+                 + (Admin Cash Adjustments)
+                 - (Approved Daily Expenses)
+                 - (Approved Bank Deposits)
+                 - (Approved Customer Refunds)
+
+Counter Local Drawer Balance:
+  Counter Drawer = (Total Cash Collected from Cash Bills)
+                 - (Approved & Pending Transfers to Cashier)
+
+E. MULTI-SLIDE EXECUTIVE REPORTING ENGINE (10 SLIDES)
+--------------------------------------------------------------------------------
+1. Ledger: Counter-by-counter summary of total bills, receivable amount (debit), 
+   total collected (credit), outstanding balance, and cash drawer balance.
+2. Revenue Report: Total items sold and gross revenue generated per counter.
+3. Inventory Report: Comprehensive count of surplus items and shortage items (<= 5 units).
+4. Amount Collected: Strict breakdown across Cash, UPI, Card, and Bank Transfer.
+5. Team Lead Report: Assigned counters, pending approvals, approved discounts & excess.
+6. Billing Counter Report: Assigned counters, pending bills, closed bills count.
+7. Cashier Report: Pending handovers, approved handovers, expenses, drawer balance.
+8. Auditor Report: Pending audits, approved audits, total dealership savings discovered.
+9. Unpaid Bills Report: Direct drill-down into bills with remaining balances.
+10. Accessory Movement Report: Inflow vs outflow counts grouped by vehicle model.
+
+
+================================================================================
+6. PROJECT DIRECTORY STRUCTURE
+================================================================================
+
+accessories-portal/
+├── .env                         # Supabase project URL and anon public API key
+├── index.html                   # HTML5 entry point with viewport and title metadata
+├── package.json                 # Project dependencies, scripts, and build tools
+├── postcss.config.js            # PostCSS configuration for Tailwind CSS
+├── tailwind.config.js           # Tailwind theme extensions, colors, and font definitions
+├── tsconfig.json                # TypeScript project configuration
+├── vite.config.ts               # Vite configuration with React plugin
+├── wrangler.json                # Cloudflare Pages deployment configuration
+├── src/
+│   ├── App.tsx                  # Root routing switch, protected routes, role redirects
+│   ├── main.tsx                 # React DOM mount point with ThemeProvider & Sonner Toaster
+│   ├── index.css                # Global CSS rules, scrollbar styling, and root variables
+│   │
+│   ├── components/
+│   │   ├── auth-provider.tsx    # React Context for authentication state & active profile
+│   │   ├── layout.tsx           # Application navigation bar, active user badge, logout
+│   │   ├── theme-provider.tsx   # Light / dark / system theme persistence engine
+│   │   ├── theme-toggle.tsx     # Animated theme toggle switch
+│   │   │
+│   │   └── dashboard/
+│   │       ├── Badge.tsx               # Status badge component (pending, approved, closed)
+│   │       ├── BillDetails.tsx         # Modal displaying complete bill & customer breakdown
+│   │       ├── BillForm.tsx            # Multi-item cart checkout form with split payment
+│   │       ├── BillReceipt.tsx         # Printable thermal/A4 customer invoice with html2pdf
+│   │       ├── CartModal.tsx           # Floating slide-over cart drawer
+│   │       ├── CollapsibleModelRow.tsx # Collapsible model accordion for shortage/surplus
+│   │       ├── DashboardCard.tsx       # Standardized KPI summary metric card
+│   │       ├── DataTable.tsx           # Generic paginated, sortable data table
+│   │       ├── DateRangeFilter.tsx     # Custom date range selector with quick filters
+│   │       ├── Modal.tsx               # Accessible modal overlay dialog wrapper
+│   │       ├── MultiSelectDropdown.tsx # Multi-choice dropdown for counter selection
+│   │       ├── QuantityModal.tsx       # Quantity selector popup for cart additions
+│   │       ├── SearchableDropdown.tsx  # Autocomplete searchable select element
+│   │       ├── ViewHeader.tsx          # Consistent view header with back button
+│   │       │
+│   │       └── sub-views/
+│   │           ├── AdminSubViews.tsx   # Centralized exports of all admin sub-views
+│   │           ├── admin/              # Management views (Users, Warehouses, Reports, Uploads)
+│   │           ├── auditor/            # Audit details dialog, audited cards, bill editors
+│   │           └── counter/            # Cash drawer view & counter approval tracking
+│   │
+│   ├── hooks/
+│   │   ├── useAdminData.ts          # Master hook for admin state, CRUD, uploads & reports
+│   │   ├── useAuditorData.ts        # Auditor queues, savings calculations, and metadata edits
+│   │   ├── useBillingCounterData.ts # Billing workstation, Excellon matching, duplicacy scan
+│   │   ├── useCashierData.ts        # Cash handovers, expense entries, bank transfers
+│   │   ├── useCounterData.ts        # POS catalog, cart state, drawer transactions
+│   │   ├── useTeamLeadData.ts       # Assigned counter monitoring, approvals, transfers
+│   │   └── useWarehouseData.ts      # Warehouse inventory views and stock alerts
+│   │
+│   ├── lib/
+│   │   ├── supabase.ts              # Supabase client initialization with session config
+│   │   └── utils.ts                 # Class merging helper (cn utility)
+│   │
+│   ├── pages/
+│   │   ├── Login.tsx                # Multi-domain unified login screen
+│   │   ├── AdminDashboard.tsx       # Admin master control panel
+│   │   ├── CounterDashboard.tsx     # Showroom counter sales & POS terminal
+│   │   ├── TeamLeadDashboard.tsx    # Supervisory approval & stock transfer dashboard
+│   │   ├── BillingCounterDashboard.tsx # DMS Excellon invoice closing & anti-duplicacy desk
+│   │   ├── CashierDashboard.tsx     # Central cash drawer management & expense voucher desk
+│   │   ├── AuditorDashboard.tsx     # Audit verification & dealership savings workstation
+│   │   └── WarehouseDashboard.tsx   # Depot inventory tracker & stock level monitor
+│   │
+│   └── utils/
+│       └── exportToExcel.ts         # Generic utility to convert JSON arrays to .xlsx files
+
+
+================================================================================
+7. ENVIRONMENT CONFIGURATION
+================================================================================
+
+The application requires the following environment variables in a `.env` file at the root:
+
+VITE_SUPABASE_URL=https://<your-project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<your-anon-public-key>
+
+Notes:
+- `VITE_SUPABASE_URL`: The HTTPS endpoint of your hosted Supabase instance.
+- `VITE_SUPABASE_ANON_KEY`: The public anonymous key for client requests (protected by RLS).
+
+
+================================================================================
+8. INSTALLATION, BUILD & RUN GUIDE
+================================================================================
+
+PREREQUISITES:
+- Node.js (v18.0.0 or higher recommended)
+- npm or yarn package manager
+
+DEVELOPMENT:
+1. Install project dependencies:
+   $ npm install
+
+2. Start the local development server with HMR:
+   $ npm run dev
+   The application will be accessible at http://localhost:5173/
+
+BUILDING FOR PRODUCTION:
+1. Compile TypeScript and build production bundle:
+   $ npm run build
+   The optimized production build output is generated in the `dist/` directory.
+
+2. Preview the production build locally:
+   $ npm run preview
+
+DEPLOYMENT (CLOUDFLARE PAGES):
+Deploying using Wrangler CLI:
+   $ npx wrangler pages deploy dist
+The application will be deployed globally on Cloudflare's Edge network.
+
+
+================================================================================
+9. SECURITY & DATA INTEGRITY BEST PRACTICES IMPLEMENTED
+================================================================================
+
+1. Session Isolation:
+   Supabase client uses `window.sessionStorage` rather than `localStorage`. This guarantees
+   that closing the tab/browser terminates the session and prevents cross-tab role bleed.
+
+2. Concurrency Control:
+   Stock deductions occur in real time upon bill submission. If multiple items are in a cart,
+   pre-validation ensures all items have sufficient quantities before any row is committed.
+
+3. Immutable Financial Ledgers:
+   Counter operators cannot delete or retroactively modify bills. Discrepancies must be 
+   escalated through Team Leads, Billing Desks, Auditors, or Administrators.
+
+4. Duplicate Prevention:
+   Payment details (Excellon DMS numbers and Bank UTR strings) are actively monitored 
+   across all historical transactions to prevent fraudulent double-claiming.
+
+5. Role Authorization Guards:
+   Direct URL tampering is intercepted by client-side `<ProtectedRoute allowedRoles={[...]}>`
+   wrappers that verify profile metadata and redirect unauthorized requests to their 
+   home dashboard.
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================

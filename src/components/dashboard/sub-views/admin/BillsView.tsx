@@ -30,9 +30,12 @@ export const BillsView = ({
       const paymentMatch = !paymentFilter ||
         (b.payment_method || 'Cash') === paymentFilter;
 
-      return accMatch && modelMatch && paymentMatch;
+      const billDateStr = (b.created_at || '').substring(0, 10);
+      const dateMatch = (!startDate || billDateStr >= startDate) && (!endDate || billDateStr <= endDate);
+
+      return accMatch && modelMatch && paymentMatch && dateMatch;
     });
-  }, [data, accFilter, modelFilter, paymentFilter]);
+  }, [data, accFilter, modelFilter, paymentFilter, startDate, endDate]);
 
   return (
     <div className="space-y-6">
