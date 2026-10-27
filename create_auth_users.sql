@@ -23,7 +23,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   '00c0456e-f8aa-4409-a9ab-8b58ece0584b',
@@ -36,7 +41,12 @@ INSERT INTO auth.users (
   '{"name":"asc-narayannagar-sr","role":"counter","username":"asc-narayannagar-sr","password":"123456"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
@@ -76,7 +86,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   '1eb13d5b-7c0e-4867-8033-2c2839d6c988',
@@ -89,7 +104,12 @@ INSERT INTO auth.users (
   '{"name":"asc-airportroad-ws","role":"counter","username":"asc-airportroad-ws","password":"123456"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
@@ -129,7 +149,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   '1fdbe377-1362-4be1-a961-a275177cdad8',
@@ -142,7 +167,12 @@ INSERT INTO auth.users (
   '{"name":"asc-narayannagar-ws","role":"counter","username":"asc-narayannagar-ws","password":"1234567"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
@@ -182,7 +212,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   '39300f59-a7ae-4e27-a832-1a3fb4a8aeef',
@@ -195,7 +230,12 @@ INSERT INTO auth.users (
   '{"name":"varsha","role":"billing_counter","username":"varsha","password":"123456"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
@@ -235,7 +275,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   '4314ec89-2949-4827-99b4-e7a4c2d97410',
@@ -248,7 +293,12 @@ INSERT INTO auth.users (
   '{"name":"cashier-assecsory-bhopal","role":"cashier","username":"cashier-assecsory-bhopal","password":"123456"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
@@ -288,7 +338,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   '45ed4cb3-3518-4e93-b0f1-bfb58d44730b',
@@ -301,7 +356,12 @@ INSERT INTO auth.users (
   '{"name":"asc-vidhisha-sr","role":"counter","username":"asc-vidhisha-sr","password":"123456"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
@@ -341,7 +401,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   '64ddeca6-67f2-486b-b40e-82384b13fe8d',
@@ -354,7 +419,12 @@ INSERT INTO auth.users (
   '{"name":"asc-raisenroad-sr","role":"counter","username":"asc-raisenroad-sr","password":"123456"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
@@ -394,7 +464,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   '8a39ddbb-a28e-4bd1-882d-90bd92e0c103',
@@ -407,7 +482,12 @@ INSERT INTO auth.users (
   '{"name":"asc-skc-sr","role":"counter","username":"asc-skc-sr","password":"123456"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
@@ -447,7 +527,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   'bb768122-a080-46cc-b7e4-d28263ef94ac',
@@ -460,7 +545,12 @@ INSERT INTO auth.users (
   '{"name":"auditor","role":"auditor","username":"auditor","password":"123456"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
@@ -500,7 +590,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   'c54134f7-96aa-4971-b18d-71792b2cc955',
@@ -513,7 +608,12 @@ INSERT INTO auth.users (
   '{"name":"asc-raisenroad-ws","role":"counter","username":"asc-raisenroad-ws","password":"123456"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
@@ -553,7 +653,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   'd436cf39-68f6-4b8d-8dae-e84e588cd1f7',
@@ -566,7 +671,12 @@ INSERT INTO auth.users (
   '{"name":"w-bpl","role":"warehouse","username":"w-bpl","password":"123456"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
@@ -606,7 +716,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   'd5df49d2-a953-422f-b6a7-328a78a27c56',
@@ -619,7 +734,12 @@ INSERT INTO auth.users (
   '{"name":"asc-vidhisha-ws","role":"counter","username":"asc-vidhisha-ws","password":"123456"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
@@ -659,7 +779,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   'e0889807-f4c9-4fa7-bc5d-e81b7715e94f',
@@ -672,7 +797,12 @@ INSERT INTO auth.users (
   '{"name":"Admin","role":"admin","username":"Admin","password":"admin@2468"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
@@ -712,7 +842,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   'eb4ef0e6-8aa8-4275-8e18-5d10a23269bf',
@@ -725,7 +860,12 @@ INSERT INTO auth.users (
   '{"name":"w-gwl","role":"warehouse","username":"w-gwl","password":"123456"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
@@ -765,7 +905,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   'f0ea6d32-8f81-4d82-8a61-8f9b8e0497f9',
@@ -778,7 +923,12 @@ INSERT INTO auth.users (
   '{"name":"siya","role":"team_lead","username":"siya","password":"123456"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
@@ -818,7 +968,12 @@ INSERT INTO auth.users (
   raw_user_meta_data,
   is_super_admin,
   created_at,
-  updated_at
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token_new,
+  email_change,
+  reauthentication_token
 ) VALUES (
   '00000000-0000-0000-0000-000000000000',
   'fbece8e5-6694-463d-a937-a90bd3a2975e',
@@ -831,7 +986,12 @@ INSERT INTO auth.users (
   '{"name":"asc-airportroad-sr","role":"counter","username":"asc-airportroad-sr","password":"123456"}'::jsonb,
   false,
   now(),
-  now()
+  now(),
+  '',
+  '',
+  '',
+  '',
+  ''
 );
 
 INSERT INTO auth.identities (
