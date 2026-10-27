@@ -9,6 +9,8 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- -----------------------------------------------------------------------------
 -- User: asc-narayannagar-sr (counter) -> asc-narayannagar-sr@portal.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'asc-narayannagar-sr@portal.com' OR id = '00c0456e-f8aa-4409-a9ab-8b58ece0584b';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -35,11 +37,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('123456', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -59,11 +57,13 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- User: asc-airportroad-ws (counter) -> asc-airportroad-ws@portal.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'asc-airportroad-ws@portal.com' OR id = '1eb13d5b-7c0e-4867-8033-2c2839d6c988';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -90,11 +90,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('123456', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -114,11 +110,13 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- User: asc-narayannagar-ws (counter) -> asc-narayannagar-ws@portal.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'asc-narayannagar-ws@portal.com' OR id = '1fdbe377-1362-4be1-a961-a275177cdad8';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -145,11 +143,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('1234567', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -169,11 +163,13 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- User: varsha (billing_counter) -> varsha@portal.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'varsha@portal.com' OR id = '39300f59-a7ae-4e27-a832-1a3fb4a8aeef';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -200,11 +196,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('123456', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -224,11 +216,13 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- User: cashier-assecsory-bhopal (cashier) -> cashier-assecsory-bhopal@portal.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'cashier-assecsory-bhopal@portal.com' OR id = '4314ec89-2949-4827-99b4-e7a4c2d97410';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -255,11 +249,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('123456', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -279,11 +269,13 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- User: asc-vidhisha-sr (counter) -> asc-vidhisha-sr@portal.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'asc-vidhisha-sr@portal.com' OR id = '45ed4cb3-3518-4e93-b0f1-bfb58d44730b';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -310,11 +302,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('123456', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -334,11 +322,13 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- User: asc-raisenroad-sr (counter) -> asc-raisenroad-sr@portal.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'asc-raisenroad-sr@portal.com' OR id = '64ddeca6-67f2-486b-b40e-82384b13fe8d';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -365,11 +355,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('123456', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -389,11 +375,13 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- User: asc-skc-sr (counter) -> asc-skc-sr@portal.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'asc-skc-sr@portal.com' OR id = '8a39ddbb-a28e-4bd1-882d-90bd92e0c103';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -420,11 +408,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('123456', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -444,11 +428,13 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- User: auditor (auditor) -> auditor@auditor.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'auditor@auditor.com' OR id = 'bb768122-a080-46cc-b7e4-d28263ef94ac';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -475,11 +461,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('123456', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -499,11 +481,13 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- User: asc-raisenroad-ws (counter) -> asc-raisenroad-ws@portal.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'asc-raisenroad-ws@portal.com' OR id = 'c54134f7-96aa-4971-b18d-71792b2cc955';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -530,11 +514,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('123456', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -554,11 +534,13 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- User: w-bpl (warehouse) -> w-bpl@portal.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'w-bpl@portal.com' OR id = 'd436cf39-68f6-4b8d-8dae-e84e588cd1f7';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -585,11 +567,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('123456', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -609,11 +587,13 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- User: asc-vidhisha-ws (counter) -> asc-vidhisha-ws@portal.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'asc-vidhisha-ws@portal.com' OR id = 'd5df49d2-a953-422f-b6a7-328a78a27c56';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -640,11 +620,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('123456', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -664,11 +640,13 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- User: Admin (admin) -> admin@portal.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'admin@portal.com' OR id = 'e0889807-f4c9-4fa7-bc5d-e81b7715e94f';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -695,11 +673,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('admin@2468', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -719,11 +693,13 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- User: w-gwl (warehouse) -> w-gwl@portal.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'w-gwl@portal.com' OR id = 'eb4ef0e6-8aa8-4275-8e18-5d10a23269bf';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -750,11 +726,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('123456', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -774,11 +746,13 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- User: siya (team_lead) -> siya@portal.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'siya@portal.com' OR id = 'f0ea6d32-8f81-4d82-8a61-8f9b8e0497f9';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -805,11 +779,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('123456', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -829,11 +799,13 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
 
 -- -----------------------------------------------------------------------------
 -- User: asc-airportroad-sr (counter) -> asc-airportroad-sr@portal.com
 -- -----------------------------------------------------------------------------
+DELETE FROM auth.users WHERE email = 'asc-airportroad-sr@portal.com' OR id = 'fbece8e5-6694-463d-a937-a90bd3a2975e';
+
 INSERT INTO auth.users (
   instance_id,
   id,
@@ -860,11 +832,7 @@ INSERT INTO auth.users (
   false,
   now(),
   now()
-) ON CONFLICT (id) DO UPDATE SET
-  encrypted_password = crypt('123456', gen_salt('bf')),
-  email = EXCLUDED.email,
-  email_confirmed_at = now(),
-  raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+);
 
 INSERT INTO auth.identities (
   id,
@@ -884,4 +852,4 @@ INSERT INTO auth.identities (
   now(),
   now(),
   now()
-) ON CONFLICT (provider, id) DO NOTHING;
+) ON CONFLICT DO NOTHING;
